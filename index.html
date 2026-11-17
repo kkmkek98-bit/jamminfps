@@ -657,7 +657,7 @@ const scene = new THREE.Scene();
 }
 scene.fog = new THREE.Fog(0xc4d6e4, 70, 260);
 
-const camera = new THREE.PerspectiveCamera(BASE_FOV, innerWidth / innerHeight, 0.05, 600);
+const camera = new THREE.PerspectiveCamera(BASE_FOV, innerWidth / innerHeight, 0.1, 600);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 
@@ -688,7 +688,7 @@ function canvasTex(size, draw, rx = 1, ry = rx) {
   const c = document.createElement('canvas'); c.width = c.height = size;
   const g = c.getContext('2d'); draw(g, size);
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry);
-  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy()); return t;
 }
 function noise(g, s, n, col, a, sz = 3) { for (let i = 0; i < n; i++) { g.fillStyle = col(Math.random()); g.globalAlpha = a; g.fillRect(Math.random() * s, Math.random() * s, 1 + Math.random() * sz, 1 + Math.random() * sz); } g.globalAlpha = 1; }
 const groundTex = canvasTex(256, (g, s) => {
@@ -729,14 +729,15 @@ const dirtTex = canvasTex(256, (g, s) => {
   noise(g, s, 3000, v => `rgb(${160 + v * 40 | 0},${135 + v * 35 | 0},${100 + v * 25 | 0})`, 0.55, 3);
   noise(g, s, 300, () => '#8a7458', 0.35, 5);
 }, 50);
-const brickTex = canvasTex(256, (g, s) => {
-  g.fillStyle = '#d8d0c4'; g.fillRect(0, 0, s, s);
-  const bh = 16, bw = 48;
+const brickTex = canvasTex(512, (g, s) => {
+  g.fillStyle = '#9a6a58'; g.fillRect(0, 0, s, s);
+  const bh = 32, bw = 96;
   for (let r = 0; r < s / bh; r++) for (let c = -1; c < s / bw + 1; c++) {
     const x = c * bw + (r % 2 ? bw / 2 : 0), y = r * bh; const v = Math.random();
-    g.fillStyle = `rgb(${150 + v * 40 | 0},${70 + v * 22 | 0},${55 + v * 18 | 0})`; g.fillRect(x + 1.5, y + 1.5, bw - 3, bh - 3);
+    g.fillStyle = `rgb(${146 + v * 26 | 0},${74 + v * 14 | 0},${58 + v * 12 | 0})`; g.fillRect(x + 2, y + 2, bw - 4, bh - 4);
   }
-  noise(g, s, 1500, () => '#3a1d14', 0.15, 2);
+  g.globalAlpha = 0.5; g.filter = 'blur(1.2px)'; g.drawImage(g.canvas, 0, 0); g.filter = 'none'; g.globalAlpha = 1;
+  noise(g, s, 2500, () => '#4a2a20', 0.08, 2);
 });
 const tileTex = canvasTex(128, (g, s) => {
   g.fillStyle = '#d9d6cf'; g.fillRect(0, 0, s, s);
@@ -1123,7 +1124,7 @@ function buildSchool() {
     }
   }
   addBox(0, H1, 0, 2 * X, FL, 2 * Z, MAT.lino);
-  floorPlane(-X + 0.4, X - 0.4, -Z + 0.4, Z - 0.4, MAT.lino, 0.03, 1.2); floorPlane(-12, 12, -Z + 0.4, Z - 0.4, MAT.tile, 0.035, 1.2);
+  floorPlane(-X + 0.4, -12, -Z + 0.4, Z - 0.4, MAT.lino, 0.03, 1.2); floorPlane(12, X - 0.4, -Z + 0.4, Z - 0.4, MAT.lino, 0.03, 1.2); floorPlane(-12, 12, -Z + 0.4, Z - 0.4, MAT.tile, 0.03, 1.2);
   for (const z of [-(Z + 0.06), Z + 0.06]) { deco(0, H1 + 0.15, z, 2 * X + 0.3, 0.32, 0.14, MAT.trim); for (const x of [-6, 6]) { deco(x, 2.95, z + Math.sign(z) * 0.75, 3.4, 0.14, 1.5, MAT.trimDark); for (const e of [-1.6, 1.6]) deco(x + e, 1.45, z + Math.sign(z) * 1.4, 0.1, 2.9, 0.1, MAT.steel); } }
   for (const x of [-(X + 0.06), X + 0.06]) deco(x, H1 + 0.15, 0, 0.14, 0.32, 2 * Z + 0.3, MAT.trim);
   // 옥상 (계단 구멍)
