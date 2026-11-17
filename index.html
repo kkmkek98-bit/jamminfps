@@ -122,6 +122,9 @@ table.sbt{width:100%;border-collapse:collapse;font-size:14px}
 .seg button{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#ddd;padding:6px 0;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
 .seg button.on{background:#ffd23f;color:#111;border-color:#ffd23f}
 .mapbox{display:flex;gap:10px;align-items:flex-start}
+#lobbyMap{display:none}.lb-col .mapinfo{font-size:10.5px;line-height:1.5}.lb-col{overflow-y:auto}
+.mapShot{width:100%;aspect-ratio:16/9;display:block;border:1px solid rgba(255,255,255,.25);background:#1a1d18;margin:6px 0 8px}
+.room-map{display:flex;gap:10px;align-items:flex-start;margin:4px 0 10px}.room-map canvas.mm{width:96px;height:102px;border:1px solid rgba(255,255,255,.25);flex:none}
 #lobbyMap{width:120px;height:128px;border:1px solid rgba(255,255,255,.25)}
 .testtag{margin-left:8px;background:#ff4a3d;color:#fff;padding:1px 6px;font-size:10px;letter-spacing:1px;border-radius:2px}
 .cheat-box{margin-top:16px;padding:12px;border:1px dashed rgba(255,210,63,.6);text-align:left;background:rgba(255,210,63,.05)}
@@ -400,6 +403,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
       <div class="opt"><label>적 AI 난이도</label><div class="seg" data-opt="diff"><button data-v="easy">쉬움</button><button data-v="normal" class="on">보통</button><button data-v="hard">어려움</button></div></div>
       <div class="opt"><label>마우스 감도 <b id="sensVal">1.00</b></label><input type="range" id="sensRange" min="0.3" max="2.5" step="0.05" value="1"></div>
       <h2>전장 정보</h2>
+      <canvas class="mapShot" width="480" height="270"></canvas>
       <div class="mapbox"><canvas id="lobbyMap" width="180" height="192"></canvas>
         <div class="mapinfo" id="lbMapInfo"></div></div>
     </section>
@@ -500,6 +504,8 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
         <section>
           <h2>경기 설정 <small>(방장만 변경 가능)</small></h2>
           <div class="opt"><label>전장</label><div class="seg" data-mopt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">휴게소</button></div></div>
+          <canvas class="mapShot" width="480" height="270"></canvas>
+          <div class="room-map"><canvas class="mm" id="roomMiniMap" width="180" height="192"></canvas><div class="mapinfo" id="roomMapInfo"></div></div>
           <div class="opt"><label>모드</label><div class="seg" data-mopt="mode"><button data-v="coop" class="on">협동 · 사람 vs AI</button><button data-v="mixed">팀 대전 · 사람 팀 나눔</button><button data-v="pvp">사람만 · AI 없음</button></div></div>
           <div class="opt"><label>목표 킬</label><div class="seg" data-mopt="kills"><button data-v="30">30</button><button data-v="50" class="on">50</button><button data-v="80">80</button><button data-v="100">100</button></div></div>
           <div class="opt"><label>제한 시간</label><div class="seg" data-mopt="time"><button data-v="300">5분</button><button data-v="600" class="on">10분</button><button data-v="900">15분</button></div></div>
@@ -1145,6 +1151,31 @@ function loadMap(id, small = false) {
   $('lbMapName').textContent = MAP.name;
   document.querySelectorAll('.seg[data-opt="map"] button').forEach(b => b.classList.toggle('on', b.dataset.v === id));
   if (typeof buildDebug === 'function') buildDebug();
+  if (state !== 'playing') showMapPreview();
+}
+// ----- 맵 미리보기 (항공샷) -----
+const mapShots = {}; const shotCam = new THREE.PerspectiveCamera(48, 16 / 9, 1, 1200);
+function snapMap() {
+  const c = document.createElement('canvas'); c.width = 480; c.height = 270;
+  const ax = ARENA.x, az = ARENA.z, R0 = Math.max(ax, az);
+  shotCam.aspect = innerWidth / innerHeight; shotCam.updateProjectionMatrix();
+  shotCam.position.set(ax * 0.95, R0 * 1.05, az * 1.25); shotCam.lookAt(0, 0, -az * 0.08);
+  const hid = []; for (const e of entities) if (e.model && e.model.root.visible) { e.model.root.visible = false; hid.push(e.model.root); }
+  const fog = scene.fog; scene.fog = null;
+  renderer.setRenderTarget(null); renderer.clear(); renderer.render(scene, shotCam);
+  const W = renderer.domElement.width, H = renderer.domElement.height, sh = Math.min(H, W * 9 / 16), sw = sh * 16 / 9;
+  c.getContext('2d').drawImage(renderer.domElement, (W - sw) / 2, (H - sh) / 2, sw, sh, 0, 0, 480, 270);
+  scene.fog = fog; hid.forEach(r => r.visible = true);
+  return c;
+}
+function showMapPreview() {
+  if (!mapShots[curMapId]) mapShots[curMapId] = snapMap();
+  const shot = mapShots[curMapId];
+  document.querySelectorAll('canvas.mapShot').forEach(cv => { const g = cv.getContext('2d'); g.clearRect(0, 0, 480, 270); g.drawImage(shot, 0, 0);
+    g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(0, 232, 480, 38); g.fillStyle = '#ffd23f'; g.font = '900 20px sans-serif'; g.fillText(MAP.name, 14, 258);
+    g.fillStyle = '#ddd'; g.font = '700 12px sans-serif'; g.textAlign = 'right'; g.fillText(`${ARENA.x * 2} × ${ARENA.z * 2} m · 힐팩 ${MAP.heal.length}개`, 466, 256); g.textAlign = 'left'; });
+  const rm = $('roomMiniMap'); if (rm) { const g = rm.getContext('2d'); g.clearRect(0, 0, 180, 192); g.drawImage(mmBase, 0, 0); }
+  const ri = $('roomMapInfo'); if (ri) ri.innerHTML = `<b>${MAP.name}</b><br>${MAP.info}<br><span class="bdot"></span>BLUE 스폰 (남)<br><span class="rdot"></span>RED 스폰 (북)`;
 }
 
 function blocked(x, z, y) {
@@ -2510,6 +2541,7 @@ function renderRoster() {
 function showLobby() {
   if (MP.on) mpLeave(true);
   state = 'menu';
+  for (const e of entities) e.off = false; loadMap(settings.map); showMapPreview();
   for (const e of entities) { e.alive = false; if (e.model) e.model.root.visible = false; if (!e.isPlayer) { e.loadout.primary = aiPrimary(); e.loadout.throw = ['GRENADE', 'GRENADE', 'FLASH', 'SMOKE', 'MOLOTOV'][Math.random() * 5 | 0]; } }
   player.loadout = { ...selLoadout };
   ['pause', 'death', 'end', 'scoreboard', 'title', 'multi', 'options', 'howto'].forEach(id => $(id).classList.add('hidden'));
@@ -3206,7 +3238,7 @@ function showRoom() {
   hideAllOverlays(); state = 'menu'; $('hud').classList.add('hidden');
   for (const e of entities) { e.alive = false; if (e.model) e.model.root.visible = false; }
   $('multi').classList.remove('hidden'); $('mpEntry').classList.add('hidden'); $('mpRoom').classList.remove('hidden');
-  renderRoom(); attachPreview('armRoom');
+  renderRoom(); attachPreview('armRoom'); loadMap(settings.map, MP.mode === 'pvp'); showMapPreview();
 }
 function renderRoom() {
   $('roomCode').textContent = MP.code;
@@ -3332,7 +3364,7 @@ function hostDrop(pid) {
 function clientOnData(m) {
   switch (m.t) {
     case 'reject': mpStatus(m.r, true); mpLeave(true); break;
-    case 'room': MP.slots = m.slots.map(s => ({ ...s, lo: null })); MP.mode = m.mode; Object.assign(settings, m.set); if ($('mpRoom').classList.contains('hidden') || state !== 'menu') { if (!MP.started) showRoom(); } else renderRoom(); break;
+    case 'room': MP.slots = m.slots.map(s => ({ ...s, lo: null })); MP.mode = m.mode; Object.assign(settings, m.set); if (!MP.started && state !== 'playing') { loadMap(settings.map, MP.mode === 'pvp'); showMapPreview(); } if ($('mpRoom').classList.contains('hidden') || state !== 'menu') { if (!MP.started) showRoom(); } else renderRoom(); break;
     case 'start': clientStart(m); break;
     case 's': if (MP.started && state === 'playing') applySnap(m); break;
     case 'spawn': clientSpawn(m); break;
@@ -3467,6 +3499,7 @@ document.querySelectorAll('#mpRoom .seg').forEach(seg => seg.querySelectorAll('b
   if (!MP.host) return; const k = seg.dataset.mopt;
   if (k === 'mode') { if (MP.mode !== b.dataset.v) { MP.mode = b.dataset.v; reassignTeams(); } }
   else settings[k] = (k === 'diff' || k === 'map') ? b.dataset.v : +b.dataset.v;
+  loadMap(settings.map, MP.mode === 'pvp'); showMapPreview();
   broadcastRoom();
 })));
 // 옵션
