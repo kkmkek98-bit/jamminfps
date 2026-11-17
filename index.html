@@ -350,9 +350,34 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
 #toast.on{opacity:1}
 .kf.sys{color:#bbb;font-style:italic}
 .overlay .panel{max-height:96vh;overflow:auto}
-.room-grid .armory .arm-body{grid-template-columns:150px 1fr 220px}
-@media (max-width:1100px){.room-grid{grid-template-columns:1fr}.mp-entry{grid-template-columns:1fr}}
-@media (max-height:760px){.room-grid .arm-preview{min-height:170px}.opt{margin-bottom:8px}}
+@media (max-width:1100px){.mp-entry{grid-template-columns:1fr}}
+#multi.roomMode{padding:0;background:#070a0f}
+#multi.roomMode .mp-panel{max-width:none;width:100%;height:100%;max-height:none;padding:14px 22px;background:linear-gradient(180deg,rgba(6,9,14,.9),rgba(6,9,14,.96));border:none;box-shadow:none;display:flex;flex-direction:column;overflow:hidden}
+#multi.roomMode .mp-head{display:none}
+#mpRoom{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0}#mpRoom.hidden{display:none}
+.rm-top{display:flex;align-items:flex-end;gap:18px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:8px}
+.rm-top .lb-logo{font-size:28px;flex:1}.rm-top .lb-logo small{font-size:11px}
+.rm-code{display:flex;align-items:center;gap:10px;background:rgba(255,210,63,.08);border:1px solid rgba(255,210,63,.35);padding:6px 12px}
+.rm-code span{font-size:11px;letter-spacing:2px;opacity:.7}.rm-code b{font-size:24px;letter-spacing:6px;color:#ffd23f;font-family:monospace}
+.rm-code .btn.sm,.rm-leave{margin:0}
+.rm-grid{display:grid;grid-template-columns:280px minmax(0,1fr) 240px;gap:14px;flex:1;min-height:0}
+.rm-col,.rm-center{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);padding:12px;min-height:0;overflow-y:auto}
+.rm-grid h2{font-size:12px;letter-spacing:3px;color:#ffd23f;margin:2px 0 8px;font-weight:800}.rm-grid h2 small{color:#aaa;letter-spacing:1px;margin-left:6px;font-weight:600}
+.rm-col .mapShot{margin:6px 0 12px}.rm-col .opt{margin-bottom:9px}.rm-col .opt label{font-size:11px}
+.rm-hint{font-size:11px;color:#9fb3c8;margin-top:5px;line-height:1.4}.rm-note{font-size:11px;opacity:.5;margin-top:4px}
+.rm-right{display:flex;flex-direction:column}
+.rm-right .roster-h{display:flex;justify-content:space-between}.rm-right .roster-h em{font-style:normal;font-weight:600;letter-spacing:0;opacity:.75}
+.rm-right .roster .rs{padding:3px 8px;font-size:12px}.rm-right .roster .rs.me{background:rgba(255,210,63,.12)}
+.rm-right #switchTeam{align-self:flex-start;margin:8px 0 0}
+.rm-foot{margin-top:auto;padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.rm-foot #roomInfo{font-size:11px;opacity:.75;line-height:1.5}.rm-foot .btn.big{width:100%;padding:13px 0;margin:0}
+#roomWait{font-size:12px;text-align:center;padding:12px;border:1px dashed rgba(255,255,255,.2);opacity:.8}
+.rm-center .armory .arm-body{grid-template-columns:150px minmax(0,1fr) 220px}
+@media (max-width:1280px){.rm-grid{grid-template-columns:250px minmax(0,1fr) 220px}.rm-center .armory .arm-body{grid-template-columns:136px minmax(0,1fr) 196px}}
+@media (min-width:1600px){#multi.roomMode .mp-panel{max-width:1640px}.rm-grid{grid-template-columns:330px minmax(0,1fr) 270px}}
+@media (min-height:900px){.rm-center .arm-list{max-height:600px}.rm-center .arm-preview{min-height:380px}.rm-right .roster .rs{padding:5px 8px}}
+@media (max-height:800px){.rm-center .arm-preview{min-height:160px}.rm-center .arm-list{max-height:330px}.rm-col .opt{margin-bottom:6px}.rm-top .lb-logo{font-size:24px}}
+
 </style>
 </head>
 <body>
@@ -499,23 +524,32 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
       <div class="mp-status" id="mpStatus"></div>
     </div>
     <div id="mpRoom" class="hidden">
-      <div class="room-top"><div>방 코드 <b id="roomCode">-----</b> <button class="btn ghost sm" id="copyCode">복사</button></div><div id="roomRole"></div></div>
-      <div class="room-grid">
-        <section>
-          <h2>경기 설정 <small>(방장만 변경 가능)</small></h2>
-          <div class="opt"><label>전장</label><div class="seg" data-mopt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">휴게소</button></div></div>
+      <div class="rm-top">
+        <div class="lb-logo">잼민<em>FPS</em><small>MULTIPLAYER · <span id="roomRole"></span></small></div>
+        <div class="rm-code"><span>방 코드</span><b id="roomCode">-----</b><button class="btn ghost sm" id="copyCode">복사</button></div>
+        <button class="btn ghost sm rm-leave" id="leaveRoom">방 나가기</button>
+      </div>
+      <div class="rm-grid">
+        <section class="rm-col">
+          <h2>전장</h2>
+          <div class="seg" data-mopt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">휴게소</button></div>
           <canvas class="mapShot" width="480" height="270"></canvas>
-          <div class="room-map"><canvas class="mm" id="roomMiniMap" width="180" height="192"></canvas><div class="mapinfo" id="roomMapInfo"></div></div>
-          <div class="opt"><label>모드</label><div class="seg" data-mopt="mode"><button data-v="coop" class="on">협동 · 사람 vs AI</button><button data-v="mixed">팀 대전 · 사람 팀 나눔</button><button data-v="pvp">사람만 · AI 없음</button></div></div>
+          <h2>규칙</h2>
+          <div class="opt"><label>모드</label><div class="seg" data-mopt="mode"><button data-v="coop" class="on">협동</button><button data-v="mixed">팀 대전</button><button data-v="pvp">사람만</button></div><div class="rm-hint" id="modeHint"></div></div>
           <div class="opt"><label>목표 킬</label><div class="seg" data-mopt="kills"><button data-v="30">30</button><button data-v="50" class="on">50</button><button data-v="80">80</button><button data-v="100">100</button></div></div>
           <div class="opt"><label>제한 시간</label><div class="seg" data-mopt="time"><button data-v="300">5분</button><button data-v="600" class="on">10분</button><button data-v="900">15분</button></div></div>
-          <div class="opt"><label>AI 난이도</label><div class="seg" data-mopt="diff"><button data-v="easy">쉬움</button><button data-v="normal" class="on">보통</button><button data-v="hard">어려움</button></div></div>
-          <div class="room-teams"><div><div class="roster-h blue">BLUE</div><div id="roomBlue" class="roster"></div></div><div><div class="roster-h red">RED</div><div id="roomRed" class="roster"></div></div></div>
-          <button class="btn ghost sm" id="switchTeam">⇄ 팀 변경</button>
+          <div class="opt" id="diffOpt"><label>AI 난이도</label><div class="seg" data-mopt="diff"><button data-v="easy">쉬움</button><button data-v="normal" class="on">보통</button><button data-v="hard">어려움</button></div></div>
+          <div class="rm-note" id="hostNote">설정은 방장만 바꿀 수 있어요</div>
         </section>
-        <section><h2>내 로드아웃</h2><div class="armory" id="armRoom"></div></section>
+        <section class="rm-center"><h2>내 로드아웃</h2><div class="armory" id="armRoom"></div></section>
+        <section class="rm-col rm-right">
+          <h2>팀 편성 <small id="roomCount"></small></h2>
+          <div class="roster-h blue">BLUE<em id="blueCnt"></em></div><div id="roomBlue" class="roster"></div>
+          <div class="roster-h red">RED<em id="redCnt"></em></div><div id="roomRed" class="roster"></div>
+          <button class="btn ghost sm" id="switchTeam">⇄ 팀 변경</button>
+          <div class="rm-foot"><div id="roomInfo"></div><button class="btn big" id="roomStart">게임 시작 ▶</button><div id="roomWait">방장이 시작하기를 기다리는 중…</div></div>
+        </section>
       </div>
-      <div class="room-foot"><span id="roomInfo"></span><div><button class="btn ghost" id="leaveRoom">방 나가기</button><button class="btn big" id="roomStart">게임 시작 ▶</button></div></div>
     </div>
   </div>
 </div>
@@ -577,8 +611,8 @@ const WEAPONS = {
   K2:    { key:'K2', name:'K2', kind:'rifle', dmg:28, rpm:1000, burstGap:0.2, mag:30, reserve:210, reload:2.2, recoil:0.016, recoilYaw:0.006, hip:0.03, ads:0.0045, move:0.022, modes:['BURST','SINGLE'], adsFov:50, sfx:'k2', range:70, cal:'5.56mm', type:'돌격소총', origin:'대한민국', desc:'3점사 전용 · 점사 내 분당 1000발 · 반동 -40% · 정밀 점사형', stats:{dmg:66, rate:86, ctrl:70} },
   DEAGLE:{ key:'DEAGLE', name:'Desert Eagle', kind:'pistol', dmg:60, rpm:200, mag:7, reserve:49, reload:1.9, recoil:0.06, recoilYaw:0.01, hip:0.02, ads:0.006, move:0.02, modes:['SINGLE'], adsFov:62, sfx:'deagle', range:35, cal:'.50 AE', type:'권총', origin:'이스라엘/미국', desc:'강력한 한 방 · 적은 장탄수', stats:{dmg:96, rate:30, ctrl:35} },
   P92:   { key:'P92', name:'P92', kind:'pistol', dmg:21, rpm:520, mag:17, reserve:102, reload:1.1, recoil:0.014, recoilYaw:0.004, hip:0.022, ads:0.008, move:0.015, modes:['SINGLE'], adsFov:62, sfx:'p92', range:30, cal:'9mm', type:'권총', origin:'이탈리아', desc:'빠른 재장전 · 많은 장탄수 · 최고 안정성', stats:{dmg:40, rate:86, ctrl:82} },
-  UMP45: { key:'UMP45', name:'UMP45', kind:'rifle', cls:'smg', dmg:24, rpm:650, mag:25, reserve:200, reload:3.1, recoil:0.008, recoilYaw:0.004, hip:0.013, ads:0.009, move:0.006, modes:['AUTO','BURST','SINGLE'], adsFov:58, sfx:'smg', range:45, cal:'.45 ACP', type:'기관단총', origin:'독일 · PUBG 스펙 참고', desc:'최고 수준 비조준 정확도 · 안정적인 반동 · 이동속도 +5%', speedMul:1.05 },
-  VECTOR:{ key:'VECTOR', name:'Vector', kind:'rifle', cls:'smg', dmg:19, rpm:1100, mag:28, reserve:224, reload:2.2, recoil:0.007, recoilYaw:0.005, hip:0.018, ads:0.01, move:0.012, modes:['AUTO','BURST','SINGLE'], adsFov:58, sfx:'vector', range:30, cal:'9mm', type:'기관단총', origin:'미국 · PUBG 스펙 참고', desc:'분당 1100발 · 28발 탄창 · 근거리 연사 압박 · 이동속도 +5%', speedMul:1.05 },
+  UMP45: { key:'UMP45', name:'UMP45', kind:'rifle', cls:'smg', dmg:24, rpm:650, mag:25, reserve:200, reload:3.1, recoil:0.008, recoilYaw:0.004, hip:0.013, ads:0.009, move:0.006, modes:['AUTO','BURST','SINGLE'], adsFov:58, sfx:'smg', range:45, cal:'.45 ACP', type:'기관단총', origin:'독일', desc:'최고 수준 비조준 정확도 · 안정적인 반동 · 이동속도 +5%', speedMul:1.05 },
+  VECTOR:{ key:'VECTOR', name:'Vector', kind:'rifle', cls:'smg', dmg:19, rpm:1100, mag:28, reserve:224, reload:2.2, recoil:0.007, recoilYaw:0.005, hip:0.018, ads:0.01, move:0.012, modes:['AUTO','BURST','SINGLE'], adsFov:58, sfx:'vector', range:30, cal:'9mm', type:'기관단총', origin:'미국', desc:'분당 1100발 · 28발 탄창 · 근거리 연사 압박 · 이동속도 +5%', speedMul:1.05 },
   LONGBOW:{ key:'LONGBOW', name:'Longbow L338', kind:'rifle', cls:'sniper', dmg:90, hsMul:2.5, rpm:60, mag:5, reserve:30, reload:3.0, recoil:0.06, recoilYaw:0.006, hip:0.055, ads:0.0004, move:0.035, modes:['SINGLE'], adsFov:16, sfx:'sniper', range:150, cal:'.338 Lapua', type:'저격소총', origin:'가상 · 노스펠 아머리', desc:'빠른 볼트액션 · 4.7배율 · 헤드샷 즉사 · 기동형 저격' },
   GOLIATH:{ key:'GOLIATH', name:'Goliath AMR-50', kind:'rifle', cls:'sniper', amr:true, dmg:100, hsMul:2, rpm:30, mag:1, reserve:10, reload:3.6, recoil:0.13, recoilYaw:0.015, hip:0.09, ads:0.0002, move:0.08, modes:['SINGLE'], adsFov:12, sfx:'amr', range:400, cal:'.50 BMG', type:'대물저격총', origin:'가상 · 타이탄 헤비웍스', desc:'단발 장전 · 몸통 한 발 100 피해 (일격 처치) · 6.3배율 · 이동속도 -20%', speedMul:0.8 },
   BASTION:{ key:'BASTION', name:'Bastion LMG-100', kind:'rifle', cls:'lmg', dmg:25, rpm:760, mag:100, reserve:300, reload:5.2, recoil:0.012, recoilYaw:0.008, hip:0.045, ads:0.006, move:0.04, modes:['AUTO'], adsFov:54, sfx:'lmg', range:70, cal:'7.62mm', type:'경기관총', origin:'가상 · 아이언게이트', desc:'100발 탄띠 · 긴 재장전 · 이동속도 -12%', speedMul:0.88 },
@@ -2506,7 +2540,7 @@ function weaponStats(d) {
     ['유효 사거리', d.range, d.range / 120, 'm'], ['반동 제어', ctrl, ctrl / 100, '', ctrl < 75], ['정조준 정확도', adsAcc, adsAcc / 100, '', adsAcc < 50],
     ['TTK (몸통)', ttk, 1 - ttk / 1400, 'ms', ttk > 600],
     ['이동 속도', Math.round(KIND_SPEED[d.kind] * (d.speedMul || 1) * 100), KIND_SPEED[d.kind] * (d.speedMul || 1) / 1.25, '%', KIND_SPEED[d.kind] * (d.speedMul || 1) < 0.85]
-  ], tags: `<span>사격 모드: ${d.modes.map(m => MODE_KO[m]).join(' / ')}</span><span>몸통 ${hits}발 · 머리 ${hhits}발 킬</span><span>정조준 배율 ${(BASE_FOV / adsFovOf(d)).toFixed(1)}x</span>${d.speedMul ? `<span>무기 보정 ${d.speedMul > 1 ? '+' : ''}${Math.round((d.speedMul - 1) * 100)}%</span>` : ''}${d.cls === 'smg' ? '<span>PUBG 스펙 기반</span>' : ''}${d.burstGap ? `<span>3점사 전용 · 점사 간격 ${d.burstGap}초</span>` : ''}${d.pellets ? '<span>산탄 · 근거리 전용</span>' : ''}${d.amr ? '<span>단발 장전 · 쏠 때마다 재장전</span><span>몸통 1발 킬</span>' : d.cls === 'sniper' ? '<span>볼트액션 · 몸통 2발 / 머리 1발</span>' : ''}` };
+  ], tags: `<span>사격 모드: ${d.modes.map(m => MODE_KO[m]).join(' / ')}</span><span>몸통 ${hits}발 · 머리 ${hhits}발 킬</span><span>정조준 배율 ${(BASE_FOV / adsFovOf(d)).toFixed(1)}x</span>${d.speedMul ? `<span>무기 보정 ${d.speedMul > 1 ? '+' : ''}${Math.round((d.speedMul - 1) * 100)}%</span>` : ''}${d.burstGap ? `<span>3점사 전용 · 점사 간격 ${d.burstGap}초</span>` : ''}${d.pellets ? '<span>산탄 · 근거리 전용</span>' : ''}${d.amr ? '<span>단발 장전 · 쏠 때마다 재장전</span><span>몸통 1발 킬</span>' : d.cls === 'sniper' ? '<span>볼트액션 · 몸통 2발 / 머리 1발</span>' : ''}` };
 }
 function buildArmory(root) {
   root.innerHTML = `<div class="arm-tabs"><button data-tab="primary">1 · 주무기</button><button data-tab="pistol">2 · 보조무기</button><button data-tab="throw">4 · 투척무기</button><span class="arm-fixed">3 · 전술용 나이프 (고정 · 이동속도 125%)</span></div>
@@ -3232,22 +3266,29 @@ function broadcastRoom() {
   if (!MP.host) return;
   MP.slots.forEach((s, i) => { if (s.peer === 'host') s.lo = { ...selLoadout }; });
   sendAll({ t: 'room', slots: MP.slots.map(s => ({ kind: s.kind, name: s.name, peer: s.peer })), mode: MP.mode, set: { kills: settings.kills, time: settings.time, diff: settings.diff, map: settings.map }, code: MP.code });
-  if (!$('multi').classList.contains('hidden')) renderRoom();
+  if (!$('mpRoom').classList.contains('hidden')) renderRoom();
 }
 function showRoom() {
   hideAllOverlays(); state = 'menu'; $('hud').classList.add('hidden');
   for (const e of entities) { e.alive = false; if (e.model) e.model.root.visible = false; }
-  $('multi').classList.remove('hidden'); $('mpEntry').classList.add('hidden'); $('mpRoom').classList.remove('hidden');
+  $('multi').classList.remove('hidden'); $('multi').classList.add('roomMode'); $('mpEntry').classList.add('hidden'); $('mpRoom').classList.remove('hidden');
   renderRoom(); attachPreview('armRoom'); loadMap(settings.map, MP.mode === 'pvp'); showMapPreview();
 }
+const MODE_HINT = { coop: '사람 전원 BLUE · 나머지 자리는 AI', mixed: '사람을 양 팀에 나누고 빈자리는 AI', pvp: 'AI 없음 · 축소 맵 · 힐팩 1개' };
 function renderRoom() {
   $('roomCode').textContent = MP.code;
-  $('roomRole').textContent = MP.host ? '👑 방장 · 준비되면 게임 시작을 누르세요' : '👤 참가자 · 방장이 시작하기를 기다리는 중...';
-  const row = s => { const me = s.peer === MP.myPeer; if (MP.mode === 'pvp' && s.kind !== 'human') return `<div class="rs" style="opacity:.35"><span>— 빈자리</span><span class="rs-w">비어 있음</span></div>`; return `<div class="rs ${me ? 'me' : ''}"><span>${s.kind === 'human' ? (s.peer === 'host' ? '👑 ' : '👤 ') : '🤖 '}${s.name}${me ? ' (나)' : ''}</span><span class="rs-w">${s.kind === 'human' ? '플레이어' : 'AI'}</span></div>`; };
+  $('roomRole').textContent = MP.host ? '👑 방장' : '👤 참가자';
+  const pvp = MP.mode === 'pvp';
+  const row = s => { const me = s.peer === MP.myPeer; if (s.kind !== 'human') return pvp ? `<div class="rs" style="opacity:.3"><span>— 빈자리</span></div>` : `<div class="rs" style="opacity:.55"><span>🤖 ${s.name}</span><span class="rs-w">AI</span></div>`; return `<div class="rs ${me ? 'me' : ''}"><span>${s.peer === 'host' ? '👑 ' : '👤 '}${s.name}${me ? ' (나)' : ''}</span></div>`; };
   $('roomBlue').innerHTML = MP.slots.slice(0, 8).map(row).join(''); $('roomRed').innerHTML = MP.slots.slice(8).map(row).join('');
   const hc = humanCount();
-  $('roomInfo').textContent = `사람 ${hc}/${MAX_HUMANS}명 · ${MP.mode === 'pvp' ? '' : `빈자리 ${16 - hc}개는 AI가 채움 · `}경기 중에도 난입 가능 · ${MP.mode === 'pvp' ? `사람만: BLUE ${teamHumans('blue')} vs RED ${teamHumans('red')} · AI 없음 · 축소 맵 · 힐팩 1개` : MP.mode === 'coop' ? '협동: 사람 전원 BLUE vs AI' : `팀 대전: BLUE 사람 ${teamHumans('blue')} vs RED 사람 ${teamHumans('red')}`}`;
-  $('roomStart').style.display = MP.host ? '' : 'none';
+  $('roomCount').textContent = `사람 ${hc}/${MAX_HUMANS}`;
+  $('blueCnt').textContent = `${teamHumans('blue')}명`; $('redCnt').textContent = `${teamHumans('red')}명`;
+  $('modeHint').textContent = MODE_HINT[MP.mode] || '';
+  $('diffOpt').style.display = pvp ? 'none' : '';
+  $('hostNote').style.display = MP.host ? 'none' : '';
+  $('roomInfo').textContent = pvp ? `BLUE ${teamHumans('blue')} vs RED ${teamHumans('red')} · 경기 중 난입 가능` : `빈자리 ${16 - hc}개는 AI · 경기 중 난입 가능`;
+  $('roomStart').style.display = MP.host ? '' : 'none'; $('roomWait').style.display = MP.host ? 'none' : '';
   $('switchTeam').style.display = MP.mode !== 'coop' ? '' : 'none';
   document.querySelectorAll('#mpRoom .seg').forEach(seg => { const k = seg.dataset.mopt; const v = k === 'mode' ? MP.mode : String(settings[k]); seg.querySelectorAll('button').forEach(b => { b.disabled = !MP.host; b.classList.toggle('on', b.dataset.v === v); }); });
 }
@@ -3476,7 +3517,7 @@ function showTitle() {
   clearAreas(); $('title').classList.remove('hidden');
 }
 function showMulti() {
-  hideAllOverlays(); $('multi').classList.remove('hidden'); $('mpEntry').classList.remove('hidden'); $('mpRoom').classList.add('hidden');
+  hideAllOverlays(); $('multi').classList.remove('hidden', 'roomMode'); $('mpEntry').classList.remove('hidden'); $('mpRoom').classList.add('hidden');
   $('mpName').value = $('callsign').value; mpStatus('');
 }
 document.querySelectorAll('.tt-btn').forEach(b => b.addEventListener('click', () => {
