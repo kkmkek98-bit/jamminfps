@@ -122,6 +122,7 @@ table.sbt{width:100%;border-collapse:collapse;font-size:14px}
 .seg button{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#ddd;padding:6px 0;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
 .seg button.on{background:#ffd23f;color:#111;border-color:#ffd23f}
 .mapbox{display:flex;gap:10px;align-items:flex-start}
+#xrayOv{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;transition:opacity .25s;box-shadow:inset 0 0 160px 30px rgba(255,30,30,.55)}#xrayOv.on{opacity:1}
 #lobbyMap{display:none}.lb-col .mapinfo{font-size:10.5px;line-height:1.5}.lb-col{overflow-y:auto}
 .mapShot{width:100%;aspect-ratio:16/9;display:block;border:1px solid rgba(255,255,255,.25);background:#1a1d18;margin:6px 0 8px}
 .room-map{display:flex;gap:10px;align-items:flex-start;margin:4px 0 10px}.room-map canvas.mm{width:96px;height:102px;border:1px solid rgba(255,255,255,.25);flex:none}
@@ -487,6 +488,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
 </div>
 
 <div id="flashOv"></div>
+<div id="xrayOv"></div>
 <div id="killcam" class="hidden"><div class="kc-cross"><i></i><i></i><i></i><i></i></div><div id="kcHit"><i></i><i></i><i></i><i></i></div><div class="kc-top"><span id="kcTag">● KILLCAM</span><small>나를 처치한 적의 시점</small></div><div class="kc-card"><small>처치한 적</small><div id="kcInfo"></div></div><div class="kc-skip">클릭 / SPACE — 건너뛰기</div><div class="kc-prog"><i id="kcProg"></i></div></div>
 <div id="optic" class="hidden"><i class="ret"></i><i class="tick"></i></div>
 <div id="scope" class="hidden"><i class="sh"></i><i class="sv"></i><i class="sd"></i></div>
@@ -1833,7 +1835,8 @@ function killEntity(v, k, wname, head) {
   if (k && k !== v) {
     k.kills++; score[k.team]++; k.streak++; k.bestStreak = Math.max(k.bestStreak, k.streak); if (head) k.hsKills++;
     for (const [a, d] of v.dmgBy) if (a !== k && a.team !== v.team && d >= 20) { a.assists++; if (a.isPlayer) showCenterMsg('어시스트 +1', '#9fd0ff'); }
-    if (k.isPlayer && [3, 5, 8, 12].includes(k.streak)) setTimeout(() => showCenterMsg(`🔥 ${k.streak}연속 처치!`, '#ff9f43'), 700);
+    if (k.isPlayer && [8, 12].includes(k.streak)) setTimeout(() => showCenterMsg(`🔥 ${k.streak}연속 처치!`, '#ff9f43'), 700);
+    if (k.streak === 3 || k.streak === 5) streakReward(k, k.streak);
   }
   addKillFeed(k, v, wname, head);
   recEvent({ type: 'k', k: k ? k.id : v.id, v: v.id, w: wname, head: !!head });
@@ -1841,6 +1844,37 @@ function killEntity(v, k, wname, head) {
   if (k && k.isPlayer && k !== v) { showKillFX(v, head); sfx('kill'); }
   if (v.isPlayer) onPlayerDeath(k, wname);
   checkWin();
+}
+
+// ===================== 킬스트릭 =====================
+// 3연속: 2.5초간 적 위치 투시(본인 화면만) · 5연속: 탄약·체력 풀 회복
+let xrayT = 0;
+const xrayMat = new THREE.MeshBasicMaterial({ color: 0xff2424, transparent: true, opacity: 0.6 });
+function refillAll(e) {
+  if (!e.slots) return;
+  for (const sl of e.slots) if (sl.def.mag) { sl.mag = sl.def.mag; sl.reserve = sl.def.reserve; }
+  e.grenades = 2; if (e.reloadT > 0) e.reloadT = 0;
+}
+function streakReward(e, n) {
+  if (isClient()) return;
+  if (n === 5) { e.hp = 100; refillAll(e); }
+  recEvent({ type: 'ks', id: e.id, n });
+  if (e.isPlayer) streakLocal(n);
+}
+function streakLocal(n) {
+  if (n === 3) { xrayT = 2.5; setTimeout(() => showCenterMsg('👁 3연속 처치 — 적 위치 노출 2.5초', '#ff5a4a'), 650); sfx('switch'); }
+  if (n === 5) { player.hp = 100; refillAll(player); setTimeout(() => showCenterMsg('💊 5연속 처치 — 탄약·체력 풀 회복!', '#3dff7a'), 650); sfx('heal'); }
+}
+function xrayPass() {
+  const list = [];
+  for (const e of entities) { if (!e.model || !e.alive || e.off || e.isPlayer || e.team === player.team) continue; e.model.root.traverse(o => { if (o.isMesh) { o.layers.enable(1); list.push(o); } }); }
+  if (!list.length) return;
+  xrayMat.opacity = 0.42 + 0.18 * Math.sin(performance.now() * 0.012) * (xrayT < 0.6 ? xrayT / 0.6 : 1);
+  const bg = scene.background, fg = scene.fog, su = renderer.shadowMap.autoUpdate;
+  scene.background = null; scene.fog = null; scene.overrideMaterial = xrayMat; renderer.shadowMap.autoUpdate = false;
+  camera.layers.set(1); renderer.clearDepth(); renderer.render(scene, camera); camera.layers.set(0);
+  scene.overrideMaterial = null; scene.background = bg; scene.fog = fg; renderer.shadowMap.autoUpdate = su;
+  for (const o of list) o.layers.disable(1);
 }
 
 // ===================== 수류탄 =====================
@@ -2359,7 +2393,7 @@ function updateModel(e, dt) {
     e.walkPhase += dt * hs * 2.2; const sw = Math.sin(e.walkPhase) * Math.min(0.7, hs * 0.12);
     m.legs[0].rotation.x = sw; m.legs[1].rotation.x = -sw;
     m.arms.rotation.x = clamp(e.ai ? e.ai.pitch : 0, -0.8, 0.8);
-    if (m.tag) m.tag.visible = e.team === entities[RP.pov ?? 0].team;
+    if (m.tag) m.tag.visible = e.team === player.team && !e.isPlayer;
   } else {
     e.deadT += dt;
     const sg = e.deathSign || -1;
@@ -2633,6 +2667,7 @@ function resetMatch() {
   recStart(); lastHighlight = null;
 }
 function onPlayerDeath(k, w) {
+  xrayT = 0;
   deathTime = now; deathCam = { pos: camera.position.clone(), killer: k };
   mouseL = mouseR = false; adsAmt = 0;
   const dist = k && k !== player ? Math.round(k.pos.distanceTo(player.pos)) : 0;
@@ -3449,6 +3484,7 @@ function clientEvent(ev) {
     case 'fx': { const pos = V(...ev.p); removeVisGrenadeNear(pos); if (ev.k === 'smoke') spawnSmoke(pos, null, false); else if (ev.k === 'fire') spawnFire(pos, null, false); else flashBang(pos, null, false); recEvent(ev); break; }
     case 'k': netKill(ev); recEvent(ev); break;
     case 'sys': sysFeed(ev.m); break;
+    case 'ks': if (ev.id === player.id) streakLocal(ev.n); break;
   }
 }
 function netKill(ev) {
@@ -3574,6 +3610,7 @@ function renderHow(tab) {
   } else {
     h = `<h3>경기 규칙</h3><ul><li>8 대 8 팀 데스매치 · 목표 킬(기본 50)을 먼저 달성하거나 시간 종료 시 킬이 많은 팀 승리</li><li>죽으면 킬캠(나를 처치한 적 시점)을 본 뒤 3초 후 재배치 · 재배치 직후 2초간 스폰 보호</li><li>맵 중앙 좌우 2층 건물 1층에 힐팩 (+50 HP, 쿨타임 10초) · AI도 체력이 50 미만이면 힐팩을 노립니다</li><li>미니맵에는 아군 시야에 들어온 적만 표시됩니다</li><li>승리하면 내 최고 장면이 하이라이트로 재생됩니다</li></ul>
     <h3>전투 팁</h3><ul><li>들고 있는 무기에 따라 이동속도가 다릅니다 · 칼 125% / 보조무기 94% / 주무기 80%</li><li>2배율 조준경은 반동 -10%, 4배율은 -25% · 앉거나 엎드리면 더 줄어듭니다</li><li>Q/E로 기울이면 몸은 엄폐물 뒤에 두고 머리만 내밀 수 있습니다</li><li>연막 안에서는 적 AI도 당신을 볼 수 없습니다 · 섬광탄은 바라보면 아군도 실명됩니다</li></ul>
+    <h3>킬스트릭</h3><ul><li><b>3연속 처치</b>: 2.5초 동안 벽 너머 적이 내 화면에만 빨갛게 보임</li><li><b>5연속 처치</b>: 탄약·체력 풀 회복 (AI도 적용)</li><li>죽으면 연속 처치 수가 초기화됩니다</li></ul>
     <h3>멀티플레이</h3><ul><li>방장이 방을 만들면 5자리 코드가 생기고, 친구는 코드로 참가합니다 (최대 8명)</li><li>빈자리는 AI가 채워 항상 8 대 8 · 경기 중 누가 나가면 AI가 자리를 이어받습니다</li><li>협동: 사람 전원 BLUE vs AI / 팀 대전: 사람을 양 팀으로 나눔 (예: 사람 4 vs 4 + AI 4 vs 4)</li><li>방장 PC가 AI와 판정을 계산합니다 · 방장이 나가면 경기가 종료됩니다</li></ul>`;
   }
   $('howBody').innerHTML = h;
@@ -3643,6 +3680,8 @@ function loop(t) {
   updateCamera(dt);
   camera.updateMatrixWorld();
   renderer.clear(); renderer.render(scene, camera);
+  if (xrayT > 0) { xrayT -= dt; if (state === 'playing' && player.alive && !KC.on) xrayPass(); }
+  $('xrayOv').classList.toggle('on', xrayT > 0 && state === 'playing' && player.alive && !KC.on);
   if ((state === 'playing' && player.alive && !KC.on) || (state === 'replay' && RP.vmOn) || (KC.on && KC.vmOn)) { renderer.clearDepth(); renderer.render(wScene, wCam); }
 }
 
