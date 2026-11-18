@@ -160,6 +160,10 @@ table.sbt{width:100%;border-collapse:collapse;font-size:14px}
 .arm-fixed{margin-left:auto;font-size:11px;opacity:.6}
 .arm-body{display:grid;grid-template-columns:170px 1fr 250px;gap:12px}
 .arm-list{display:flex;flex-direction:column;gap:6px}
+.wcats{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px;position:sticky;top:0;background:#151a20;padding-bottom:4px;z-index:1}
+.wcats button{flex:1 0 auto;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:#ccc;font-size:10.5px;font-weight:800;padding:4px 6px;cursor:pointer;font-family:inherit}
+.wcats button.on{background:#ffd23f;color:#111;border-color:#ffd23f}
+.wgrp{font-size:10.5px;font-weight:800;letter-spacing:2px;color:#ffd23f;margin:6px 0 0;padding-bottom:2px;border-bottom:1px solid rgba(255,210,63,.25)}.wgrp em{font-style:normal;opacity:.6;letter-spacing:0}
 .wcard{background:rgba(255,255,255,.04);border:2px solid rgba(255,255,255,.08);padding:8px 10px;cursor:pointer;transition:.12s}
 .wcard:hover{border-color:rgba(255,210,63,.5)}
 .wcard.sel{border-color:#ffd23f;background:rgba(255,210,63,.1)}
@@ -630,6 +634,7 @@ const WEAPONS = {
   VECTOR:{ key:'VECTOR', name:'Vector', kind:'rifle', cls:'smg', dmg:19, rpm:1100, mag:28, reserve:224, reload:2.2, recoil:0.007, recoilYaw:0.005, hip:0.018, ads:0.01, move:0.012, modes:['AUTO','BURST','SINGLE'], adsFov:58, sfx:'vector', range:30, cal:'9mm', type:'기관단총', origin:'미국', desc:'분당 1100발 · 28발 탄창 · 근거리 연사 압박 · 이동속도 +5%', speedMul:1.05 },
   LONGBOW:{ key:'LONGBOW', name:'Longbow L338', kind:'rifle', cls:'sniper', dmg:80, hsMul:2.8, rpm:45, mag:5, reserve:30, reload:3.4, recoil:0.06, recoilYaw:0.006, hip:0.055, ads:0.0004, move:0.06, modes:['SINGLE'], adsFov:16, sfx:'sniper', range:150, cal:'.338 Lapua', type:'저격소총', origin:'가상 · 노스펠 아머리', desc:'빠른 볼트액션 · 4.7배율 · 헤드샷 즉사 · 기동형 저격' },
   GOLIATH:{ key:'GOLIATH', name:'Goliath AMR-50', kind:'rifle', cls:'sniper', amr:true, dmg:100, hsMul:2, rpm:30, mag:1, reserve:15, reload:3.6, recoil:0.13, recoilYaw:0.015, hip:0.09, ads:0.0002, move:0.08, modes:['SINGLE'], adsFov:12, sfx:'amr', range:400, cal:'.50 BMG', type:'대물저격총', origin:'가상 · 타이탄 헤비웍스', desc:'단발 장전 · 몸통 한 발 100 피해 (일격 처치) · 6.3배율 · 이동속도 -20%', speedMul:0.8 },
+  SENTINEL:{ key:'SENTINEL', name:'Sentinel DMR-7', kind:'rifle', cls:'dmr', dmg:42, hsMul:2.4, rpm:260, mag:15, reserve:90, reload:2.7, recoil:0.026, recoilYaw:0.005, hip:0.05, ads:0.0015, move:0.035, modes:['SINGLE'], adsFov:50, sfx:'dmr', range:110, speedMul:0.94, cal:'7.62mm', type:'지정사수소총', origin:'가상 · 실버라인 디펜스', desc:'반자동 · 몸통 3발 · 헤드샷 한 방 · 4배율 기본 장착 · 중장거리 견제', stats:{dmg:70, rate:40, ctrl:60} },
   BASTION:{ key:'BASTION', name:'Bastion LMG-100', kind:'rifle', cls:'lmg', dmg:25, rpm:760, mag:100, reserve:300, reload:5.2, recoil:0.015, recoilYaw:0.008, hip:0.045, ads:0.006, move:0.055, modes:['AUTO'], adsFov:54, sfx:'lmg', range:70, cal:'7.62mm', type:'경기관총', origin:'가상 · 아이언게이트', desc:'100발 탄띠 · 긴 재장전 · 이동속도 -12%', speedMul:0.88 },
   THUNDER:{ key:'THUNDER', name:'Thunder S12', kind:'rifle', cls:'shotgun', dmg:19, pellets:9, rpm:95, mag:6, reserve:36, reload:2.6, recoil:0.05, recoilYaw:0.01, hip:0.04, ads:0.035, move:0.01, modes:['SINGLE'], adsFov:62, sfx:'shotgun', range:24, cal:'12게이지', type:'산탄총', origin:'가상 · 레드캐년', desc:'펌프액션 · 9펠릿 × 19 · 5m 이내 한 방 · 근거리 최강' },
   MULE:  { key:'MULE', name:'Mule 소드오프', kind:'pistol', cls:'sawed', dmg:15, pellets:9, rpm:300, mag:2, reserve:24, reload:1.7, recoil:0.07, recoilYaw:0.015, hip:0.055, ads:0.045, move:0.01, modes:['SINGLE'], adsFov:66, sfx:'shotgun', range:15, cal:'12게이지', type:'소드오프 산탄총', origin:'가상 · 더스트밸리', desc:'2연장 · 9펠릿 × 15 · 근접 2연발 즉사' },
@@ -643,7 +648,9 @@ const WEAPONS = {
 const KIND_SPEED = { melee: 1.25, pistol: 0.94, rifle: 0.8, throw: 0.94 };
 const THROWS = ['GRENADE', 'FLASH', 'SMOKE', 'MOLOTOV'];
 const OPTICS = [{ name: '레드도트', zoom: '1x', fov: 58, rec: 1 }, { name: '홀로그램', zoom: '1x', fov: 58, rec: 1 }, { name: '2배율', zoom: '2x', fov: 37.5, rec: 0.9 }, { name: '4배율', zoom: '4x', fov: 18.75, rec: 0.75 }];
-const opticSel = {};
+const opticSel = { SENTINEL: 3 }; // DMR은 4배율 기본
+const WEAPON_GROUPS = [['ar', '돌격소총', ['M416', 'AKM', 'K2']], ['smg', '기관단총', ['UMP45', 'VECTOR']], ['dmr', '지정사수소총', ['SENTINEL']], ['sniper', '저격소총', ['LONGBOW', 'GOLIATH']], ['lmg', '경기관총', ['BASTION']], ['sg', '산탄총', ['THUNDER']]];
+const PRIMARY_KEYS = WEAPON_GROUPS.flatMap(g => g[2]);
 const canOptic = d => !!d && d.kind === 'rifle' && d.cls !== 'sniper';
 const adsFovOf = (d, opt) => canOptic(d) ? OPTICS[opt ?? (opticSel[d.key] || 0)].fov : (d.adsFov || BASE_FOV);
 const MODE_KO = { AUTO:'연사', BURST:'3점사', SINGLE:'단발' };
@@ -1431,6 +1438,7 @@ const SHOT = {
   k2:   { f0: 4600, f1: 320, d: 0.15, v: 0.55, th: 150, tv: 0.45 },
   deagle:{ f0: 2600, f1: 150, d: 0.3, v: 0.75, th: 90, tv: 0.9 },
   sniper:{ f0: 2400, f1: 80, d: 0.55, v: 0.95, th: 65, tv: 1.2 },
+  dmr:   { f0: 3100, f1: 140, d: 0.32, v: 0.8, th: 85, tv: 0.95 },
   smg:  { f0: 3800, f1: 350, d: 0.12, v: 0.5, th: 160, tv: 0.4 },
   vector:{ f0: 4400, f1: 420, d: 0.09, v: 0.45, th: 190, tv: 0.32 },
   amr:  { f0: 1600, f1: 45, d: 0.9, v: 1.25, th: 48, tv: 1.6 },
@@ -1621,6 +1629,7 @@ function soldierGun(m, key) {
   const cyl = (r, len, mt, z, y = 0.02) => { const k = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 8), mt); k.rotation.x = Math.PI / 2; k.position.set(0, y, z); k.castShadow = true; gun.add(k); return k; };
   let mz = -0.6;
   if (cls === 'sniper') { rb(0.065, 0.1, 0.62, fm, 0, 0, 0.02); cyl(0.013, 0.55, mG, -0.55); cyl(0.032, 0.32, mG, -0.04, 0.1); rb(0.05, 0.14, 0.07, mG, 0, -0.1, 0.05); rb(0.05, 0.09, 0.24, fm, 0, -0.02, 0.4); mz = -0.83; }
+  else if (cls === 'dmr') { rb(0.07, 0.11, 0.62, mG, 0, 0, 0.0, 0.15); rb(0.075, 0.08, 0.3, SM(0x3c4630), 0, -0.005, -0.3); cyl(0.013, 0.4, mG, -0.6); rb(0.05, 0.14, 0.07, mG, 0, -0.11, -0.05); rb(0.05, 0.085, 0.24, SM(0x3c4630), 0, -0.02, 0.38); cyl(0.024, 0.2, mG, -0.05, 0.1); mz = -0.82; }
   else if (cls === 'lmg') { rb(0.08, 0.12, 0.62, mG, 0, 0, 0); cyl(0.017, 0.35, mG, -0.48); rb(0.12, 0.13, 0.13, SM(0x3c4630), -0.02, -0.12, -0.05); rb(0.05, 0.08, 0.22, mG, 0, -0.02, 0.38); mz = -0.66; }
   else if (cls === 'shotgun') { rb(0.065, 0.09, 0.42, mG, 0, 0, 0); cyl(0.02, 0.5, mG, -0.42); rb(0.07, 0.06, 0.18, m.mW, 0, -0.04, -0.35); rb(0.05, 0.09, 0.26, m.mW, 0, -0.03, 0.33); mz = -0.68; }
   else if (cls === 'smg') { rb(0.065, 0.11, 0.42, key === 'VECTOR' ? SM(0x8d7b58) : mG, 0, 0, -0.05); cyl(0.013, 0.12, mG, -0.32); rb(0.045, 0.18, 0.06, mG, 0, -0.13, -0.12); rb(0.04, 0.07, 0.18, mG, 0, -0.01, 0.26); mz = -0.39; }
@@ -1692,6 +1701,19 @@ function makeGunModel(key, arms = true) {
     gTrig(g, -0.04, 0.04, K.black); gPort(g, 0.029, 0.02, 0.0, 0.07); vb(g, 0.04, 0.012, 0.02, K.dark, 0, -0.035, -0.47);
     for (let i = 0; i < 3; i++) vc(g, 0.016, 0.006, K.dark, 0, 0.012, -0.91 - i * 0.02);
     sightY = 0.088; rifleArms(-0.36);
+  } else if (key === 'SENTINEL') {
+    vb(g, 0.062, 0.085, 0.4, K.black, 0, 0, -0.1);
+    vb(g, 0.072, 0.074, 0.3, K.olive, 0, 0, -0.43); for (let i = 0; i < 6; i++) { vb(g, 0.076, 0.01, 0.02, K.dark, 0, 0.014, -0.32 - i * 0.04); vb(g, 0.076, 0.01, 0.02, K.dark, 0, -0.014, -0.32 - i * 0.04); }
+    vc(g, 0.013, 0.36, K.black, 0, 0.012, -0.76); vc(g, 0.02, 0.025, K.black, 0, 0.012, -0.6);
+    vb(g, 0.034, 0.034, 0.08, K.black, 0, 0.012, -0.97); for (let i = 0; i < 3; i++) vb(g, 0.036, 0.008, 0.01, K.dark, 0, 0.03, -0.95 - i * 0.018);
+    muzzle.set(0, 0.012, -1.02);
+    vb(g, 0.045, 0.12, 0.075, K.black, 0, -0.1, -0.14, 0.08); gRibs(g, 0.047, -0.07, -0.14, 4, 0, 0.026);
+    vb(g, 0.04, 0.1, 0.045, K.black, 0, -0.08, 0.07, -0.35);
+    vb(g, 0.046, 0.08, 0.22, K.olive, 0, -0.022, 0.23); vb(g, 0.04, 0.035, 0.12, K.olive, 0, 0.03, 0.22); vb(g, 0.052, 0.115, 0.014, K.dark, 0, -0.03, 0.345);
+    vb(g, 0.03, 0.012, 0.32, K.black, 0, 0.048, -0.12); gRail(g, 0.056, -0.27, 0.02, K.black);
+    gTrig(g, -0.042, 0.04, K.black); gPort(g, 0.032, 0.012, -0.04, 0.08); vb(g, 0.012, 0.03, 0.012, K.silver, 0.035, 0.02, -0.01);
+    for (const a of [-1, 1]) vb(g, 0.008, 0.15, 0.008, K.black, a * 0.025, -0.08, -0.62, 0.45, 0, a * 0.15);
+    optZ = -0.12; optBase = 0.06; sightY = 0.088; rifleArms(-0.44);
   } else if (key === 'UMP45') {
     vb(g, 0.06, 0.1, 0.38, K.dark, 0, 0, -0.08);
     vb(g, 0.066, 0.075, 0.14, K.black, 0, -0.005, -0.32);
@@ -1897,7 +1919,7 @@ let player = null;
 const BLUE_NAMES = ['YOU', '김상병', '이병장', '박하사', '최중사', '정일병', '강상사', '윤병장'];
 const RED_NAMES = ['Viper', 'Wolf', 'Ghost', 'Raven', 'Cobra', 'Hawk', 'Reaper', 'Shadow'];
 
-const AI_PRIMS = ['M416', 'AKM', 'K2', 'M416', 'AKM', 'K2', 'M416', 'AKM', 'K2', 'UMP45', 'VECTOR', 'UMP45', 'BASTION', 'THUNDER', 'LONGBOW', 'GOLIATH'];
+const AI_PRIMS = ['M416', 'AKM', 'K2', 'M416', 'AKM', 'K2', 'M416', 'AKM', 'K2', 'UMP45', 'VECTOR', 'UMP45', 'BASTION', 'THUNDER', 'LONGBOW', 'GOLIATH', 'SENTINEL'];
 const aiPrimary = () => AI_PRIMS[Math.random() * AI_PRIMS.length | 0];
 function createEntity(team, name, isPlayer) {
   const prim = aiPrimary(), pis = Math.random() < 0.5 ? 'DEAGLE' : 'P92';
@@ -2505,9 +2527,9 @@ function updateAI(e, dt) {
         wish.set(ai.coverPos.x - e.pos.x, 0, ai.coverPos.z - e.pos.z);
         if (wish.length() < 0.8) { wish.set(0, 0, 0); ai.coverT -= dt; if (ai.coverT <= 0) ai.coverPos = null; }
         speed = SPRINT * 0.9;
-      } else if (d > (def.cls === 'shotgun' ? 9 : def.cls === 'sniper' ? 80 : 40)) wish.copy(tn).addScaledVector(side, 0.4);
+      } else if (d > (def.cls === 'shotgun' ? 9 : def.cls === 'sniper' ? 80 : def.cls === 'dmr' ? 60 : 40)) wish.copy(tn).addScaledVector(side, 0.4);
       else if (def.cls === 'smg' && d > 25) wish.copy(tn).addScaledVector(side, 0.6);
-      else if (d < (def.cls === 'shotgun' ? 2.5 : def.cls === 'sniper' ? 15 : 7)) wish.copy(tn).multiplyScalar(-0.7).add(side);
+      else if (d < (def.cls === 'shotgun' ? 2.5 : def.cls === 'sniper' ? 15 : def.cls === 'dmr' ? 11 : 7)) wish.copy(tn).multiplyScalar(-0.7).add(side);
       else if (!ai.strafeStop) wish.copy(side);
       if (!ai.coverPos && !ai.healPack) speed = WALK * 0.75;
     }
@@ -2771,13 +2793,19 @@ function buildArmory(root) {
 }
 function refreshArmories() {
   const tab = armState.tab;
-  const keysIn = tab === 'primary' ? ['M416', 'AKM', 'K2', 'UMP45', 'VECTOR', 'LONGBOW', 'GOLIATH', 'BASTION', 'THUNDER'] : tab === 'pistol' ? ['DEAGLE', 'P92', 'MULE', 'HORNET'] : THROWS;
+  const keysIn = tab === 'primary' ? PRIMARY_KEYS : tab === 'pistol' ? ['DEAGLE', 'P92', 'MULE', 'HORNET'] : THROWS;
+  const cat = armState.cat || 'all';
   const sel = selLoadout[tab], d = WEAPONS[sel], st = weaponStats(d);
   for (const root of [$('armMenu'), $('armDeath'), $('armRoom')]) {
     root.querySelectorAll('.arm-tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-    root.querySelector('.arm-list').innerHTML = keysIn.map(k => { const w = WEAPONS[k];
+    const card = k => { const w = WEAPONS[k];
       const mini = w.kind === 'throw' ? w.desc.split(' · ')[0] : `DMG ${w.dmg}${w.pellets ? '×' + w.pellets : ''} · ${w.rpm} RPM · ${w.mag}발`;
-      return `<div class="wcard ${k === sel ? 'sel' : ''}" data-key="${k}"><div class="ty">${w.type} · ${w.cal}</div><div class="nm">${w.name}</div><div class="mini">${mini}</div></div>`; }).join('');
+      return `<div class="wcard ${k === sel ? 'sel' : ''}" data-key="${k}"><div class="ty">${w.type} · ${w.cal}</div><div class="nm">${w.name}</div><div class="mini">${mini}</div></div>`; };
+    if (tab === 'primary') {
+      const chips = `<div class="wcats"><button data-cat="all" class="${cat === 'all' ? 'on' : ''}">전체</button>${WEAPON_GROUPS.map(g => `<button data-cat="${g[0]}" class="${cat === g[0] ? 'on' : ''}">${g[1]}</button>`).join('')}</div>`;
+      root.querySelector('.arm-list').innerHTML = chips + WEAPON_GROUPS.filter(g => cat === 'all' || g[0] === cat).map(g => `<div class="wgrp">${g[1]} <em>${g[2].length}</em></div>` + g[2].map(card).join('')).join('');
+      root.querySelectorAll('.wcats button').forEach(b => b.addEventListener('click', () => { armState.cat = b.dataset.cat; refreshArmories(); }));
+    } else root.querySelector('.arm-list').innerHTML = keysIn.map(card).join('');
     root.querySelectorAll('.wcard').forEach(c => c.addEventListener('click', () => { selLoadout[tab] = c.dataset.key; refreshArmories(); }));
     root.querySelector('.pv-title').innerHTML = `<b>${d.name}</b><span>${d.type} · ${d.cal} · ${d.origin}</span>`;
     root.querySelector('.pv-desc').textContent = d.desc;
@@ -3410,7 +3438,7 @@ function mpStatus(t, err) { const el = $('mpStatus'); el.textContent = t; el.sty
 function myName() { const n = ($('mpName').value.trim() || $('callsign').value.trim() || 'YOU').slice(0, 10); try { localStorage.setItem('jamminfps_name', n); } catch (err) {} return n; }
 function defaultSlots() { return entities.map(e => ({ kind: 'ai', name: e.aiName, peer: null, lo: null })); }
 function sanitizeLo(lo) {
-  const P = ['M416', 'AKM', 'K2', 'UMP45', 'VECTOR', 'LONGBOW', 'GOLIATH', 'BASTION', 'THUNDER'], S = ['DEAGLE', 'P92', 'MULE', 'HORNET'];
+  const P = PRIMARY_KEYS, S = ['DEAGLE', 'P92', 'MULE', 'HORNET'];
   lo = lo || {}; return { primary: P.includes(lo.primary) ? lo.primary : 'M416', pistol: S.includes(lo.pistol) ? lo.pistol : 'P92', throw: THROWS.includes(lo.throw) ? lo.throw : 'GRENADE' };
 }
 function showToast(t) { const el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 3500); }
@@ -3866,7 +3894,7 @@ function renderHow(tab) {
   } else if (tab === 'guns') {
     const row = k => { const w = WEAPONS[k]; return `<tr><td><b>${w.name}</b><br><small style="opacity:.6">${w.type} · ${w.cal}</small></td><td>${w.dmg}${w.pellets ? '×' + w.pellets : ''}</td><td>${w.rpm}</td><td>${w.mag}</td><td>${w.reload}초</td><td>${w.desc}</td></tr>`; };
     const head = '<tr><th>총기</th><th>데미지</th><th>RPM</th><th>장탄</th><th>재장전</th><th>특징</th></tr>';
-    h = `<h3>1번 · 주무기</h3><table>${head}${['M416', 'AKM', 'K2', 'UMP45', 'VECTOR', 'LONGBOW', 'GOLIATH', 'BASTION', 'THUNDER'].map(row).join('')}</table><h3>2번 · 보조무기</h3><table>${head}${['DEAGLE', 'P92', 'MULE', 'HORNET'].map(row).join('')}</table><h3>3번 · 전술용 나이프</h3><p>데미지 55 · 등 뒤에서 찌르면 한 방 · 들고 뛰면 이동속도 125%</p>`;
+    h = `<h3>1번 · 주무기</h3><table>${head}${PRIMARY_KEYS.map(row).join('')}</table><h3>2번 · 보조무기</h3><table>${head}${['DEAGLE', 'P92', 'MULE', 'HORNET'].map(row).join('')}</table><h3>3번 · 전술용 나이프</h3><p>데미지 55 · 등 뒤에서 찌르면 한 방 · 들고 뛰면 이동속도 125%</p>`;
   } else if (tab === 'throw') {
     h = `<table><tr><th>투척무기</th><th>효과</th></tr>${THROWS.map(k => `<tr><td><b>${WEAPONS[k].name}</b></td><td>${WEAPONS[k].desc}</td></tr>`).join('')}</table><p style="margin-top:10px">무기고의 '4 · 투척무기' 탭에서 1종을 골라 2개를 지급받습니다. 좌클릭은 멀리, 우클릭+좌클릭은 가까이 던집니다.</p>`;
   } else {
