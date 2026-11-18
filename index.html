@@ -360,7 +360,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
 .rm-top .lb-logo{font-size:28px;flex:1}.rm-top .lb-logo small{font-size:11px}
 .rm-code{display:flex;align-items:center;gap:10px;background:rgba(255,210,63,.08);border:1px solid rgba(255,210,63,.35);padding:6px 12px}
 .rm-code span{font-size:11px;letter-spacing:2px;opacity:.7}.rm-code b{font-size:24px;letter-spacing:6px;color:#ffd23f;font-family:monospace}
-.rm-code .btn.sm,.rm-leave{margin:0}
+.rm-code .btn.sm,.rm-leave{margin:0}.rm-code #copyLink{margin:0;padding:6px 12px}
 .rm-grid{display:grid;grid-template-columns:280px minmax(0,1fr) 240px;gap:14px;flex:1;min-height:0}
 .rm-col,.rm-center{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);padding:12px;min-height:0;overflow-y:auto}
 .rm-grid h2{font-size:12px;letter-spacing:3px;color:#ffd23f;margin:2px 0 8px;font-weight:800}.rm-grid h2 small{color:#aaa;letter-spacing:1px;margin-left:6px;font-weight:600}
@@ -528,7 +528,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
     <div id="mpRoom" class="hidden">
       <div class="rm-top">
         <div class="lb-logo">잼민<em>FPS</em><small>MULTIPLAYER · <span id="roomRole"></span></small></div>
-        <div class="rm-code"><span>방 코드</span><b id="roomCode">-----</b><button class="btn ghost sm" id="copyCode">복사</button></div>
+        <div class="rm-code"><span>방 코드</span><b id="roomCode">-----</b><button class="btn ghost sm" id="copyCode">코드 복사</button><button class="btn sm" id="copyLink">🔗 초대 링크 복사</button></div>
         <button class="btn ghost sm rm-leave" id="leaveRoom">방 나가기</button>
       </div>
       <div class="rm-grid">
@@ -3395,7 +3395,7 @@ const r2 = x => Math.round(x * 100) / 100;
 function aiDiff(e) { const hard = MP.on ? (MP.mode === 'mixed' || e.team === 'red') : e.team !== player.team; return hard ? DIFF[settings.diff] : DIFF.normal; }
 function genCode() { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 5; i++) s += A[Math.random() * A.length | 0]; return s; }
 function mpStatus(t, err) { const el = $('mpStatus'); el.textContent = t; el.style.color = err ? '#ff7b70' : ''; }
-function myName() { return ($('mpName').value.trim() || $('callsign').value.trim() || 'YOU').slice(0, 10); }
+function myName() { const n = ($('mpName').value.trim() || $('callsign').value.trim() || 'YOU').slice(0, 10); try { localStorage.setItem('jamminfps_name', n); } catch (err) {} return n; }
 function defaultSlots() { return entities.map(e => ({ kind: 'ai', name: e.aiName, peer: null, lo: null })); }
 function sanitizeLo(lo) {
   const P = ['M416', 'AKM', 'K2', 'UMP45', 'VECTOR', 'LONGBOW', 'GOLIATH', 'BASTION', 'THUNDER'], S = ['DEAGLE', 'P92', 'MULE', 'HORNET'];
@@ -3759,7 +3759,13 @@ $('mpName').addEventListener('input', () => { $('callsign').value = $('mpName').
 $('leaveRoom').addEventListener('click', () => { mpLeave(true); showMulti(); });
 $('roomStart').addEventListener('click', mpStartMatch);
 $('switchTeam').addEventListener('click', () => { if (MP.host) moveTeam('host'); else if (MP.hostConn) MP.hostConn.send({ t: 'team' }); });
-$('copyCode').addEventListener('click', () => { try { navigator.clipboard.writeText(MP.code); showToast('방 코드가 복사되었습니다: ' + MP.code); } catch (err) {} });
+function copyText(t, okMsg) {
+  const fallback = () => { const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;left:-9999px'; document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (err) {} ta.remove(); showToast(ok ? okMsg : '복사가 막혀 있어요. 직접 복사해 주세요: ' + t); };
+  try { navigator.clipboard.writeText(t).then(() => showToast(okMsg), fallback); } catch (err) { fallback(); }
+}
+function inviteLink() { const base = location.protocol === 'file:' || location.origin === 'null' ? location.href.split(/[?#]/)[0] : location.origin + location.pathname; return base + '?room=' + MP.code; }
+$('copyCode').addEventListener('click', () => copyText(MP.code, '방 코드가 복사되었습니다: ' + MP.code));
+$('copyLink').addEventListener('click', () => copyText(inviteLink(), '초대 링크가 복사되었습니다 — 친구에게 보내면 클릭 한 번으로 바로 입장해요'));
 document.querySelectorAll('#mpRoom .seg').forEach(seg => seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
   if (!MP.host) return; const k = seg.dataset.mopt;
   if (k === 'mode') { if (MP.mode !== b.dataset.v) { MP.mode = b.dataset.v; reassignTeams(); } }
@@ -3881,6 +3887,18 @@ setLocalPlayer(0);
 player.loadout = { ...selLoadout }; setupWeapons(player);
 buildArmory($('armMenu')); buildArmory($('armDeath')); buildArmory($('armRoom'));
 showLobby(); applyOpts(); showTitle();
+{ // 초대 링크(?room=CODE) 로 들어오면 바로 방에 입장
+  let saved = ''; try { saved = localStorage.getItem('jamminfps_name') || ''; } catch (err) {}
+  if (saved) $('callsign').value = saved;
+  const rc = (new URLSearchParams(location.search).get('room') || '').trim().toUpperCase();
+  if (/^[A-Z0-9]{5}$/.test(rc)) {
+    showMulti(); $('mpCode').value = rc; if (!$('mpName').value.trim() || $('mpName').value.trim() === 'YOU') $('mpName').value = saved || ('PLAYER' + (Math.random() * 900 + 100 | 0));
+    mpStatus(`초대 링크로 방 ${rc}에 입장하는 중...`);
+    try { history.replaceState(null, '', location.pathname); } catch (err) {}
+    const tryJoin = (n) => { if (window.Peer) mpJoin(); else if (n > 0) setTimeout(() => tryJoin(n - 1), 500); else mpStatus('PeerJS를 불러오지 못했습니다. 새로고침해 주세요.', true); };
+    setTimeout(() => tryJoin(20), 300);
+  }
+}
 $('loading').remove();
 window.__game = { renderer, renderCheat, spawnFire, loadMap, CHEAT, MAPS, settings, get MAP() { return MAP; }, coverPoints, buildDebug, ramps, startReload, vmRoot, MP, mpCreate, mpJoin, opts, healPacks, eyeH, KC, headY, bodyTop, camera, setMouseR: v => { mouseR = v; }, opticSel, areas, throwGrenade, get flashT() { return flashT; }, setupWeapons, tick: dt => { now += dt; update(dt); }, killEntity, endMatch, startReplay, findHighlight, REC, RP, WEAPONS, switchSlot, playerAttack: () => playerAttack(), get now() { return now; }, entities, score, get state() { return state; }, set state(v) { state = v; }, resetMatch, update, get player() { return player; }, boxes, aiGoals };
 requestAnimationFrame(loop);
