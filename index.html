@@ -128,6 +128,7 @@ table.sbt{width:100%;border-collapse:collapse;font-size:14px}
 .kb-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.05)}
 .kb-row button{min-width:96px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.2);color:#fff;padding:4px 10px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit}
 .kb-row button:hover{border-color:#ffd23f}.kb-row button.chg{color:#ffd23f}.kb-row button.wait{background:#ffd23f;color:#111}
+.seg[data-opt="map"],.seg[data-mopt="map"]{flex-wrap:wrap}.seg[data-opt="map"] button,.seg[data-mopt="map"] button{flex:1 0 30%;padding:6px 2px}
 #lobbyMap{display:none}.lb-col .mapinfo{font-size:10.5px;line-height:1.5}.lb-col{overflow-y:auto}
 .mapShot{width:100%;aspect-ratio:16/9;display:block;border:1px solid rgba(255,255,255,.25);background:#1a1d18;margin:6px 0 8px}
 .room-map{display:flex;gap:10px;align-items:flex-start;margin:4px 0 10px}.room-map canvas.mm{width:96px;height:102px;border:1px solid rgba(255,255,255,.25);flex:none}
@@ -433,7 +434,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
   <div class="lb-grid">
     <section class="lb-col">
       <h2>매치 설정</h2>
-      <div class="opt"><label>전장</label><div class="seg" data-opt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">고속도로 휴게소</button></div></div>
+      <div class="opt"><label>전장</label><div class="seg" data-opt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">고속도로 휴게소</button><button data-v="apt">아파트 단지</button><button data-v="harbor">🌙 야간 항구</button></div></div>
       <div class="opt"><label>목표 킬 (선취 승리)</label><div class="seg" data-opt="kills"><button data-v="30">30</button><button data-v="50" class="on">50</button><button data-v="80">80</button><button data-v="100">100</button></div></div>
       <div class="opt"><label>제한 시간</label><div class="seg" data-opt="time"><button data-v="300">5분</button><button data-v="600" class="on">10분</button><button data-v="900">15분</button></div></div>
       <div class="opt"><label>적 AI 난이도</label><div class="seg" data-opt="diff"><button data-v="easy">쉬움</button><button data-v="normal" class="on">보통</button><button data-v="hard">어려움</button></div></div>
@@ -544,7 +545,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
       <div class="rm-grid">
         <section class="rm-col">
           <h2>전장</h2>
-          <div class="seg" data-mopt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">휴게소</button></div>
+          <div class="seg" data-mopt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">휴게소</button><button data-v="apt">아파트</button><button data-v="harbor">🌙 항구</button></div>
           <canvas class="mapShot" width="480" height="270"></canvas>
           <h2>규칙</h2>
           <div class="opt"><label>모드</label><div class="seg" data-mopt="mode"><button data-v="coop" class="on">협동</button><button data-v="mixed">팀 대전</button><button data-v="pvp">사람만</button></div><div class="rm-hint" id="modeHint"></div></div>
@@ -639,7 +640,7 @@ const WEAPONS = {
   THUNDER:{ key:'THUNDER', name:'Thunder S12', kind:'rifle', cls:'shotgun', dmg:19, pellets:9, rpm:95, mag:6, reserve:36, reload:2.6, recoil:0.05, recoilYaw:0.01, hip:0.04, ads:0.035, move:0.01, modes:['SINGLE'], adsFov:62, sfx:'shotgun', range:24, cal:'12게이지', type:'산탄총', origin:'가상 · 레드캐년', desc:'펌프액션 · 9펠릿 × 19 · 5m 이내 한 방 · 근거리 최강' },
   MULE:  { key:'MULE', name:'Mule 소드오프', kind:'pistol', cls:'sawed', dmg:15, pellets:9, rpm:300, mag:2, reserve:24, reload:1.7, recoil:0.07, recoilYaw:0.015, hip:0.055, ads:0.045, move:0.01, modes:['SINGLE'], adsFov:66, sfx:'shotgun', range:15, cal:'12게이지', type:'소드오프 산탄총', origin:'가상 · 더스트밸리', desc:'2연장 · 9펠릿 × 15 · 근접 2연발 즉사' },
   HORNET:{ key:'HORNET', name:'Hornet MP-9R', kind:'pistol', cls:'mp', dmg:16, rpm:1100, mag:25, reserve:150, reload:1.7, recoil:0.009, recoilYaw:0.007, hip:0.03, ads:0.012, move:0.012, modes:['AUTO','SINGLE'], adsFov:62, sfx:'p92', range:25, cal:'9mm', type:'기관권총', origin:'가상 · 하이브 택티컬', desc:'연발 권총 · 분당 1000발' },
-  KNIFE: { key:'KNIFE', name:'전술용 나이프', kind:'melee', dmg:55, rpm:110, range:2.4 },
+  KNIFE: { key:'KNIFE', name:'전술용 나이프', kind:'melee', dmg:30, rpm:200, range:2.2, heavyDmg:65, heavyRange:2.6 },
   GRENADE:{ key:'GRENADE', name:'파편 수류탄', kind:'throw', fuse:3, radius:8, dmg:125, type:'투척무기', cal:'파편형', origin:'공용', desc:'3초 후 폭발 · 범위 피해 + 넉백', tv:[['최대 피해',125,1,''],['효과 반경',8,8/22,'m'],['폭발 지연',3,0.4,'초'],['넉백','강함',0.9,'']] },
   FLASH: { key:'FLASH', name:'섬광탄', kind:'throw', fuse:1.8, radius:22, type:'투척무기', cal:'전술형', origin:'공용', desc:'1.8초 후 섬광 · 바라본 적을 최대 4.5초 실명 (아군·본인도 주의)', tv:[['실명 시간','최대 4.8',0.8,'초'],['효과 반경',22,1,'m'],['폭발 지연',1.8,0.65,'초'],['피해',0,0.04,'']] },
   SMOKE: { key:'SMOKE', name:'연막탄', kind:'throw', fuse:2, radius:6.5, dur:14, type:'투척무기', cal:'전술형', origin:'공용', desc:'2초 후 연막 · 14초간 시야 차단 (적 AI도 못 봄)', tv:[['연막 지속',14,14/15,'초'],['연막 반경',6.5,0.65,'m'],['폭발 지연',2,0.6,'초'],['피해',0,0.04,'']] },
@@ -675,6 +676,11 @@ const scene = new THREE.Scene();
 }
 scene.fog = new THREE.Fog(0xc4d6e4, 70, 260);
 
+const DAY_BG = scene.background;
+const NIGHT_BG = (() => { const c = document.createElement('canvas'); c.width = 256; c.height = 256; const g = c.getContext('2d'); const gr = g.createLinearGradient(0, 0, 0, 256);
+  gr.addColorStop(0, '#02040b'); gr.addColorStop(0.6, '#0a1630'); gr.addColorStop(1, '#16223a'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(255,255,255,${Math.random() * 0.8})`; g.fillRect(Math.random() * 256, Math.random() * 150, 1, 1); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
 const camera = new THREE.PerspectiveCamera(BASE_FOV, innerWidth / innerHeight, 0.1, 600);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
@@ -686,6 +692,18 @@ sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -130, right: 130, top: 130, bottom: -130, near: 10, far: 320 });
 sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.04;
 scene.add(sun);
+// 손전등 (내 화면 · 실제 조명)
+const playerLight = new THREE.SpotLight(0xfff1d0, 0, 75, 0.36, 0.55, 1.3); playerLight.position.set(0.18, -0.12, 0);
+const playerLightTgt = new THREE.Object3D(); playerLightTgt.position.set(0.04, -0.04, -10); camera.add(playerLight); camera.add(playerLightTgt); playerLight.target = playerLightTgt;
+let playerLightOn = true;
+function setEnv(night) {
+  scene.background = night ? NIGHT_BG : DAY_BG;
+  scene.fog.color.setHex(night ? 0x060a14 : 0xc4d6e4); scene.fog.near = night ? 10 : 70; scene.fog.far = night ? 95 : 260;
+  hemi.intensity = night ? 0.13 : 1.25; hemi.color.setHex(night ? 0x3a4c78 : 0xdcecff); hemi.groundColor.setHex(night ? 0x0c0c12 : 0x6b5f48);
+  sun.intensity = night ? 0.2 : 2.6; sun.color.setHex(night ? 0x8ea4dc : 0xfff0d8);
+  sun.castShadow = !night && opts.gfx === 'high'; // 야간엔 그림자 계산 생략
+  camera.far = night ? 140 : 600; camera.updateProjectionMatrix();
+}
 
 // 1인칭 무기 전용 씬 (벽 관통 방지)
 const wScene = new THREE.Scene();
@@ -1279,6 +1297,160 @@ function buildRest() {
   buildSpawns();
 }
 
+// ---------- 아파트 단지 (수직 전투) ----------
+function aptBlock(s) {
+  const X = 30, T = 0.3, LV = [0, 3.5, 7, 10.5, 14], zMin = Math.min(s * 16, s * 28), zMax = Math.max(s * 16, s * 28), zc = s * 22;
+  const span = (p, q) => [Math.min(s * p, s * q), Math.max(s * p, s * q)];
+  // 1층 필로티 기둥 · 우편함
+  for (const x of [-25, -15, -5, 5, 15, 25]) for (const z of [16.5, 25.5]) addBox(x, 0, s * z, 0.7, 3.2, 0.7, MAT.concrete, { cover: true });
+  for (const x of [-X + 0.35, X - 0.35]) for (const z of [16.5, 25.5]) addBox(x, 0, s * z, 0.7, 3.2, 0.7, MAT.concrete);
+  addBox(-10, 0, zc, 3, 1.4, 0.6, MAT.trimDark, { cover: true }); addBox(10, 0, zc, 3, 1.4, 0.6, MAT.trimDark, { cover: true });
+  floorPlane(-X, X, zMin, zMax, MAT.tile, 0.03, 1.2);
+  for (let f = 1; f <= 3; f++) {
+    const y = LV[f];
+    addBox(0, y - 0.3, zc, 2 * X, 0.3, 12, MAT.concrete);
+    floorPlane(-X + 0.3, X - 0.3, ...span(16.3, 25.7), MAT.woodFloor, y + 0.02, 2.0); floorPlane(-X + 0.3, X - 0.3, ...span(26, 27.8), MAT.tile, y + 0.02, 1.0);
+    // 안뜰 쪽 벽: 창문 (3층 가운데는 구름다리 출입문)
+    const ops = []; for (let x = -27.5; x <= 27.6; x += 5) ops.push({ a: x - 1.1, b: x + 1.1, y0: 1.0, y1: 2.3 });
+    if (f === 2) ops.push({ a: -1.0, b: 1.0, y0: 0, y1: 2.4 });
+    wallX(-X, X, s * (16 + T / 2), T, y, 3.2, ops, MAT.brick);
+    // 복도 쪽 세대 현관 벽 + 복도 난간
+    wallX(-X, X, s * 25.85, T, y, 3.2, [-27.5, -20, -10, 0, 10, 20, 27.5].map(x => ({ a: x - 0.6, b: x + 0.6, y0: 0, y1: 2.2 })), MAT.wall);
+    addBox(0, y, s * 27.85, 2 * X, 1.05, 0.25, MAT.concrete);
+    // 세대 칸막이 (문은 가운데)
+    for (const x of [-25, -15, -5, 5, 15, 25]) wallZ(...span(16.3, 25.7), x, 0.25, y, 3.2, [{ a: zc - 0.6, b: zc + 0.6, y0: 0, y1: 2.3 }], MAT.wall);
+    // 끝 벽: 계단 층계참 쪽 출입문
+    const dz = f % 2 === 1 ? 26.5 : 17.5;
+    for (const o of [-1, 1]) wallZ(zMin, zMax, o * (X - T / 2), T, y, 3.2, [{ a: s * dz - 0.9, b: s * dz + 0.9, y0: 0, y1: 2.3 }, { a: zc - 1.0, b: zc + 1.0, y0: 1.0, y1: 2.2 }].sort((p, q) => p.a - q.a), MAT.brick);
+    // 세대 안 소품 (식탁/소파 = 낮은 엄폐)
+    for (const x of [-20, 0, 20]) { addBox(x - 2, y, s * 19.5, 1.6, 0.75, 0.9, MAT.woodDark); addBox(x + 2.5, y, s * 23.8, 2.2, 0.8, 0.9, SM(0x56606e)); }
+  }
+  // 옥상
+  addBox(0, LV[4] - 0.3, zc, 2 * X + 0.4, 0.3, 12.4, MAT.concreteDark);
+  for (const z of [s * 15.85, s * 28.15]) addBox(0, LV[4], z, 2 * X + 0.4, 1.1, 0.3, MAT.concrete);
+  for (const o of [-1, 1]) { const [a0, a1] = span(19.2, 28.3); addBox(o * (X + 0.05), LV[4], (a0 + a1) / 2, 0.3, 1.1, a1 - a0, MAT.concrete); }
+  addBox(-12, LV[4], zc, 3, 2.4, 3, MAT.concreteDark, {}); addBox(14, LV[4], s * 24, 4, 1.6, 2, MAT.steel);
+  signBoard(0, LV[4] - 1.6, s * 15.82, 8, 1.3, s > 0 ? '잼민아파트 101동' : '잼민아파트 102동', '#e9e5dc', '#2a3a5a', s > 0 ? Math.PI : 0);
+  // 양 끝 계단실 (지그재그 2열)
+  for (const o of [-1, 1]) {
+    const l1 = o * (X + 0.8), l2 = o * (X + 2.0), lc = o * (X + 1.4);
+    for (let k = 0; k < 4; k++) {
+      const lane = k % 2 === 0 ? l1 : l2;
+      for (let i = 1; i <= 10; i++) { const z = k % 2 === 0 ? 19 + (i - 0.5) * 0.6 : 25 - (i - 0.5) * 0.6; addBox(lane, LV[k] + (i - 1) * 0.35, s * z, 1.2, 0.35, 0.6, MAT.concrete); }
+      const L = LV[k + 1], lz = k % 2 === 0 ? 26.5 : 17.5;
+      addBox(lc, L - 0.3, s * lz, 2.4, 0.3, 3, MAT.concrete);
+      addBox(o * (X + 2.65), L, s * lz, 0.1, 1.0, 3, MAT.steel);
+    }
+    for (let k = 0; k < 4; k++) deco(o * (X + 2.65), LV[k] + 1.8, s * 22, 0.06, 0.06, 6, MAT.steel);
+    // AI 경로
+    const up = [V(l1, 0, s * 14.5), V(l1, 0, s * 18.6), V(l1, 3.5, s * 25.6)];
+    const up3 = [...up, V(l2, 3.5, s * 26.6), V(l2, 7, s * 18.4)];
+    const up4 = [...up3, V(l1, 7, s * 17.4), V(l1, 10.5, s * 25.6)];
+    const upR = [...up4, V(l2, 10.5, s * 26.6), V(l2, 14, s * 18.4)];
+    aiGoals.push({ path: [...up, V(o * (X - 1.5), 3.5, s * 26.9), V(o * rand(4, 26), 3.5, s * 26.9)], high: true, side: s });
+    aiGoals.push({ path: [...up3, V(o * (X - 1.5), 7, s * 17.5), V(o * rand(26.5, 28.5), 7, s * rand(17.5, 24))], high: true, side: s });
+    aiGoals.push({ path: [...up3, V(o * (X - 1.5), 7, s * 17.5), V(o * 27.5, 7, zc), V(o * 20, 7, zc), V(o * 10, 7, zc), V(0, 7, zc), V(0, 7, s * 15), V(rand(-0.8, 0.8), 7, s * rand(2, 10))], high: true, side: s });
+    aiGoals.push({ path: [...up4, V(o * (X - 1.5), 10.5, s * 26.9), V(o * rand(4, 26), 10.5, s * 26.9)], high: true, side: s });
+    aiGoals.push({ path: [...upR, V(o * (X - 2.5), 14, s * 18.4), V(o * rand(4, 26), 14, s * rand(17.5, 26.5))], high: true, side: s });
+  }
+}
+function buildApartment() {
+  buildBase(MAT.asphalt);
+  for (const s of [-1, 1]) aptBlock(s);
+  // 3층 구름다리
+  addBox(0, 6.7, 0, 3, 0.3, 32, MAT.concrete);
+  for (const a of [-1, 1]) { addBox(a * 1.55, 7, 0, 0.12, 1.1, 32, MAT.steel); deco(a * 1.55, 7.6, 0, 0.04, 0.9, 31.6, MAT.glass); }
+  addBox(0, 9.6, 0, 3.6, 0.2, 32, MAT.trimDark, { shadow: true });
+  for (const z of [-8, 8]) for (const a of [-1, 1]) addBox(a * 1.2, 0, z, 0.6, 6.7, 0.6, MAT.concrete, { cover: true });
+  // 안뜰: 놀이터 · 벤치 · 경비실 · 나무 · 주차
+  for (const o of [-1, 1]) {
+    const px = o * 15; addBox(px, 0, 0, 2.4, 2.2, 2.4, MAT.containers[3], { cover: true });
+    addRamp(px, 4.2, 1.6, 6, 2.2, true, MAT.containers[0]); addRamp(px, -4.2, 1.6, 6, 2.2, false, MAT.containers[0]);
+    for (const z of [-7, 7]) addBox(o * 8, 0, z, 3, 0.5, 0.7, MAT.woodDark, { cover: true });
+    addBox(o * 24, 0, 0, 3, 2.6, 3, MAT.wall, { cover: true }); signBoard(o * 24, 2.2, 1.55, 2.2, 0.5, '경비실', '#2a3a5a', '#fff');
+    for (const z of [-11, 11]) { tree(o * 6, z); car(o * 27, z * 0.6, true, CAR_COLS[(o + 3) % CAR_COLS.length]); }
+    for (const z of [-12.5, 12.5]) addBox(o * 18, 0, z, 6, 0.8, 0.8, MAT.planter, { cover: true });
+  }
+  floorPlane(-20, -10, -4, 4, MAT.dirt, 0.02, 2); floorPlane(10, 20, -4, 4, MAT.dirt, 0.02, 2);
+  // 주차장 (양 진영)
+  for (const s of [-1, 1]) {
+    [[38, '1101101101'], [48, '1011011011']].forEach(([rz, pat], ri) => { for (let i = 0; i < pat.length; i++) if (pat[i] === '1') car(-24.75 + i * 5.5, s * rz, false, CAR_COLS[(i * 3 + ri * 5) % CAR_COLS.length]); for (let i = 0; i <= pat.length; i++) lineMark(-27.5 + i * 5.5, s * rz, 0.12, 5); });
+    for (const x of [-30, 0, 30]) lamp(x, s * 43);
+    for (const x of [-60, -45, 45, 60]) for (const z of [20, 40, 60]) tree(x, s * z);
+    addBox(-16, 0, s * 62, 20, 1.3, 0.8, MAT.concrete, { cover: true }); addBox(16, 0, s * 62, 20, 1.3, 0.8, MAT.concrete, { cover: true });
+    for (const x of [-45, 45]) { addBox(x, 0, s * 30, 8, 2.6, 5, MAT.containers[4], { cover: true }); crate(x + 5.5, s * 30); }
+  }
+  buildSpawns();
+}
+
+// ---------- 야간 항구 (라이트 조준) ----------
+const POOL_MAT = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,214,150,.55)'); gr.addColorStop(0.5, 'rgba(255,200,130,.22)'); gr.addColorStop(1, 'rgba(255,190,120,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }); })();
+const SHAFT_MAT = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+// 조명탑: 실제 광원 대신 바닥 빛 웅덩이 + 빛기둥 + 램프 발광 (야간 프레임 최적화)
+function floodTower(x, z) {
+  addBox(x, 0, z, 0.5, 12, 0.5, MAT.steel);
+  deco(x, 12.2, z, 2.4, 0.5, 0.8, MAT.trimDark); for (const a of [-0.7, 0.7]) deco(x + a, 12.1, z + 0.42, 0.6, 0.35, 0.05, MAT.headlight);
+  if (outsideArena(x, z)) return;
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), POOL_MAT); pool.rotation.x = -Math.PI / 2; pool.position.set(x, 0.06, z + 2); mapRoot.add(pool);
+  const sh = new THREE.Mesh(new THREE.ConeGeometry(7, 12, 12, 1, true), SHAFT_MAT); sh.position.set(x, 6, z + 1.5); mapRoot.add(sh);
+  const gl = new THREE.Sprite(LENS_MAT); gl.scale.setScalar(3.2); gl.position.set(x, 12.1, z + 0.6); mapRoot.add(gl);
+}
+function deckContainer(x, y, z, alongX, stack = 1) {
+  for (let i = 0; i < stack; i++) addBox(x, y + i * 2.6, z, alongX ? 6.06 : 2.44, 2.6, alongX ? 2.44 : 6.06, MAT.containers[(cIdx++) % MAT.containers.length]);
+}
+function buildHarbor() {
+  buildBase(MAT.asphalt);
+  // 바다 · 안벽
+  floorPlane(-200, -52.3, -200, 200, SM(0x0b1a26, { roughness: 0.15, metalness: 0.6 }), 0.025, 20);
+  for (const s of [-1, 1]) { addBox(-52.1, 0, s * 9.8, 0.6, 1.3, 16.6, MAT.concreteDark); addBox(-52.1, 0, s * 55.2, 0.6, 1.3, 67.6, MAT.concreteDark); }
+  addBox(-52.1, 0, 0, 0.6, 1.3, 3, MAT.concreteDark);
+  for (let z = -84; z <= 84; z += 12) deco(-51.4, 0.35, z, 0.5, 0.7, 0.5, MAT.trimDark, 0.3);
+  // 화물선
+  addBox(-62, 0, 0, 12, 3, 76, SM(0x6a1f1c, { roughness: 0.7 }));
+  floorPlane(-68, -56, -38, 38, SM(0x3f4a3a, { roughness: 0.9 }), 3.02, 3);
+  for (const s of [-1, 1]) {
+    addBox(-62, 3, s * 37.85, 12, 1.0, 0.3, MAT.steel);
+    addBox(-67.85, 3, s * 19, 0.3, 1.0, 38, MAT.steel);
+    addBox(-56.15, 3, s * 30, 0.3, 1.0, 16, MAT.steel); addBox(-56.15, 3, s * 10.5, 0.3, 1.0, 15, MAT.steel);
+    // 승선 계단 (안벽 → 갑판)
+    for (let i = 1; i <= 8; i++) addBox(-52.25 - (i - 0.5) * 0.5, 0, s * 20, 0.5, i * 0.375, 2.4, MAT.steel);
+    deckContainer(-64, 3, s * 10, false, 2); deckContainer(-60, 3, s * 10, false, 1); deckContainer(-63, 3, s * 29, true, 1); deckContainer(-63, 5.6, s * 29, true, 1);
+    aiGoals.push({ path: [V(-48, 0, s * 20), V(-51.5, 0, s * 20), V(-56.6, 3, s * 20), V(-62 + rand(-3, 3), 3, s * rand(14, 34))], high: true, side: s });
+  }
+  addBox(-62, 3, 0, 9, 6, 8, SM(0xe2ded2), { cover: false }); addBox(-62, 9, 0, 6, 2.2, 5, SM(0xe2ded2));
+  for (const a of [-1, 1]) deco(-62, 7, a * 4.05, 7, 1.0, 0.05, MAT.glass);
+  // 컨테이너 미로 (대칭)
+  const C = [[-36, 10, 1, 2], [-22, 10, 1, 1], [-8, 10, 1, 3], [14, 10, 1, 2], [28, 10, 1, 1],
+    [-40, 20, 0, 1], [-30, 20, 1, 2], [-12, 21, 0, 2], [2, 20, 1, 1], [20, 21, 0, 3], [34, 20, 1, 2],
+    [-36, 32, 1, 1], [-20, 32, 1, 3], [-4, 33, 0, 2], [10, 32, 1, 2], [26, 32, 1, 1], [38, 33, 0, 2],
+    [-40, 44, 0, 2], [-26, 44, 1, 2], [-10, 44, 1, 1], [6, 45, 0, 3], [22, 44, 1, 2], [36, 44, 1, 1],
+    [-30, 56, 1, 1], [-14, 56, 1, 2], [14, 56, 1, 2], [30, 56, 1, 1]];
+  for (const s of [-1, 1]) for (const [x, z, ax, st] of C) container(x, s * z, !!ax, st);
+  // 갠트리 크레인
+  for (const s of [-1, 1]) {
+    for (const x of [-49.5, -44.5]) for (const z of [33, 39]) addBox(x, 0, s * z, 1, 22, 1, SM(0xd9a91f, { roughness: 0.5, metalness: 0.4 }));
+    deco(-47, 22.5, s * 36, 7, 1.2, 8, SM(0xd9a91f, { roughness: 0.5, metalness: 0.4 })); deco(-58, 23, s * 36, 26, 0.9, 1.6, SM(0xd9a91f, { roughness: 0.5, metalness: 0.4 }));
+    deco(-47, 20, s * 36, 3, 2.2, 3, SM(0x444a52));
+  }
+  // 창고
+  { const x0 = 48, x1 = 66, H = 8, T = 0.4;
+    wallZ(-14 + T, 14 - T, x0 + T / 2, T, 0, H, [{ a: -8.5, b: -5.5, y0: 0, y1: 3.4 }, { a: 5.5, b: 8.5, y0: 0, y1: 3.4 }], MAT.concreteDark);
+    wallZ(-14 + T, 14 - T, x1 - T / 2, T, 0, H, [], MAT.concreteDark);
+    for (const z of [-14 + T / 2, 14 - T / 2]) wallX(x0, x1, z, T, 0, H, [{ a: 55.5, b: 58.5, y0: 0, y1: 3.4 }], MAT.concreteDark);
+    addBox(57, H, 0, 18.6, 0.4, 28.6, MAT.steel);
+    floorPlane(x0 + 0.4, x1 - 0.4, -13.6, 13.6, MAT.floor, 0.03, 2.5);
+    for (const [cx, cz] of [[52, -9], [52, 9], [62, -4], [62, 6], [57, -9.5], [57, 9.5]]) { crate(cx, cz); crate(cx + 1.3, cz + 0.2); }
+    signBoard(x0 - 0.1, H - 1.2, 0, 8, 1.2, 'WAREHOUSE 7', '#2b2f36', '#ffd23f', -Math.PI / 2);
+    for (const s of [-1, 1]) aiGoals.push({ path: [V(42, 0, s * 7), V(50, 0, s * 7), V(57 + rand(-4, 4), 0, s * rand(1, 8))], side: s });
+  }
+  // 조명탑
+  for (const s of [-1, 1]) { floodTower(0, s * 26); floodTower(40, s * 12); floodTower(-20, s * 64); floodTower(-46, s * 48); }
+  floodTower(-46, 0);
+  for (const s of [-1, 1]) { for (const x of [-30, -6, 18]) jersey(x, s * 68, 8, true); for (let z = -84; z <= 84; z += 8) lineMark(44, z, 0.25, 4); }
+  buildSpawns();
+}
+
 const MAPS = {
   yard: { name: '컨테이너 야드', ax: 85, az: 95, spawn: { x0: -21, x1: 21, z0: 75, z1: 91 }, heal: [{ x: 38, z: 0 }, { x: -38, z: 0 }], build: () => { buildYard(); buildSpawns(); },
     info: '170 × 190 m · 중거리<br>망루 4 · 2층 건물 2<br>중앙 고지대 1 · 경사로 2<br>컨테이너 · 바리케이드 다수',
@@ -1297,7 +1469,19 @@ const MAPS = {
     tp: [['BLUE 스폰', -17, 0, 98], ['RED 스폰', -17, 0, -98], ['고가도로 위', 34, 7, 0], ['휴게소 옥상', -18, 4.5, 0], ['주유소', -59, 0, 7], ['고가 아래', 34, 0, 10], ['주차장', -30, 0, 27]],
     small: { ax: 46, az: 66, spawn: { x0: -30, x1: 4, z0: 56, z1: 64 }, hazards: [], heal: [{ x: -18, z: 0, ent: [[[-2, 0], [-9, 0]], [[-18, 12.5], [-18, 6]], [[-18, -12.5], [-18, -6]]] }], info: '92 × 132 m · 사람만 축소판<br>고가도로(계단으로 진입) · 휴게소 건물(힐팩)',
       extra: () => { for (const s of [-1, 1]) for (let k = 1; k <= 17; k++) addBox(42.9, 0, s * (57.5 - (k - 0.5) * 0.6), 1.8, k * 0.41, 0.6, MAT.concrete); },
-      tp: [['BLUE 스폰', -13, 0, 60], ['RED 스폰', -13, 0, -60], ['고가도로 위', 34, 7, 0], ['휴게소 옥상', -18, 4.5, 0], ['고가 아래', 34, 0, 10], ['주차장', -30, 0, 27]] } }
+      tp: [['BLUE 스폰', -13, 0, 60], ['RED 스폰', -13, 0, -60], ['고가도로 위', 34, 7, 0], ['휴게소 옥상', -18, 4.5, 0], ['고가 아래', 34, 0, 10], ['주차장', -30, 0, 27]] } },
+  apt: { name: '아파트 단지', ax: 70, az: 85, spawn: { x0: -20, x1: 20, z0: 66, z1: 79 }, build: buildApartment,
+    heal: [{ x: 0, z: 21, ent: [[[0, 12], [0, 17]], [[0, 30], [0, 26]]] }, { x: 0, z: -21, ent: [[[0, -12], [0, -17]], [[0, -30], [0, -26]]] }],
+    info: '140 × 170 m · 수직 전투<br>4층 아파트 2동 + 옥상 · 3층 구름다리<br>지그재그 계단실 · 안뜰 놀이터',
+    tp: [['BLUE 스폰', 0, 0, 72], ['RED 스폰', 0, 0, -72], ['3층 구름다리', 0, 7, 0], ['101동 옥상', 10, 14, 22], ['101동 2층 복도', 10, 3.5, 27], ['계단실', 31.2, 0, 15], ['놀이터', -15, 0, 6]],
+    small: { ax: 36, az: 50, spawn: { x0: -14, x1: 14, z0: 40, z1: 47 }, heal: [{ x: 0, z: 0 }], info: '72 × 100 m · 사람만 축소판<br>아파트 2동 · 구름다리 · 힐팩: 안뜰 중앙',
+      tp: [['BLUE 스폰', 0, 0, 43], ['RED 스폰', 0, 0, -43], ['3층 구름다리', 0, 7, 0], ['101동 옥상', 10, 14, 22]] } },
+  harbor: { name: '야간 항구', night: true, ax: 75, az: 90, spawn: { x0: -12, x1: 28, z0: 72, z1: 86 }, build: buildHarbor,
+    heal: [{ x: 57, z: 0, ent: [[[40, 7], [51, 7]], [[57, 20], [57, 11]], [[57, -20], [57, -11]]] }, { x: 0, z: 0 }],
+    info: '150 × 180 m · 야간전 (F: 라이트)<br>컨테이너 미로 · 화물선 갑판 · 창고<br>적의 손전등 불빛을 노려 쏘세요',
+    tp: [['BLUE 스폰', 8, 0, 79], ['RED 스폰', 8, 0, -79], ['화물선 갑판', -62, 3, 15], ['창고', 57, 0, 5], ['중앙 광장', 0, 0, 3], ['크레인 아래', -47, 0, 30]],
+    small: { ax: 45, az: 55, spawn: { x0: -14, x1: 14, z0: 44, z1: 51 }, heal: [{ x: 0, z: 0 }], info: '90 × 110 m · 사람만 축소판 · 야간<br>컨테이너 미로 · 힐팩: 중앙 광장',
+      tp: [['BLUE 스폰', 0, 0, 47], ['RED 스폰', 0, 0, -47], ['중앙 광장', 0, 0, 3]] } }
 };
 let MAP = MAPS.yard, curMapId = null, MAP_CULL = false;
 function outsideArena(x, z) { return MAP_CULL && (Math.abs(x) > ARENA.x + 1.5 || Math.abs(z) > ARENA.z + 1.5); }
@@ -1308,7 +1492,7 @@ function loadMap(id, small = false) {
   scene.remove(mapRoot); mapRoot.traverse(o => { if (o.geometry && o.geometry !== wheelGeo && o.geometry !== crownGeo) o.geometry.dispose(); });
   mapRoot = new THREE.Group(); scene.add(mapRoot);
   for (const a of [boxes, ramps, rampMeshes, coverBoxes, aiGoals, highGoals, coverPoints, flags, healPacks]) a.length = 0;
-  cIdx = 0; curMapId = key; MAP = Object.assign({ id }, MAPS[id], small ? MAPS[id].small : {}); if (small) MAP.name = MAPS[id].name + ' (축소)'; ARENA.x = MAP.ax; ARENA.z = MAP.az;
+  cIdx = 0; curMapId = key; MAP = Object.assign({ id }, MAPS[id], small ? MAPS[id].small : {}); setEnv(!!MAP.night); if (small) MAP.name = MAPS[id].name + ' (축소)'; ARENA.x = MAP.ax; ARENA.z = MAP.az;
   MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); flushBatch(); MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase();
   { const lm = $('lobbyMap').getContext('2d'); lm.clearRect(0, 0, 180, 192); lm.drawImage(mmBase, 0, 0); }
   $('lbMapInfo').innerHTML = `<b>${MAP.name}</b><br>${MAP.info}<br><span class="bdot"></span>BLUE 스폰 (남)<br><span class="rdot"></span>RED 스폰 (북)`;
@@ -1580,6 +1764,10 @@ function makeTag(text, color) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true, sizeAttenuation: false }));
   sp.scale.set(0.13, 0.037, 1); sp.renderOrder = 999; return sp;
 }
+const BEAM_GEO = new THREE.ConeGeometry(1.7, 13, 10, 1, true);
+const BEAM_MAT = new THREE.MeshBasicMaterial({ color: 0xfff0c8, transparent: true, opacity: 0.075, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+const LENS_MAT = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,250,230,1)'); gr.addColorStop(0.25, 'rgba(255,235,180,.7)'); gr.addColorStop(1, 'rgba(255,220,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }); })();
 function makeSoldier(team, name, gunKey) {
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   const blue = team === 'blue';
@@ -1614,7 +1802,10 @@ function makeSoldier(team, name, gunKey) {
   add(new THREE.SphereGeometry(0.055, 10, 8), mB, 0.18, -0.1, -0.36, arms); add(new THREE.SphereGeometry(0.055, 10, 8), mB, -0.05, -0.08, -0.56, arms);
   const gun = new THREE.Group(); gun.position.set(0.12, -0.05, -0.45); arms.add(gun);
   const muzzle = new THREE.Object3D(); gun.add(muzzle);
-  const mdl = { gun, muzzle, mG, mW, gunKey: null }; soldierGun(mdl, gunKey);
+  const beam = new THREE.Group(); beam.position.set(0, 0.03, -0.62); gun.add(beam); beam.visible = false;
+  const cone = new THREE.Mesh(BEAM_GEO, BEAM_MAT); cone.rotation.x = Math.PI / 2; cone.position.z = -6.5; beam.add(cone);
+  const lens = new THREE.Sprite(LENS_MAT); lens.scale.setScalar(0.5); beam.add(lens);
+  const mdl = { gun, muzzle, mG, mW, beam, gunKey: null }; soldierGun(mdl, gunKey);
   let tag = null;
   tag = makeTag(name, blue ? '#7fb4ff' : '#ff9a8a'); tag.position.set(0, 2.25, 0); root.add(tag);
   root.traverse(o => { if (o.isMesh) o.receiveShadow = false; });
@@ -1623,7 +1814,7 @@ function makeSoldier(team, name, gunKey) {
 // 3인칭 총: 무기 종류별 실루엣 (재배치 때 주무기에 맞춰 교체)
 function soldierGun(m, key) {
   if (m.gunKey === key) return; m.gunKey = key;
-  const gun = m.gun, mG = m.mG; for (const c of gun.children.slice()) if (c !== m.muzzle) { gun.remove(c); if (c.geometry) c.geometry.dispose(); }
+  const gun = m.gun, mG = m.mG; for (const c of gun.children.slice()) if (c !== m.muzzle && c !== m.beam) { gun.remove(c); if (c.geometry) c.geometry.dispose(); }
   const d = WEAPONS[key] || WEAPONS.M416, cls = d.cls || 'ar', fm = key === 'AKM' ? m.mW : (key === 'M416' ? SM(0x8d7b58) : mG);
   const rb = (w, h, dd, mt, x, y, z, r = 0.2) => { const k = new THREE.Mesh(new RoundedBoxGeometry(w, h, dd, 2, Math.min(w, h, dd) * r), mt); k.position.set(x, y, z); k.castShadow = true; gun.add(k); return k; };
   const cyl = (r, len, mt, z, y = 0.02) => { const k = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 8), mt); k.rotation.x = Math.PI / 2; k.position.set(0, y, z); k.castShadow = true; gun.add(k); return k; };
@@ -1820,13 +2011,24 @@ function makeGunModel(key, arms = true) {
     vb(g, 0.05, 0.07, 0.06, K.glove, -0.03, -0.055, 0.0, -0.25);
     limb(g, V(-0.03, -0.08, 0.03), V(-0.19, -0.33, 0.3), 0.07, K.sleeve);
   } else if (key === 'KNIFE') {
-    vb(g, 0.028, 0.034, 0.11, K.black, 0, 0, 0);
-    vb(g, 0.055, 0.014, 0.014, K.dark, 0, 0, -0.062);
-    vb(g, 0.006, 0.032, 0.15, K.blade, 0, 0.003, -0.14);
-    vb(g, 0.006, 0.022, 0.04, K.blade, 0, 0.008, -0.225, 0.5);
-    vb(g, 0.05, 0.06, 0.085, K.glove, 0, -0.005, 0.0);
-    limb(g, V(0.01, -0.02, 0.04), V(0.12, -0.3, 0.34), 0.075, K.sleeve);
-    muzzle.set(0, 0, -0.24); sightY = 0;
+    // 전술 나이프: 클립포인트 블레이드(검은 코팅 + 은색 날) · 가드 · 고무 그립 · 폼멜
+    const sh = new THREE.Shape(); sh.moveTo(0, -0.003); sh.lineTo(0, 0.03); sh.lineTo(0.115, 0.03); sh.quadraticCurveTo(0.15, 0.026, 0.172, 0.006); sh.lineTo(0.12, -0.006); sh.quadraticCurveTo(0.06, -0.008, 0, -0.003);
+    const bg = new THREE.ExtrudeGeometry(sh, { depth: 0.0035, bevelEnabled: true, bevelThickness: 0.0012, bevelSize: 0.0012, bevelSegments: 1, curveSegments: 8 });
+    const blade = new THREE.Mesh(bg, VMM(0x2a2c30, { metalness: 0.6, roughness: 0.35 })); blade.rotation.y = Math.PI / 2; blade.position.set(-0.00175, 0.0, -0.068); g.add(blade);
+    const eg = new THREE.Shape(); eg.moveTo(0.004, -0.0025); eg.lineTo(0.12, -0.0055); eg.lineTo(0.17, 0.0065); eg.lineTo(0.165, 0.009); eg.lineTo(0.118, -0.001); eg.lineTo(0.004, 0.0015);
+    const edge = new THREE.Mesh(new THREE.ExtrudeGeometry(eg, { depth: 0.0045, bevelEnabled: false }), K.blade); edge.rotation.y = Math.PI / 2; edge.position.set(-0.00225, 0, -0.068); g.add(edge);
+    vb(g, 0.0042, 0.006, 0.075, K.black, 0, 0.018, -0.11);
+    for (let i = 0; i < 5; i++) vb(g, 0.008, 0.004, 0.003, K.silver, 0, 0.0335, -0.08 - i * 0.007);
+    vb(g, 0.06, 0.016, 0.014, K.dark, 0, 0.012, -0.062); vb(g, 0.012, 0.03, 0.012, K.dark, 0, -0.012, -0.062);
+    vb(g, 0.03, 0.034, 0.112, K.black, 0, 0.008, 0.0);
+    for (let i = 0; i < 6; i++) vb(g, 0.033, 0.037, 0.006, K.dark, 0, 0.008, -0.045 + i * 0.016);
+    vc(g, 0.017, 0.016, K.silver, 0, 0.008, 0.064); vb(g, 0.006, 0.006, 0.02, K.dark, 0, 0.008, 0.078);
+    // 손: 손바닥 + 손가락 4개가 손잡이를 감싸 쥠 + 엄지
+    vb(g, 0.05, 0.062, 0.088, K.glove, 0.02, -0.003, 0.004);
+    for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0105, 0.03, 3, 8), K.glove); f.rotation.z = Math.PI / 2; f.position.set(-0.004, -0.004 + (i % 2) * 0.002, -0.036 + i * 0.022); g.add(f); const t = new THREE.Mesh(new THREE.SphereGeometry(0.0105, 8, 6), K.glove); t.position.set(-0.02, 0.012, -0.036 + i * 0.022); g.add(t); }
+    const th = new THREE.Mesh(new THREE.CapsuleGeometry(0.011, 0.035, 3, 8), K.glove); th.rotation.set(Math.PI / 2, 0, 0.3); th.position.set(-0.012, 0.03, -0.045); g.add(th);
+    limb(g, V(0.022, -0.01, 0.05), V(0.13, -0.3, 0.34), 0.075, K.sleeve);
+    muzzle.set(0, 0.012, -0.24); sightY = 0;
   } else if (key === 'FLASH' || key === 'SMOKE') {
     const big = key === 'SMOKE', r = big ? 0.036 : 0.03, h = big ? 0.12 : 0.1;
     const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 16), big ? VMM(0x56685a, { metalness: 0.3 }) : VMM(0xa4aab0, { metalness: 0.75, roughness: 0.3 })); g.add(body);
@@ -1957,7 +2159,7 @@ function spawnEntity(e) {
   e.pos.copy(spawnPoint(e.team)); e.vel.set(0, 0, 0); e.knock.set(0, 0, 0);
   e.dmgBy.clear(); e.streak = 0; e.crouch = 0; e.prone = 0; e.lean = 0; e.stance = 0;
   e.yaw = e.team === 'blue' ? 0 : Math.PI; e.pitch = 0; e.hp = 100; e.alive = true; e.onGround = true; e.protectT = PROTECT_TIME;
-  setupWeapons(e);
+  setupWeapons(e); if (!e.isPlayer && !e.remote) e.lightOn = true; else if (e.isPlayer) e.lightOn = playerLightOn;
   if (e.model && e.loadout) soldierGun(e.model, e.loadout.primary);
   if (e.model) { e.model.root.visible = !e.isPlayer; e.model.body.rotation.set(0, 0, 0); e.model.body.position.set(0, 0, 0); e.model.helmet.visible = true; e.flashT = 0; }
   if (e.ai) { Object.assign(e.ai, { blindT: 0, target: null, seen: false, path: [], waitT: 0, sideT: 0, alertT: 0, coverPos: null, stuckCount: 0, aimErr: 0.1 }); e.ai.lastPos.copy(e.pos); }
@@ -2269,29 +2471,37 @@ let mouseL = false, mouseR = false, triggerFresh = true, adsAmt = 0, bloom = 0, 
 let deathTime = 0, deathCam = null;
 const controls = new PointerLockControls(camera, document.body);
 
+// 근접: 좌클릭 = 빠른 베기(약), 우클릭 = 찌르기(느림 · 등 뒤면 즉사)
+function meleeStrike(heavy) {
+  const p = player, def = WEAPONS.KNIFE; const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
+  const range = heavy ? def.heavyRange : def.range; let best = null, bd = 99;
+  for (const e of entities) {
+    if (!e.alive || e.off || e.team === p.team) continue;
+    const c = e.pos.clone().add(V(0, 1.1, 0)); const to = c.clone().sub(camera.position); const d = to.length();
+    if (d > range + 0.3) continue; to.normalize();
+    if (to.dot(camDir) < (heavy ? 0.7 : 0.55)) continue;
+    if (!los(camera.position, c)) continue;
+    if (d < bd) { bd = d; best = e; }
+  }
+  if (!best) return;
+  const fwd = V(-Math.sin(best.yaw), 0, -Math.cos(best.yaw)); const fromDir = best.pos.clone().sub(p.pos).setY(0).normalize();
+  const back = fwd.dot(fromDir) > 0.5;
+  const dmg = heavy ? (back ? 250 : def.heavyDmg) : def.dmg;
+  const hpB = best.hp; const r = dealDamage(best, dmg, p, def.name, false, p.pos);
+  if (r) { dmgNumber(best.pos.clone().add(V(0, 1.2, 0)), Math.min(dmg, hpB), false, r === 'kill'); best.flashT = 0.12; best.flashCol = 0xffffff; }
+  bloodFx(best.pos.clone().add(V(0, 1.2, 0))); sfx('stab'); if (heavy) shake = Math.max(shake, 0.25);
+  if (r) showHitmarker(r === 'kill' ? 'kill' : '');
+  if (heavy && back && r === 'kill') showCenterMsg('🗡 백스탭!', '#ff5a4a');
+}
+function startHeavyStab() {
+  const p = player; p.fireCD = 0.95; p.stabT = 0.75; p.stabHit = false; vm.stab = 1; sfx('swing', null, 1.3);
+}
 function playerAttack() {
   const p = player, s = p.slots[p.cur], def = s.def;
   const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
   if (def.kind === 'melee') {
-    p.fireCD = 60 / def.rpm; vm.swing = 1; sfx('swing');
-    let best = null, bd = 99;
-    for (const e of entities) {
-      if (!e.alive || e.team === p.team) continue;
-      const c = e.pos.clone().add(V(0, 1.1, 0)); const to = c.clone().sub(camera.position); const d = to.length();
-      if (d > def.range + 0.3) continue; to.normalize();
-      if (to.dot(camDir) < 0.55) continue;
-      if (!los(camera.position, c)) continue;
-      if (d < bd) { bd = d; best = e; }
-    }
-    if (best) {
-      const fwd = V(-Math.sin(best.yaw), 0, -Math.cos(best.yaw)); const fromDir = best.pos.clone().sub(p.pos).setY(0).normalize();
-      const back = fwd.dot(fromDir) > 0.5; // 등 뒤 공격
-      const hpB = best.hp; const r = dealDamage(best, back ? 100 : def.dmg, p, def.name, false, p.pos);
-      if (r) { dmgNumber(best.pos.clone().add(V(0, 1.2, 0)), Math.min(back ? 100 : def.dmg, hpB), false, r === 'kill'); best.flashT = 0.12; best.flashCol = 0xffffff; }
-      bloodFx(best.pos.clone().add(V(0, 1.2, 0))); sfx('stab');
-      if (r) showHitmarker(r === 'kill' ? 'kill' : '');
-    }
-    return;
+    p.fireCD = 60 / def.rpm; vm.swing = 1; vm.swingDir = -(vm.swingDir || -1); sfx('swing');
+    meleeStrike(false); return;
   }
   if (def.kind === 'throw') {
     if (p.grenades <= 0) return;
@@ -2366,6 +2576,8 @@ function updatePlayer(dt) {
   const s = p.slots[p.cur];
   const ready = p.swapT <= 0 && p.reloadT <= 0 && !sprinting;
   if (p.burstQ > 0 && p.fireCD <= 0 && ready) { playerAttack(); p.burstQ--; p.fireCD = p.burstQ > 0 ? 60 / (def.burstGap ? def.rpm : 900) : (def.burstGap || 0.26); }
+  if (p.stabT > 0) { p.stabT -= dt; if (!p.stabHit && p.stabT < 0.5) { p.stabHit = true; if (p.alive && p.slots[p.cur].def.kind === 'melee') meleeStrike(true); } }
+  if (def.kind === 'melee' && mouseR && ready && p.fireCD <= 0) startHeavyStab();
   else if (mouseL && ready && p.fireCD <= 0) {
     if (def.kind === 'rifle' || def.kind === 'pistol') {
       const mode = def.modes[p.modeIdx];
@@ -2409,7 +2621,7 @@ const _to = new THREE.Vector3();
 function eyeOf(e) { return V(e.pos.x, e.pos.y + 1.55, e.pos.z); }
 function canSee(e, t, fovCheck) {
   _to.set(t.pos.x - e.pos.x, 0, t.pos.z - e.pos.z); const d = _to.length();
-  if (d > 95) return false;
+  if (d > (MAP.night && t.lightOn === false && now - (t.lastFired ?? -9) > 0.8 ? 28 : 95)) return false;
   if (fovCheck && d > 4) { const fx = -Math.sin(e.yaw), fz = -Math.cos(e.yaw); if ((_to.x * fx + _to.z * fz) / d < Math.cos(1.15)) return false; }
   const eye = eyeOf(e);
   if (smokeBlocks(eye, V(t.pos.x, t.pos.y + 1.3, t.pos.z))) return false;
@@ -2603,13 +2815,14 @@ function updateModel(e, dt) {
     m.legs[0].rotation.x = sw; m.legs[1].rotation.x = -sw;
     m.arms.rotation.x = clamp(e.ai ? e.ai.pitch : 0, -0.8, 0.8);
     if (m.tag) m.tag.visible = e.team === player.team && !e.isPlayer;
+    if (m.beam) m.beam.visible = !!MAP.night && e.lightOn !== false && e.pos.distanceToSquared(camera.position) < 8100;
   } else {
     e.deadT += dt;
     const sg = e.deathSign || -1;
     m.body.rotation.x = sg * Math.min(Math.PI / 2, e.deadT * 6);
     m.body.position.y = Math.max(-0.05, -e.deadT * 0.3);
     m.body.position.z = sg * Math.min(0.55, e.deadT * 2.8);
-    if (m.tag) m.tag.visible = false;
+    if (m.tag) m.tag.visible = false; if (m.beam) m.beam.visible = false;
   }
 }
 
@@ -2677,7 +2890,7 @@ function updateHUD(dt) {
   setText('wName', def.name);
   if (def.kind === 'rifle' || def.kind === 'pistol') { setText('ammoMag', String(s.mag)); setText('ammoRes', '/ ' + s.reserve); setText('wMode', MODE_KO[def.modes[p.modeIdx]] + (def.modes.length > 1 ? ' [B]' : '') + (canOptic(def) ? ` · ${OPTICS[opticSel[def.key] || 0].name} [ ]` : def.cls === 'sniper' ? ` · 전용 스코프 ${(BASE_FOV / def.adsFov).toFixed(1)}x` : '')); }
   else if (def.kind === 'throw') { setText('ammoMag', String(p.grenades)); setText('ammoRes', '개'); setText('wMode', '좌클릭 강투척 · 우클릭+좌클릭 약투척'); }
-  else { setText('ammoMag', '∞'); setText('ammoRes', ''); setText('wMode', '근접 공격 · 이동속도 +25% · 등 뒤 일격'); }
+  else { setText('ammoMag', '∞'); setText('ammoRes', ''); setText('wMode', '좌클릭 베기 · 우클릭 찌르기(등 뒤 즉사) · 이속 +25%'); }
   setStyle($('ammoMag'), 'color', (def.kind === 'rifle' || def.kind === 'pistol') && s.mag <= def.mag * 0.2 ? '#ff7b70' : '#fff');
   $('reloadTxt').classList.toggle('hidden', !(p.reloadT > 0));
   setText('slot0', p.slots[0].def.name); setText('slot1', p.slots[1].def.name); setText('slot3', `${p.slots[3].def.name} x${p.grenades}`);
@@ -2948,6 +3161,7 @@ addEventListener('keydown', e => {
   if (state !== 'playing' || !player.alive) return;
   if (code.startsWith('Digit')) { const n = +code.slice(5) - 1; if (n >= 0 && n <= 3) switchSlot(player, n); }
   if (code === 'KeyR') startReload(player);
+  if (code === 'KeyF' && !e.repeat && MAP.night) { playerLightOn = !playerLightOn; player.lightOn = playerLightOn; sfx('switch'); showCenterMsg(playerLightOn ? '🔦 라이트 ON — 잘 보이지만 적에게도 위치가 보입니다' : '라이트 OFF — 어둠 속에 숨습니다', '#ffd23f'); }
   if (code === 'KeyC' && !e.repeat) { player.stance = player.stance === 1 ? 0 : 1; sfx('step', null, 0.8); }
   if (code === 'KeyZ' && !e.repeat) { player.stance = player.stance === 2 ? 0 : 2; sfx('step', null, 1); }
   if (code === 'KeyB') { const d = player.slots[player.cur].def; if ((d.kind === 'rifle' || d.kind === 'pistol') && d.modes.length > 1) { player.modeIdx = (player.modeIdx + 1) % d.modes.length; playerModeMemory[d.key] = player.modeIdx; showCenterMsg(`사격 모드: ${MODE_KO[d.modes[player.modeIdx]]}`, '#ffd23f'); sfx('switch'); } }
@@ -3071,11 +3285,11 @@ function updateViewModel(dt) {
   let hip, ads;
   if (def.kind === 'rifle') { hip = [0.17, -0.165, -0.46]; ads = [0, -ud.sightY, -0.3]; }
   else if (def.kind === 'pistol') { hip = [0.15, -0.15, -0.42]; ads = [0, -ud.sightY, -0.36]; }
-  else if (def.kind === 'melee') { hip = [0.16, -0.15, -0.3]; ads = hip; }
+  else if (def.kind === 'melee') { hip = [0.15, -0.17, -0.31]; ads = hip; }
   else { hip = [0.15, -0.15, -0.3]; ads = hip; }
   let x = lerp(hip[0], ads[0], adsAmt), y = lerp(hip[1], ads[1], adsAmt), z = lerp(hip[2], ads[2], adsAmt);
   let rx = 0, ry = 0, rz = 0;
-  if (def.kind === 'melee') { ry = 0.35; rx = 0.25; rz = -0.2; }
+  if (def.kind === 'melee') { ry = 0.12; rx = 0.18 + Math.sin(performance.now() * 0.0016) * 0.015; rz = -0.32; }
   if (def.kind === 'throw') { rx = 0.1; }
   const hs = p.onGround ? Math.hypot(p.vel.x, p.vel.z) : 0;
   vm.bob += dt * hs * 1.7; const ba = Math.min(1, hs / 5) * (1 - adsAmt * 0.9);
@@ -3088,7 +3302,11 @@ function updateViewModel(dt) {
   z += vm.kick * (def.kind === 'pistol' ? 0.06 : 0.035); rx += vm.kick * (def.kind === 'pistol' ? 0.25 : 0.05) * (1 - adsAmt * 0.6);
   if (p.reloadT > 0) { const pr = 1 - p.reloadT / def.reload; const dip = Math.sin(pr * Math.PI); y -= dip * 0.1; rx -= dip * 0.5; rz += dip * 0.6; }
   if (p.swapT > 0) { y -= Math.min(1, p.swapT / 0.3) * 0.3; }
-  if (vm.swing > 0) { vm.swing = Math.max(0, vm.swing - dt * 3.2); const s = Math.sin((1 - vm.swing) * Math.PI); x -= s * 0.16; z -= s * 0.12; ry += s * 1.0; rz -= s * 0.6; rx -= s * 0.2; }
+  if (vm.swing > 0) { vm.swing = Math.max(0, vm.swing - dt * 4.4); const t = 1 - vm.swing, s = Math.sin(t * Math.PI), d = vm.swingDir || 1, a = t * 2 - 1; x -= d * a * 0.15 + s * 0.04; z -= s * 0.12; y += s * 0.03 - a * a * 0.02; ry += d * a * 0.9; rz -= d * s * 0.8 + 0.2 * s; rx -= s * 0.25; }
+  if (vm.stab > 0) { vm.stab = Math.max(0, vm.stab - dt / 0.75); const t = 1 - vm.stab; let k;
+    if (t < 0.3) { k = Math.sin(t / 0.3 * Math.PI / 2); z += k * 0.09; rx += k * 0.4; y += k * 0.04; x += k * 0.02; }
+    else if (t < 0.47) { k = (t - 0.3) / 0.17; z += 0.09 - k * 0.4; rx += 0.4 - k * 0.75; y += 0.04 - k * 0.05; x += 0.02 - k * 0.12; }
+    else { k = 1 - Math.pow(1 - (t - 0.47) / 0.53, 2); z += -0.31 * (1 - k); rx += -0.35 * (1 - k); y += -0.01 * (1 - k); x += -0.1 * (1 - k); } }
   if (vm.throwT > 0) { vm.throwT = Math.max(0, vm.throwT - dt); const pr = 1 - vm.throwT / 0.5; const s = pr < 0.4 ? pr / 0.4 : 1 - (pr - 0.4) / 0.6; y += s * 0.12; z += s * 0.12 - (pr > 0.4 ? (pr - 0.4) * 0.4 : 0); rx -= s * 0.9; if (pr > 0.35) { vmModel.visible = pr > 0.9; } } else vmModel.visible = true;
   if ((def.cls === 'sniper' || def.cls === 'shotgun') && p.fireCD > 0 && p.fireCD < 60 / def.rpm) { const pr = 1 - p.fireCD / (60 / def.rpm); const dp = pr > 0.25 ? Math.sin((pr - 0.25) / 0.75 * Math.PI) : 0; if (def.cls === 'sniper') { rz += dp * 0.35; y -= dp * 0.03; } else { z += dp * 0.05; rx += dp * 0.08; } }
   const mag = canOptic(def) && (opticSel[def.key] || 0) >= 2 && adsAmt > 0.85;
@@ -3248,7 +3466,7 @@ function replayUpdate(dt) {
     if (pRl > 0 && !(RP.lastRl > 0) ) sfx('reload'); RP.lastRl = pRl;
     const rdip = pRl > 0 ? Math.sin(pRl * Math.PI) : 0; RP.rdip = rdip;
     vmRoot.position.set(lerp(hip[0], ads[0], pAds), lerp(hip[1], ads[1], pAds) - rdip * 0.1, lerp(hip[2], ads[2], pAds) + RP.kick * 0.04);
-    vmRoot.rotation.set(RP.kick * 0.06 + (def.kind === 'melee' ? 0.25 : 0) - rdip * 0.5, def.kind === 'melee' ? 0.35 : 0, (def.kind === 'melee' ? -0.2 : 0) + rdip * 0.6);
+    vmRoot.rotation.set(RP.kick * 0.06 + (def.kind === 'melee' ? 0.18 : 0) - rdip * 0.5, def.kind === 'melee' ? 0.12 : 0, (def.kind === 'melee' ? -0.32 : 0) + rdip * 0.6);
     vmRoot.updateMatrix(); vmModel.updateMatrix(); vmModel.visible = !scoped;
     vm.flashT -= dt; ud.flash.visible = vm.flashT > 0;
   }
@@ -3416,7 +3634,7 @@ function killcamUpdate(dt) {
     KC.kick = Math.max(0, KC.kick - dt * (d.kind === 'pistol' ? 9 : 13)); KC.flashT -= dt;
     const ba = Math.min(1, (KC.speed || 0) / 5);
     let rx = KC.kick * (d.kind === 'pistol' ? 0.25 : 0.06), ry = 0, rz = 0;
-    if (d.kind === 'melee') { ry = 0.35; rx += 0.25; rz = -0.2; if (toKill < 0.35 && toKill > -0.1) { const s = Math.sin(clamp((0.35 - toKill) / 0.45, 0, 1) * Math.PI); ry += s; rz -= s * 0.6; } }
+    if (d.kind === 'melee') { ry = 0.12; rx += 0.18; rz = -0.32; if (toKill < 0.35 && toKill > -0.1) { const s = Math.sin(clamp((0.35 - toKill) / 0.45, 0, 1) * Math.PI); ry += s; rz -= s * 0.6; } }
     const kdip = KC.rl > 0 ? Math.sin(KC.rl * Math.PI) : 0; rx -= kdip * 0.5; rz += kdip * 0.6;
     vmRoot.position.set(hip[0] + Math.sin(KC.bob) * 0.011 * ba, hip[1] - Math.abs(Math.cos(KC.bob)) * 0.012 * ba - kdip * 0.1, hip[2] + KC.kick * (d.kind === 'pistol' ? 0.06 : 0.035));
     vmRoot.rotation.set(rx, ry, rz); vmRoot.updateMatrix(); vmModel.updateMatrix(); vmModel.visible = true;
@@ -3627,7 +3845,7 @@ function hostOnData(conn, m) {
     case 'team': moveTeam(id); break;
     case 'lo': MP.slots[si].lo = sanitizeLo(m.lo); break;
     case 'nm': { const nm = String(m.name || '').trim().slice(0, 10); if (nm && !MP.started) { MP.slots[si].name = nm; broadcastRoom(); } break; }
-    case 'st': if (MP.started && e.alive && m.al) { e.netT = m.p; e.netYaw = m.y; e.ai.pitch = m.pt; e.crouch = m.c; e.prone = m.pr; e.lean = m.ln; } break;
+    case 'st': if (MP.started && e.alive && m.al) { e.netT = m.p; e.netYaw = m.y; e.ai.pitch = m.pt; e.crouch = m.c; e.prone = m.pr; e.lean = m.ln; e.lightOn = m.lt !== 0; } break;
     case 'ev': if (MP.started) for (const ev of m.e) hostClientEvent(e, ev); break;
     case 'hit': if (MP.started && e.alive) { const v = entities[m.v]; if (v && v.alive && v !== e) { const r = applyDamage(v, clamp(+m.d || 0, 0, 260), e, String(m.w || ''), !!m.h, e.pos); if (r) { bloodFx(v.pos.clone().add(V(0, m.h ? headY(v) : 1.1, 0))); if (v.model) { v.flashT = 0.12; v.flashCol = m.h ? 0xffd23f : 0xffffff; } } } } break;
     case 'throw': if (MP.started && e.alive) spawnGrenade(e, V(...m.p), V(...m.v), THROWS.includes(m.ty) ? m.ty : 'GRENADE'); break;
@@ -3693,7 +3911,7 @@ function applySnap(m) {
     e.kills = a[10]; e.deaths = a[11]; e.assists = a[12]; e.dmgDealt = a[13]; e.hsKills = a[17];
     if (a[15] & myBit) e.spotT[player.team] = now;
     if (e === player) { if (player.alive) { player.hp = a[5]; if (!a[14]) player.protectT = Math.min(player.protectT, 0); } return; }
-    e.protectT = a[14] ? 1 : 0;
+    e.protectT = a[14] ? 1 : 0; if (a[19] !== undefined) e.lightOn = a[19] !== 0;
     if (a[18] >= 0 && WKEYS[a[18]] && e.loadout && e.loadout.primary !== WKEYS[a[18]]) { e.loadout.primary = WKEYS[a[18]]; if (e.model) soldierGun(e.model, e.loadout.primary); }
     e.netT = [a[0], a[1], a[2]]; e.netYaw = a[3]; e.ai.pitch = a[4]; e.hp = a[5]; e.crouch = a[7]; e.prone = a[8]; e.lean = a[9]; e.respawnT = a[16];
     const al = !!a[6];
@@ -3740,13 +3958,13 @@ function netTick(dt) {
   MP.sendT -= dt; if (MP.sendT > 0) return; MP.sendT = 0.05;
   if (MP.host) {
     const e = entities.map(x => [r2(x.pos.x), r2(x.pos.y), r2(x.pos.z), r2(x.yaw), r2(x.isPlayer ? camera.rotation.x : x.ai.pitch), Math.max(0, Math.round(x.hp)), x.alive ? 1 : 0, r2(x.crouch), r2(x.prone), r2(x.lean),
-      x.kills, x.deaths, x.assists, Math.round(x.dmgDealt), x.protectT > 0 ? 1 : 0, (now - x.spotT.blue < 1.2 ? 1 : 0) | (now - x.spotT.red < 1.2 ? 2 : 0), x.respawnT > 0 ? r2(x.respawnT) : 0, x.hsKills, x.loadout ? WKEYS.indexOf(x.loadout.primary) : -1]);
+      x.kills, x.deaths, x.assists, Math.round(x.dmgDealt), x.protectT > 0 ? 1 : 0, (now - x.spotT.blue < 1.2 ? 1 : 0) | (now - x.spotT.red < 1.2 ? 2 : 0), x.respawnT > 0 ? r2(x.respawnT) : 0, x.hsKills, x.loadout ? WKEYS.indexOf(x.loadout.primary) : -1, x.lightOn === false ? 0 : 1]);
     const msg = { t: 's', tm: r2(matchTime), sc: [score.blue, score.red], e, hp: healPacks.map(h => r2(Math.max(0, h.cd))), ev: MP.evQ };
     MP.evQ = []; sendAll(msg);
   } else if (MP.hostConn && MP.hostConn.open) {
     const p = player;
     try {
-      MP.hostConn.send({ t: 'st', al: p.alive ? 1 : 0, p: [r2(p.pos.x), r2(p.pos.y), r2(p.pos.z)], y: r2(camera.rotation.y), pt: r2(camera.rotation.x), c: r2(p.crouch), pr: r2(p.prone), ln: r2(p.lean) });
+      MP.hostConn.send({ t: 'st', al: p.alive ? 1 : 0, p: [r2(p.pos.x), r2(p.pos.y), r2(p.pos.z)], y: r2(camera.rotation.y), pt: r2(camera.rotation.x), c: r2(p.crouch), pr: r2(p.prone), ln: r2(p.lean), lt: p.lightOn === false ? 0 : 1 });
       if (MP.cevQ.length) { MP.hostConn.send({ t: 'ev', e: MP.cevQ }); MP.cevQ = []; }
     } catch (err) {}
   }
@@ -3830,7 +4048,7 @@ const OPT_KEY = 'jamminfps_opts';
 // ----- 키 설정 -----
 const KEY_ACTIONS = [['fwd', '앞으로', 'KeyW'], ['back', '뒤로', 'KeyS'], ['left', '왼쪽', 'KeyA'], ['right', '오른쪽', 'KeyD'], ['jump', '점프', 'Space'], ['sprint', '달리기', 'ShiftLeft'],
   ['crouch', '앉기', 'KeyC'], ['prone', '엎드리기', 'KeyZ'], ['leanL', '왼쪽 기울이기', 'KeyQ'], ['leanR', '오른쪽 기울이기', 'KeyE'], ['reload', '재장전', 'KeyR'], ['mode', '사격 모드', 'KeyB'],
-  ['optPrev', '조준경 이전', 'BracketLeft'], ['optNext', '조준경 다음', 'BracketRight'], ['w1', '주무기', 'Digit1'], ['w2', '보조무기', 'Digit2'], ['w3', '근접무기', 'Digit3'], ['w4', '투척무기', 'Digit4'], ['score', '점수판', 'Tab']];
+  ['optPrev', '조준경 이전', 'BracketLeft'], ['optNext', '조준경 다음', 'BracketRight'], ['w1', '주무기', 'Digit1'], ['w2', '보조무기', 'Digit2'], ['w3', '근접무기', 'Digit3'], ['w4', '투척무기', 'Digit4'], ['score', '점수판', 'Tab'], ['light', '라이트 (야간)', 'KeyF']];
 const KEY_DEF = Object.fromEntries(KEY_ACTIONS.map(a => [a[0], a[2]]));
 let KEY_REMAP = {};
 function rebuildKeyMap() {
@@ -3862,7 +4080,7 @@ function applyOpts() {
   if (master) master.gain.value = (opts.vol / 100) * 0.65;
   sens = opts.sens; $('sensVal').textContent = sens.toFixed(2); $('sensRange').value = sens; $('sensRange2').value = sens;
   BASE_FOV = opts.fov; if (!player || !player.alive) { camera.fov = BASE_FOV; camera.updateProjectionMatrix(); }
-  sun.castShadow = opts.gfx === 'high'; renderer.setPixelRatio(opts.gfx === 'high' ? Math.min(devicePixelRatio, 1.5) : 1); renderer.setSize(innerWidth, innerHeight);
+  sun.castShadow = opts.gfx === 'high' && !MAP.night; renderer.setPixelRatio(opts.gfx === 'high' ? Math.min(devicePixelRatio, 1.5) : 1); renderer.setSize(innerWidth, innerHeight);
   $('volVal').textContent = opts.vol; $('optVol').value = opts.vol; $('optSensVal').textContent = (+opts.sens).toFixed(2); $('optSens').value = opts.sens;
   $('adsSensVal').textContent = (+opts.adsSens).toFixed(2); $('optAdsSens').value = opts.adsSens; $('fovVal').textContent = opts.fov; $('optFov').value = opts.fov;
   document.querySelectorAll('#options .seg').forEach(seg => { const k = seg.dataset.oopt; seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === String(opts[k] ?? 0))); });
@@ -3889,7 +4107,7 @@ function renderHow(tab) {
   let h = '';
   if (tab === 'keys') {
     const K = [['W A S D', '이동'], ['Shift', '달리기 (앞으로 이동 중)'], ['Space', '점프 · 앉기/엎드리기 중이면 일어서기'], ['C', '앉기 (반동 -20%, 탄 퍼짐 -25%)'], ['Z', '엎드리기 (반동 -40%, 탄 퍼짐 -45%)'], ['Q / E', '왼쪽 / 오른쪽 기울이기'],
-      ['마우스 좌클릭', '사격 · 투척 · 칼 공격'], ['마우스 우클릭', '정조준(ADS) · 투척무기는 약하게 던지기'], ['R', '재장전'], ['1 · 2 · 3 · 4 / 휠', '주무기 · 보조무기 · 칼 · 투척무기'], ['B', '사격 모드 변경 (연사/점사/단발)'], ['[ / ]', '조준경 변경 (레드도트 · 홀로그램 · 2배 · 4배)'], ['Tab', '점수판'], ['ESC', '일시정지 · 메뉴 (멀티는 게임이 멈추지 않음)']];
+      ['마우스 좌클릭', '사격 · 투척 · 칼 공격'], ['마우스 우클릭', '정조준(ADS) · 투척무기는 약하게 던지기 · 나이프는 찌르기(등 뒤 즉사)'], ['R', '재장전'], ['1 · 2 · 3 · 4 / 휠', '주무기 · 보조무기 · 칼 · 투척무기'], ['B', '사격 모드 변경 (연사/점사/단발)'], ['[ / ]', '조준경 변경 (레드도트 · 홀로그램 · 2배 · 4배)'], ['Tab', '점수판'], ['ESC', '일시정지 · 메뉴 (멀티는 게임이 멈추지 않음)']];
     h = `<table><tr><th>키</th><th>기능</th></tr>${K.map(([k, v]) => `<tr><td><b>${k}</b></td><td>${v}</td></tr>`).join('')}</table>`;
   } else if (tab === 'guns') {
     const row = k => { const w = WEAPONS[k]; return `<tr><td><b>${w.name}</b><br><small style="opacity:.6">${w.type} · ${w.cal}</small></td><td>${w.dmg}${w.pellets ? '×' + w.pellets : ''}</td><td>${w.rpm}</td><td>${w.mag}</td><td>${w.reload}초</td><td>${w.desc}</td></tr>`; };
@@ -3967,6 +4185,7 @@ function loop(t) {
   if (state === 'menu' || !$('death').classList.contains('hidden')) renderPreview(dt);
   for (const f of flags) f.rotation.y = Math.sin(t * 0.002 + f.position.x) * 0.15;
   updateCheatHud();
+  playerLight.intensity = (MAP.night && playerLightOn && state === 'playing' && player.alive && !KC.on) ? 160 : 0;
   updateCamera(dt);
   camera.updateMatrixWorld();
   renderer.clear(); renderer.render(scene, camera);
