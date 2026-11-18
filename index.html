@@ -1594,15 +1594,28 @@ function makeSoldier(team, name, gunKey) {
   const la = cap(0.06, 0.38, mU, -0.16, -0.09, -0.3, arms); la.rotation.set(Math.PI / 2, 0, -0.55);
   add(new THREE.SphereGeometry(0.055, 10, 8), mB, 0.18, -0.1, -0.36, arms); add(new THREE.SphereGeometry(0.055, 10, 8), mB, -0.05, -0.08, -0.56, arms);
   const gun = new THREE.Group(); gun.position.set(0.12, -0.05, -0.45); arms.add(gun);
-  const fm = gunKey === 'AKM' ? mW : mG;
-  rb(0.07, 0.11, 0.6, mG, 0, 0, 0, gun, 0.15); rb(0.075, 0.08, 0.25, fm, 0, -0.005, -0.25, gun, 0.2); rb(0.05, 0.16, 0.08, mG, 0, -0.12, 0.02, gun, 0.2);
-  const br = add(new THREE.CylinderGeometry(0.014, 0.014, 0.25, 8), mG, 0, 0.02, -0.45, gun); br.rotation.x = Math.PI / 2;
-  rb(0.05, 0.08, 0.22, fm, 0, -0.02, 0.38, gun, 0.2); rb(0.03, 0.012, 0.3, mG, 0, 0.062, -0.05, gun, 0.3); rb(0.04, 0.05, 0.08, mG, 0, 0.09, -0.05, gun, 0.25);
-  const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0.02, -0.6); gun.add(muzzle);
+  const muzzle = new THREE.Object3D(); gun.add(muzzle);
+  const mdl = { gun, muzzle, mG, mW, gunKey: null }; soldierGun(mdl, gunKey);
   let tag = null;
   tag = makeTag(name, blue ? '#7fb4ff' : '#ff9a8a'); tag.position.set(0, 2.25, 0); root.add(tag);
   root.traverse(o => { if (o.isMesh) o.receiveShadow = false; });
-  return { root, body, legs, arms, muzzle, tag, helmet, mats: [mU, mV, mS, mH, mB, mP] };
+  return Object.assign(mdl, { root, body, legs, arms, muzzle, tag, helmet, mats: [mU, mV, mS, mH, mB, mP] });
+}
+// 3인칭 총: 무기 종류별 실루엣 (재배치 때 주무기에 맞춰 교체)
+function soldierGun(m, key) {
+  if (m.gunKey === key) return; m.gunKey = key;
+  const gun = m.gun, mG = m.mG; for (const c of gun.children.slice()) if (c !== m.muzzle) { gun.remove(c); if (c.geometry) c.geometry.dispose(); }
+  const d = WEAPONS[key] || WEAPONS.M416, cls = d.cls || 'ar', fm = key === 'AKM' ? m.mW : (key === 'M416' ? SM(0x8d7b58) : mG);
+  const rb = (w, h, dd, mt, x, y, z, r = 0.2) => { const k = new THREE.Mesh(new RoundedBoxGeometry(w, h, dd, 2, Math.min(w, h, dd) * r), mt); k.position.set(x, y, z); k.castShadow = true; gun.add(k); return k; };
+  const cyl = (r, len, mt, z, y = 0.02) => { const k = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 8), mt); k.rotation.x = Math.PI / 2; k.position.set(0, y, z); k.castShadow = true; gun.add(k); return k; };
+  let mz = -0.6;
+  if (cls === 'sniper') { rb(0.065, 0.1, 0.62, fm, 0, 0, 0.02); cyl(0.013, 0.55, mG, -0.55); cyl(0.032, 0.32, mG, -0.04, 0.1); rb(0.05, 0.14, 0.07, mG, 0, -0.1, 0.05); rb(0.05, 0.09, 0.24, fm, 0, -0.02, 0.4); mz = -0.83; }
+  else if (cls === 'lmg') { rb(0.08, 0.12, 0.62, mG, 0, 0, 0); cyl(0.017, 0.35, mG, -0.48); rb(0.12, 0.13, 0.13, SM(0x3c4630), -0.02, -0.12, -0.05); rb(0.05, 0.08, 0.22, mG, 0, -0.02, 0.38); mz = -0.66; }
+  else if (cls === 'shotgun') { rb(0.065, 0.09, 0.42, mG, 0, 0, 0); cyl(0.02, 0.5, mG, -0.42); rb(0.07, 0.06, 0.18, m.mW, 0, -0.04, -0.35); rb(0.05, 0.09, 0.26, m.mW, 0, -0.03, 0.33); mz = -0.68; }
+  else if (cls === 'smg') { rb(0.065, 0.11, 0.42, key === 'VECTOR' ? SM(0x8d7b58) : mG, 0, 0, -0.05); cyl(0.013, 0.12, mG, -0.32); rb(0.045, 0.18, 0.06, mG, 0, -0.13, -0.12); rb(0.04, 0.07, 0.18, mG, 0, -0.01, 0.26); mz = -0.39; }
+  else { rb(0.07, 0.11, 0.6, mG, 0, 0, 0, 0.15); rb(0.075, 0.08, 0.25, fm, 0, -0.005, -0.25); rb(0.05, 0.16, 0.08, mG, 0, -0.12, 0.02); cyl(0.014, 0.25, mG, -0.45); rb(0.05, 0.08, 0.22, fm, 0, -0.02, 0.38); }
+  rb(0.03, 0.012, 0.3, mG, 0, 0.062, -0.05, 0.3); rb(0.04, 0.05, 0.08, mG, 0, 0.09, -0.05, 0.25);
+  m.muzzle.position.set(0, 0.02, mz);
 }
 
 // ===================== 1인칭 무기 모델 =====================
@@ -1912,6 +1925,7 @@ function spawnEntity(e) {
   e.dmgBy.clear(); e.streak = 0; e.crouch = 0; e.prone = 0; e.lean = 0; e.stance = 0;
   e.yaw = e.team === 'blue' ? 0 : Math.PI; e.pitch = 0; e.hp = 100; e.alive = true; e.onGround = true; e.protectT = PROTECT_TIME;
   setupWeapons(e);
+  if (e.model && e.loadout) soldierGun(e.model, e.loadout.primary);
   if (e.model) { e.model.root.visible = !e.isPlayer; e.model.body.rotation.set(0, 0, 0); e.model.body.position.set(0, 0, 0); e.model.helmet.visible = true; e.flashT = 0; }
   if (e.ai) { Object.assign(e.ai, { blindT: 0, target: null, seen: false, path: [], waitT: 0, sideT: 0, alertT: 0, coverPos: null, stuckCount: 0, aimErr: 0.1 }); e.ai.lastPos.copy(e.pos); }
   if (e.isPlayer) { camera.rotation.set(0, e.yaw, 0); adsAmt = 0; bloom = 0; buildViewModel(e.loadout.primary); vm.swapT = 0; }
@@ -3638,6 +3652,7 @@ function applySnap(m) {
     if (a[15] & myBit) e.spotT[player.team] = now;
     if (e === player) { if (player.alive) { player.hp = a[5]; if (!a[14]) player.protectT = Math.min(player.protectT, 0); } return; }
     e.protectT = a[14] ? 1 : 0;
+    if (a[18] >= 0 && WKEYS[a[18]] && e.loadout && e.loadout.primary !== WKEYS[a[18]]) { e.loadout.primary = WKEYS[a[18]]; if (e.model) soldierGun(e.model, e.loadout.primary); }
     e.netT = [a[0], a[1], a[2]]; e.netYaw = a[3]; e.ai.pitch = a[4]; e.hp = a[5]; e.crouch = a[7]; e.prone = a[8]; e.lean = a[9]; e.respawnT = a[16];
     const al = !!a[6];
     if (!al && e.alive) { e.alive = false; e.deadT = 0; }
@@ -3674,7 +3689,7 @@ function netKill(ev) {
   if (v === player) { player.streak = 0; onPlayerDeath(k, ev.w); }
 }
 function clientSpawn(m) {
-  const p = player; spawnEntity(p);
+  const p = player; p.loadout = { ...selLoadout }; spawnEntity(p);
   p.pos.set(...m.p); p.yaw = m.y; p.protectT = m.pt; camera.rotation.set(0, m.y, 0);
   $('death').classList.add('hidden'); camera.fov = BASE_FOV; camera.updateProjectionMatrix();
 }
@@ -3683,7 +3698,7 @@ function netTick(dt) {
   MP.sendT -= dt; if (MP.sendT > 0) return; MP.sendT = 0.05;
   if (MP.host) {
     const e = entities.map(x => [r2(x.pos.x), r2(x.pos.y), r2(x.pos.z), r2(x.yaw), r2(x.isPlayer ? camera.rotation.x : x.ai.pitch), Math.max(0, Math.round(x.hp)), x.alive ? 1 : 0, r2(x.crouch), r2(x.prone), r2(x.lean),
-      x.kills, x.deaths, x.assists, Math.round(x.dmgDealt), x.protectT > 0 ? 1 : 0, (now - x.spotT.blue < 1.2 ? 1 : 0) | (now - x.spotT.red < 1.2 ? 2 : 0), x.respawnT > 0 ? r2(x.respawnT) : 0, x.hsKills]);
+      x.kills, x.deaths, x.assists, Math.round(x.dmgDealt), x.protectT > 0 ? 1 : 0, (now - x.spotT.blue < 1.2 ? 1 : 0) | (now - x.spotT.red < 1.2 ? 2 : 0), x.respawnT > 0 ? r2(x.respawnT) : 0, x.hsKills, x.loadout ? WKEYS.indexOf(x.loadout.primary) : -1]);
     const msg = { t: 's', tm: r2(matchTime), sc: [score.blue, score.red], e, hp: healPacks.map(h => r2(Math.max(0, h.cd))), ev: MP.evQ };
     MP.evQ = []; sendAll(msg);
   } else if (MP.hostConn && MP.hostConn.open) {
