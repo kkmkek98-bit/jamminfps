@@ -123,6 +123,11 @@ table.sbt{width:100%;border-collapse:collapse;font-size:14px}
 .seg button.on{background:#ffd23f;color:#111;border-color:#ffd23f}
 .mapbox{display:flex;gap:10px;align-items:flex-start}
 #xrayOv{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;transition:opacity .25s;box-shadow:inset 0 0 160px 30px rgba(255,30,30,.55)}#xrayOv.on{opacity:1}
+#options .panel{max-height:94vh;overflow:auto}
+.kb-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px}
+.kb-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.kb-row button{min-width:96px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.2);color:#fff;padding:4px 10px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit}
+.kb-row button:hover{border-color:#ffd23f}.kb-row button.chg{color:#ffd23f}.kb-row button.wait{background:#ffd23f;color:#111}
 #lobbyMap{display:none}.lb-col .mapinfo{font-size:10.5px;line-height:1.5}.lb-col{overflow-y:auto}
 .mapShot{width:100%;aspect-ratio:16/9;display:block;border:1px solid rgba(255,255,255,.25);background:#1a1d18;margin:6px 0 8px}
 .room-map{display:flex;gap:10px;align-items:flex-start;margin:4px 0 10px}.room-map canvas.mm{width:96px;height:102px;border:1px solid rgba(255,255,255,.25);flex:none}
@@ -370,6 +375,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
 .rm-right .roster-h{display:flex;justify-content:space-between}.rm-right .roster-h em{font-style:normal;font-weight:600;letter-spacing:0;opacity:.75}
 .rm-right .roster .rs{padding:3px 8px;font-size:12px}.rm-right .roster .rs.me{background:rgba(255,210,63,.12)}
 .rm-right #switchTeam{align-self:flex-start;margin:8px 0 0}
+.rm-name{margin-bottom:12px}.rm-name label{display:block;font-size:11px;letter-spacing:2px;color:#ffd23f;font-weight:800;margin-bottom:4px}.rm-name div{display:flex;gap:6px}.rm-name input{flex:1;min-width:0;padding:6px 8px;font-size:13px}.rm-name .btn.sm{margin:0}
 .rm-foot{margin-top:auto;padding-top:12px;display:flex;flex-direction:column;gap:8px}
 .rm-foot #roomInfo{font-size:11px;opacity:.75;line-height:1.5}.rm-foot .btn.big{width:100%;padding:13px 0;margin:0}
 #roomWait{font-size:12px;text-align:center;padding:12px;border:1px dashed rgba(255,255,255,.2);opacity:.8}
@@ -545,6 +551,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
         </section>
         <section class="rm-center"><h2>내 로드아웃</h2><div class="armory" id="armRoom"></div></section>
         <section class="rm-col rm-right">
+          <div class="rm-name"><label>내 닉네임</label><div><input id="roomName" class="txt" maxlength="10" spellcheck="false"><button class="btn sm" id="roomNameBtn">변경</button></div></div>
           <h2>팀 편성 <small id="roomCount"></small></h2>
           <div class="roster-h blue">BLUE<em id="blueCnt"></em></div><div id="roomBlue" class="roster"></div>
           <div class="roster-h red">RED<em id="redCnt"></em></div><div id="roomRed" class="roster"></div>
@@ -566,7 +573,11 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
     <div class="opt"><label>그래픽 품질</label><div class="seg" data-oopt="gfx"><button data-v="low">낮음 (그림자 끔)</button><button data-v="high" class="on">높음</button></div></div>
     <div class="opt"><label>화면 흔들림</label><div class="seg" data-oopt="shake"><button data-v="1" class="on">켜기</button><button data-v="0">끄기</button></div></div>
     <div class="opt"><label>데미지 숫자 표시</label><div class="seg" data-oopt="dmgnum"><button data-v="1" class="on">켜기</button><button data-v="0">끄기</button></div></div>
-    <div class="sub">설정은 이 브라우저에 자동으로 저장됩니다.</div>
+    <div class="opt"><label>마우스 상하 반전</label><div class="seg" data-oopt="invY"><button data-v="0" class="on">끄기</button><button data-v="1">켜기</button></div></div>
+    <h2 style="margin-top:14px">키 설정 <small style="color:#aaa;letter-spacing:0;font-weight:400">버튼을 누른 뒤 바꿀 키를 누르세요 · ESC 취소</small></h2>
+    <div id="keyGrid" class="kb-grid"></div>
+    <button class="btn ghost sm" id="keyReset" style="margin:8px 0 0">기본값으로 되돌리기</button>
+    <div class="sub">설정은 이 브라우저에 자동으로 저장됩니다. 마우스 좌·우클릭과 휠은 고정입니다.</div>
   </div>
 </div>
 
@@ -606,7 +617,7 @@ const ARENA = { x: 85, z: 95 };
 const CHEAT_BUILD = false; // 테스트 빌드: 일시정지 메뉴에 치트 패널
 const CHEAT = { god: false, ammo: false, fly: false, aiFreeze: false, time: false, coords: true, debug: false };
 let BASE_FOV = 75;
-const opts = Object.assign({ vol: 70, sens: 1, adsSens: 1, fov: 75, gfx: 'high', shake: 1, dmgnum: 1 }, (() => { try { return JSON.parse(localStorage.getItem('jamminfps_opts') || '{}'); } catch (err) { return {}; } })());
+const opts = Object.assign({ vol: 70, sens: 1, adsSens: 1, fov: 75, gfx: 'high', shake: 1, dmgnum: 1, invY: 0, keys: {} }, (() => { try { return JSON.parse(localStorage.getItem('jamminfps_opts') || '{}'); } catch (err) { return {}; } })());
 BASE_FOV = opts.fov;
 
 const WEAPONS = {
@@ -2901,25 +2912,26 @@ function showEndScreen() {
 
 // ===================== 입력 =====================
 addEventListener('keydown', e => {
-  keys[e.code] = true;
+  const code = mapKey(e.code);
+  keys[code] = true;
   if (state === 'replay' && ['Space', 'Enter', 'Escape'].includes(e.code)) { e.preventDefault(); finishReplay(); return; }
   if (KC.on && ['Space', 'Enter'].includes(e.code)) { e.preventDefault(); endKillcam(); return; }
-  if (e.code === 'Tab') { e.preventDefault(); if (state === 'playing') { scoreboardOpen = true; renderScoreboard($('scoreboard')); $('scoreboard').classList.remove('hidden'); } }
+  if (code === 'Tab') { e.preventDefault(); if (state === 'playing') { scoreboardOpen = true; renderScoreboard($('scoreboard')); $('scoreboard').classList.remove('hidden'); } }
   if (state !== 'playing' || !player.alive) return;
-  if (e.code.startsWith('Digit')) { const n = +e.code.slice(5) - 1; if (n >= 0 && n <= 3) switchSlot(player, n); }
-  if (e.code === 'KeyR') startReload(player);
-  if (e.code === 'KeyC' && !e.repeat) { player.stance = player.stance === 1 ? 0 : 1; sfx('step', null, 0.8); }
-  if (e.code === 'KeyZ' && !e.repeat) { player.stance = player.stance === 2 ? 0 : 2; sfx('step', null, 1); }
-  if (e.code === 'KeyB') { const d = player.slots[player.cur].def; if ((d.kind === 'rifle' || d.kind === 'pistol') && d.modes.length > 1) { player.modeIdx = (player.modeIdx + 1) % d.modes.length; playerModeMemory[d.key] = player.modeIdx; showCenterMsg(`사격 모드: ${MODE_KO[d.modes[player.modeIdx]]}`, '#ffd23f'); sfx('switch'); } }
-  if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
+  if (code.startsWith('Digit')) { const n = +code.slice(5) - 1; if (n >= 0 && n <= 3) switchSlot(player, n); }
+  if (code === 'KeyR') startReload(player);
+  if (code === 'KeyC' && !e.repeat) { player.stance = player.stance === 1 ? 0 : 1; sfx('step', null, 0.8); }
+  if (code === 'KeyZ' && !e.repeat) { player.stance = player.stance === 2 ? 0 : 2; sfx('step', null, 1); }
+  if (code === 'KeyB') { const d = player.slots[player.cur].def; if ((d.kind === 'rifle' || d.kind === 'pistol') && d.modes.length > 1) { player.modeIdx = (player.modeIdx + 1) % d.modes.length; playerModeMemory[d.key] = player.modeIdx; showCenterMsg(`사격 모드: ${MODE_KO[d.modes[player.modeIdx]]}`, '#ffd23f'); sfx('switch'); } }
+  if (code === 'BracketLeft' || code === 'BracketRight') {
     const d = player.slots[player.cur].def;
-    if (canOptic(d)) { const n = OPTICS.length; opticSel[d.key] = ((opticSel[d.key] || 0) + (e.code === 'BracketRight' ? 1 : n - 1)) % n; buildViewModel(d.key); const o = OPTICS[opticSel[d.key]]; showCenterMsg(`조준경: ${o.name} (${o.zoom})${o.rec < 1 ? ` · 반동 -${Math.round((1 - o.rec) * 100)}%` : ''}`, '#ffd23f'); sfx('switch'); }
+    if (canOptic(d)) { const n = OPTICS.length; opticSel[d.key] = ((opticSel[d.key] || 0) + (code === 'BracketRight' ? 1 : n - 1)) % n; buildViewModel(d.key); const o = OPTICS[opticSel[d.key]]; showCenterMsg(`조준경: ${o.name} (${o.zoom})${o.rec < 1 ? ` · 반동 -${Math.round((1 - o.rec) * 100)}%` : ''}`, '#ffd23f'); sfx('switch'); }
     else showCenterMsg(d.cls === 'sniper' ? '저격총은 전용 스코프 고정입니다' : '이 무기는 조준경을 바꿀 수 없습니다', '#aaa');
   }
-  if (e.code === 'Space') e.preventDefault();
+  if (code === 'Space' || e.code === 'Space') e.preventDefault();
 });
 function setOpticOverlay(idx) { const el = $('optic'); el.classList.toggle('hidden', idx < 2); el.classList.toggle('x2', idx === 2); el.classList.toggle('x4', idx === 3); }
-addEventListener('keyup', e => { keys[e.code] = false; if (e.code === 'Tab') { scoreboardOpen = false; $('scoreboard').classList.add('hidden'); } });
+addEventListener('keyup', e => { const code = mapKey(e.code); keys[code] = false; if (code === 'Tab') { scoreboardOpen = false; $('scoreboard').classList.add('hidden'); } });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouseL = mouseR = false; });
 document.addEventListener('mousedown', e => {
   if (KC.on) { endKillcam(); return; }
@@ -3488,6 +3500,7 @@ function showRoom() {
 const MODE_HINT = { coop: '사람 전원 BLUE · 나머지 자리는 AI', mixed: '사람을 양 팀에 나누고 빈자리는 AI', pvp: 'AI 없음 · 축소 맵 · 힐팩 1개' };
 function renderRoom() {
   $('roomCode').textContent = MP.code;
+  { const me = MP.slots.find(x => x.peer === MP.myPeer); if (me && document.activeElement !== $('roomName')) $('roomName').value = me.name; }
   $('roomRole').textContent = MP.host ? '👑 방장' : '👤 참가자';
   const pvp = MP.mode === 'pvp';
   const row = s => { const me = s.peer === MP.myPeer; if (s.kind !== 'human') return pvp ? `<div class="rs" style="opacity:.3"><span>— 빈자리</span></div>` : `<div class="rs" style="opacity:.55"><span>🤖 ${s.name}</span><span class="rs-w">AI</span></div>`; return `<div class="rs ${me ? 'me' : ''}"><span>${s.peer === 'host' ? '👑 ' : '👤 '}${s.name}${me ? ' (나)' : ''}</span></div>`; };
@@ -3585,6 +3598,7 @@ function hostOnData(conn, m) {
   switch (m.t) {
     case 'team': moveTeam(id); break;
     case 'lo': MP.slots[si].lo = sanitizeLo(m.lo); break;
+    case 'nm': { const nm = String(m.name || '').trim().slice(0, 10); if (nm && !MP.started) { MP.slots[si].name = nm; broadcastRoom(); } break; }
     case 'st': if (MP.started && e.alive && m.al) { e.netT = m.p; e.netYaw = m.y; e.ai.pitch = m.pt; e.crouch = m.c; e.prone = m.pr; e.lean = m.ln; } break;
     case 'ev': if (MP.started) for (const ev of m.e) hostClientEvent(e, ev); break;
     case 'hit': if (MP.started && e.alive) { const v = entities[m.v]; if (v && v.alive && v !== e) { const r = applyDamage(v, clamp(+m.d || 0, 0, 260), e, String(m.w || ''), !!m.h, e.pos); if (r) { bloodFx(v.pos.clone().add(V(0, m.h ? headY(v) : 1.1, 0))); if (v.model) { v.flashT = 0.12; v.flashCol = m.h ? 0xffd23f : 0xffffff; } } } } break;
@@ -3764,6 +3778,16 @@ function copyText(t, okMsg) {
   try { navigator.clipboard.writeText(t).then(() => showToast(okMsg), fallback); } catch (err) { fallback(); }
 }
 function inviteLink() { const base = location.protocol === 'file:' || location.origin === 'null' ? location.href.split(/[?#]/)[0] : location.origin + location.pathname; return base + '?room=' + MP.code; }
+function changeName() {
+  const nm = $('roomName').value.trim().slice(0, 10); if (!nm) { showToast('닉네임을 입력해 주세요'); return; }
+  try { localStorage.setItem('jamminfps_name', nm); } catch (err) {}
+  $('callsign').value = nm; $('mpName').value = nm;
+  if (MP.host) { const sl = MP.slots.find(x => x.peer === 'host'); if (sl) sl.name = nm; player.name = nm; broadcastRoom(); }
+  else if (MP.hostConn && MP.hostConn.open) MP.hostConn.send({ t: 'nm', name: nm });
+  showToast(`닉네임을 '${nm}'(으)로 바꿨어요`); $('roomName').blur();
+}
+$('roomNameBtn').addEventListener('click', changeName);
+$('roomName').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') changeName(); });
 $('copyCode').addEventListener('click', () => copyText(MP.code, '방 코드가 복사되었습니다: ' + MP.code));
 $('copyLink').addEventListener('click', () => copyText(inviteLink(), '초대 링크가 복사되었습니다 — 친구에게 보내면 클릭 한 번으로 바로 입장해요'));
 document.querySelectorAll('#mpRoom .seg').forEach(seg => seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
@@ -3775,6 +3799,36 @@ document.querySelectorAll('#mpRoom .seg').forEach(seg => seg.querySelectorAll('b
 })));
 // 옵션
 const OPT_KEY = 'jamminfps_opts';
+// ----- 키 설정 -----
+const KEY_ACTIONS = [['fwd', '앞으로', 'KeyW'], ['back', '뒤로', 'KeyS'], ['left', '왼쪽', 'KeyA'], ['right', '오른쪽', 'KeyD'], ['jump', '점프', 'Space'], ['sprint', '달리기', 'ShiftLeft'],
+  ['crouch', '앉기', 'KeyC'], ['prone', '엎드리기', 'KeyZ'], ['leanL', '왼쪽 기울이기', 'KeyQ'], ['leanR', '오른쪽 기울이기', 'KeyE'], ['reload', '재장전', 'KeyR'], ['mode', '사격 모드', 'KeyB'],
+  ['optPrev', '조준경 이전', 'BracketLeft'], ['optNext', '조준경 다음', 'BracketRight'], ['w1', '주무기', 'Digit1'], ['w2', '보조무기', 'Digit2'], ['w3', '근접무기', 'Digit3'], ['w4', '투척무기', 'Digit4'], ['score', '점수판', 'Tab']];
+const KEY_DEF = Object.fromEntries(KEY_ACTIONS.map(a => [a[0], a[2]]));
+let KEY_REMAP = {};
+function rebuildKeyMap() {
+  const b = Object.assign({}, KEY_DEF, opts.keys || {}); KEY_REMAP = {};
+  const used = new Set(Object.values(b));
+  for (const [a, , d] of KEY_ACTIONS) { if (!used.has(d)) KEY_REMAP[d] = '_none'; }
+  if (b.sprint !== 'ShiftLeft' && !used.has('ShiftRight')) KEY_REMAP.ShiftRight = '_none';
+  for (const [a, , d] of KEY_ACTIONS) if (b[a] !== d) KEY_REMAP[b[a]] = d;
+}
+const mapKey = c => KEY_REMAP[c] || c;
+function keyLabel(c) {
+  if (!c) return '-'; if (c.startsWith('Key')) return c.slice(3); if (c.startsWith('Digit')) return c.slice(5); if (c.startsWith('Numpad')) return 'Num' + c.slice(6);
+  return ({ Space: 'Space', ShiftLeft: 'L-Shift', ShiftRight: 'R-Shift', ControlLeft: 'L-Ctrl', ControlRight: 'R-Ctrl', AltLeft: 'L-Alt', AltRight: 'R-Alt', Tab: 'Tab', CapsLock: 'Caps', BracketLeft: '[', BracketRight: ']', Backquote: '`', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/', Backslash: '\\', Minus: '-', Equal: '=', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' })[c] || c;
+}
+let keyWait = null;
+function renderKeys() {
+  const b = Object.assign({}, KEY_DEF, opts.keys || {});
+  $('keyGrid').innerHTML = KEY_ACTIONS.map(([a, label]) => `<div class="kb-row"><span>${label}</span><button data-ka="${a}" class="${keyWait === a ? 'wait' : ''} ${b[a] !== KEY_DEF[a] ? 'chg' : ''}">${keyWait === a ? '키를 누르세요…' : keyLabel(b[a])}</button></div>`).join('');
+}
+function setKey(a, code) {
+  const b = Object.assign({}, KEY_DEF, opts.keys || {});
+  const other = Object.keys(b).find(k => k !== a && b[k] === code);
+  if (other) b[other] = b[a]; // 이미 쓰는 키면 서로 맞바꿈
+  b[a] = code; opts.keys = {}; for (const k in b) if (b[k] !== KEY_DEF[k]) opts.keys[k] = b[k];
+  saveOpts(); rebuildKeyMap(); renderKeys(); if (other) showToast(`'${KEY_ACTIONS.find(x => x[0] === other)[1]}'와 키를 맞바꿨어요`);
+}
 function saveOpts() { try { localStorage.setItem(OPT_KEY, JSON.stringify(opts)); } catch (err) {} }
 function applyOpts() {
   if (master) master.gain.value = (opts.vol / 100) * 0.65;
@@ -3783,10 +3837,24 @@ function applyOpts() {
   sun.castShadow = opts.gfx === 'high'; renderer.setPixelRatio(opts.gfx === 'high' ? Math.min(devicePixelRatio, 1.5) : 1); renderer.setSize(innerWidth, innerHeight);
   $('volVal').textContent = opts.vol; $('optVol').value = opts.vol; $('optSensVal').textContent = (+opts.sens).toFixed(2); $('optSens').value = opts.sens;
   $('adsSensVal').textContent = (+opts.adsSens).toFixed(2); $('optAdsSens').value = opts.adsSens; $('fovVal').textContent = opts.fov; $('optFov').value = opts.fov;
-  document.querySelectorAll('#options .seg').forEach(seg => { const k = seg.dataset.oopt; seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === String(opts[k]))); });
+  document.querySelectorAll('#options .seg').forEach(seg => { const k = seg.dataset.oopt; seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === String(opts[k] ?? 0))); });
+  rebuildKeyMap(); renderKeys();
 }
 [['optVol', 'vol'], ['optSens', 'sens'], ['optAdsSens', 'adsSens'], ['optFov', 'fov']].forEach(([id, k]) => $(id).addEventListener('input', e => { opts[k] = +e.target.value; applyOpts(); saveOpts(); }));
 document.querySelectorAll('#options .seg').forEach(seg => seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { const k = seg.dataset.oopt; opts[k] = k === 'gfx' ? b.dataset.v : +b.dataset.v; applyOpts(); saveOpts(); })));
+$('keyGrid').addEventListener('click', ev => { const b = ev.target.closest('button'); if (!b) return; keyWait = keyWait === b.dataset.ka ? null : b.dataset.ka; renderKeys(); });
+addEventListener('keydown', ev => {
+  if (!keyWait) return; ev.preventDefault(); ev.stopImmediatePropagation();
+  const a = keyWait; keyWait = null;
+  if (ev.code === 'Escape') { renderKeys(); return; }
+  setKey(a, ev.code);
+}, true);
+$('keyReset').addEventListener('click', () => { opts.keys = {}; keyWait = null; saveOpts(); rebuildKeyMap(); renderKeys(); showToast('키 설정을 기본값으로 되돌렸어요'); });
+// 마우스 상하 반전: 시점 회전 뒤 세로 이동을 반대로 보정
+document.addEventListener('mousemove', e => {
+  if (!opts.invY || !controls.isLocked) return;
+  camera.rotation.x = clamp(camera.rotation.x + 2 * (e.movementY || 0) * 0.002 * controls.pointerSpeed, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
+});
 // 도움말
 function renderHow(tab) {
   document.querySelectorAll('#howTabs button').forEach(b => b.classList.toggle('on', b.dataset.h === tab));
