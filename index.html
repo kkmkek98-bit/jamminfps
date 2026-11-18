@@ -3602,7 +3602,7 @@ function hostDrop(pid) {
 function clientOnData(m) {
   switch (m.t) {
     case 'reject': mpStatus(m.r, true); mpLeave(true); break;
-    case 'room': MP.slots = m.slots.map(s => ({ ...s, lo: null })); MP.mode = m.mode; Object.assign(settings, m.set); if (!MP.started && state !== 'playing') { loadMap(settings.map, MP.mode === 'pvp'); showMapPreview(); } if ($('mpRoom').classList.contains('hidden') || state !== 'menu') { if (!MP.started) showRoom(); } else renderRoom(); break;
+    case 'room': MP.slots = m.slots.map(s => ({ ...s, lo: null })); MP.mode = m.mode; Object.assign(settings, m.set); if (MP.started) syncSlotsMid(); if (!MP.started && state !== 'playing') { loadMap(settings.map, MP.mode === 'pvp'); showMapPreview(); } if ($('mpRoom').classList.contains('hidden') || state !== 'menu') { if (!MP.started) showRoom(); } else renderRoom(); break;
     case 'start': clientStart(m); break;
     case 's': if (MP.started && state === 'playing') applySnap(m); break;
     case 'spawn': clientSpawn(m); break;
@@ -3617,6 +3617,17 @@ function clientOnData(m) {
     case 'toRoom': MP.started = false; if (KC.on) endKillcam(true); showRoom(); break;
     case 'closed': clientLost(); break;
   }
+}
+// 경기 중 난입/퇴장 시 참가자 화면의 이름표·모델 상태를 방장 슬롯 정보에 맞춤
+function syncSlotsMid() {
+  MP.slots.forEach((sl, i) => {
+    const e = entities[i]; if (!e || e === player) return;
+    const nm = sl.kind === 'human' ? sl.name : e.aiName; if (e.name !== nm) { e.name = nm; retag(e); }
+    const off = MP.mode === 'pvp' && sl.kind !== 'human';
+    if (off && !e.off) { e.off = true; e.alive = false; if (e.model) e.model.root.visible = false; }
+    else if (!off && e.off) { e.off = false; e.alive = false; e.netT = null; }
+  });
+  if (scoreboardOpen) renderScoreboard($('scoreboard'));
 }
 function applySnap(m) {
   matchTime = m.tm; score.blue = m.sc[0]; score.red = m.sc[1];
