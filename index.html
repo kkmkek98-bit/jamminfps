@@ -2800,6 +2800,7 @@ function updateFlashOverlay(dt) { flashT = Math.max(0, flashT - dt); $('flashOv'
 
 // ===================== 플레이어 =====================
 const keys = {};
+let leanT = 0;
 let mouseL = false, mouseR = false, triggerFresh = true, adsAmt = 0, bloom = 0, hurt = 0, shake = 0, sprinting = false, sens = 1;
 let deathTime = 0, deathCam = null;
 const controls = new PointerLockControls(camera, document.body);
@@ -2888,7 +2889,8 @@ function updatePlayer(dt) {
   p.prone += ((p.stance === 2 ? 1 : 0) - p.prone) * Math.min(1, dt * 6);
   sprinting = !!(keys.ShiftLeft || keys.ShiftRight) && fw > 0 && !mouseR && !mouseL && p.reloadT <= 0 && !p.stance;
   // 기울이기 (Q/E) — 벽에 막히면 덜 기울어짐
-  let wantLean = sprinting ? 0 : (keys.KeyE ? 1 : 0) - (keys.KeyQ ? 1 : 0);
+  if (sprinting || !p.alive) leanT = 0; // 달리면 기울이기 해제
+  let wantLean = leanT;
   if (wantLean) { const ey = p.pos.y + eyeH(p), rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw); if (!los(V(p.pos.x, ey, p.pos.z), V(p.pos.x + rx * (LEAN_DIST + 0.25) * wantLean, ey, p.pos.z + rz * (LEAN_DIST + 0.25) * wantLean))) wantLean = 0; }
   p.lean += (wantLean - p.lean) * Math.min(1, dt * 10);
   let speed = sprinting ? SPRINT : WALK;
@@ -3522,6 +3524,7 @@ addEventListener('keydown', e => {
   if (code.startsWith('Digit')) { const n = +code.slice(5) - 1; if (n >= 0 && n <= 3) switchSlot(player, n); }
   if (code === 'KeyR') startReload(player);
   if (code === 'KeyF' && !e.repeat && MAP.night) { playerLightOn = !playerLightOn; player.lightOn = playerLightOn; sfx('switch'); showCenterMsg(playerLightOn ? '🔦 라이트 ON — 잘 보이지만 적에게도 위치가 보입니다' : '라이트 OFF — 어둠 속에 숨습니다', '#ffd23f'); }
+  if ((code === 'KeyQ' || code === 'KeyE') && !e.repeat) { const d = code === 'KeyE' ? 1 : -1; leanT = leanT === d ? 0 : d; } // 기울이기 토글
   if (code === 'KeyC' && !e.repeat) { player.stance = player.stance === 1 ? 0 : 1; sfx('step', null, 0.8); }
   if (code === 'KeyZ' && !e.repeat) { player.stance = player.stance === 2 ? 0 : 2; sfx('step', null, 1); }
   if (code === 'KeyB') { const d = player.slots[player.cur].def; if ((d.kind === 'rifle' || d.kind === 'pistol') && d.modes.length > 1) { player.modeIdx = (player.modeIdx + 1) % d.modes.length; playerModeMemory[d.key] = player.modeIdx; showCenterMsg(`사격 모드: ${MODE_KO[d.modes[player.modeIdx]]}`, '#ffd23f'); sfx('switch'); } }
@@ -4633,7 +4636,7 @@ function renderHow(tab) {
   document.querySelectorAll('#howTabs button').forEach(b => b.classList.toggle('on', b.dataset.h === tab));
   let h = '';
   if (tab === 'keys') {
-    const K = [['W A S D', '이동'], ['Shift', '달리기 (앞으로 이동 중)'], ['Space', '점프 · 앉기/엎드리기 중이면 일어서기'], ['C', '앉기 (반동 -20%, 탄 퍼짐 -25%)'], ['Z', '엎드리기 (반동 -40%, 탄 퍼짐 -45%)'], ['Q / E', '왼쪽 / 오른쪽 기울이기'],
+    const K = [['W A S D', '이동'], ['Shift', '달리기 (앞으로 이동 중)'], ['Space', '점프 · 앉기/엎드리기 중이면 일어서기'], ['C', '앉기 (반동 -20%, 탄 퍼짐 -25%)'], ['Z', '엎드리기 (반동 -40%, 탄 퍼짐 -45%)'], ['Q / E', '왼쪽 / 오른쪽 기울이기 (토글 · 한 번 더 누르면 해제 · 달리면 해제)'],
       ['마우스 좌클릭', '사격 · 투척 · 칼 공격'], ['마우스 우클릭', '정조준(ADS) · 투척무기는 약하게 던지기 · 근접무기는 찌르기/내려찍기 (등 뒤·머리 2배)'], ['R', '재장전'], ['1 · 2 · 3 · 4 / 휠', '주무기 · 보조무기 · 칼 · 투척무기'], ['B', '사격 모드 변경 (연사/점사/단발)'], ['[ / ]', '조준경 변경 (레드도트 · 홀로그램 · 2배 · 4배)'], ['Tab', '점수판'], ['ESC', '일시정지 · 메뉴 (멀티는 게임이 멈추지 않음)']];
     h = `<table><tr><th>키</th><th>기능</th></tr>${K.map(([k, v]) => `<tr><td><b>${k}</b></td><td>${v}</td></tr>`).join('')}</table>`;
   } else if (tab === 'guns') {
