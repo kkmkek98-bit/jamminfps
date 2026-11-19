@@ -643,6 +643,7 @@ const WEAPONS = {
   SENTINEL:{ key:'SENTINEL', name:'Sentinel DMR-7', kind:'rifle', cls:'dmr', dmg:42, hsMul:2, rpm:300, mag:15, reserve:90, reload:2.7, recoil:0.019, recoilYaw:0.005, hip:0.05, ads:0.0015, move:0.035, modes:['SINGLE'], adsFov:50, sfx:'dmr', range:110, speedMul:0.94, cal:'7.62mm', type:'지정사수소총', origin:'가상 · 실버라인 디펜스', desc:'반자동 · 몸통 3발 · 머리 2발 · 4배율 기본 장착 · 중장거리 견제', stats:{dmg:70, rate:40, ctrl:60} },
   BASTION:{ key:'BASTION', name:'Bastion LMG-100', kind:'rifle', cls:'lmg', dmg:25, rpm:760, mag:100, reserve:300, reload:5.2, recoil:0.015, recoilYaw:0.008, hip:0.045, ads:0.006, move:0.055, modes:['AUTO'], adsFov:54, sfx:'lmg', range:70, cal:'7.62mm', type:'경기관총', origin:'가상 · 아이언게이트', desc:'100발 탄띠 · 긴 재장전 · 이동속도 -12%', speedMul:0.88 },
   THUNDER:{ key:'THUNDER', name:'Thunder S12', kind:'rifle', cls:'shotgun', dmg:19, pellets:9, rpm:95, mag:6, reserve:36, reload:2.6, recoil:0.05, recoilYaw:0.01, hip:0.04, ads:0.035, move:0.01, modes:['SINGLE'], adsFov:62, sfx:'shotgun', range:24, cal:'12게이지', type:'산탄총', origin:'가상 · 레드캐년', desc:'펌프액션 · 9펠릿 × 19 · 5m 이내 한 방 · 근거리 최강' },
+  TYPHOON:{ key:'TYPHOON', name:'Typhoon AA-20', kind:'rifle', cls:'shotgun', dmg:12, pellets:8, rpm:240, mag:12, reserve:48, reload:3.9, recoil:0.028, recoilYaw:0.012, hip:0.047, ads:0.045, move:0.014, modes:['AUTO'], adsFov:62, sfx:'shotgun', range:20, cal:'12게이지 드럼', type:'산탄총', origin:'가상 · 블랙타이드', desc:'자동 산탄총 · 8펠릿 × 12 · 12발 드럼 · 근거리 난사형 · 재장전 느림' },
   MULE:  { key:'MULE', name:'Mule 소드오프', kind:'pistol', cls:'sawed', dmg:15, pellets:9, rpm:300, mag:2, reserve:24, reload:1.7, recoil:0.07, recoilYaw:0.015, hip:0.055, ads:0.045, move:0.01, modes:['SINGLE'], adsFov:66, sfx:'shotgun', range:15, cal:'12게이지', type:'소드오프 산탄총', origin:'가상 · 더스트밸리', desc:'2연장 · 9펠릿 × 15 · 근접 2연발 즉사' },
   HORNET:{ key:'HORNET', name:'Hornet MP-9R', kind:'pistol', cls:'mp', dmg:16, rpm:1100, mag:25, reserve:150, reload:1.7, recoil:0.009, recoilYaw:0.007, hip:0.03, ads:0.012, move:0.012, modes:['AUTO','SINGLE'], adsFov:62, sfx:'p92', range:25, cal:'9mm', type:'기관권총', origin:'가상 · 하이브 택티컬', desc:'연발 권총 · 분당 1000발' },
   KNIFE: { key:'KNIFE', name:'전술용 나이프', kind:'melee', dmg:30, rpm:200, range:2.2, heavyDmg:65, heavyRange:2.6 },
@@ -655,14 +656,14 @@ const KIND_SPEED = { melee: 1.25, pistol: 0.94, rifle: 0.8, throw: 0.94 };
 const THROWS = ['GRENADE', 'FLASH', 'SMOKE', 'MOLOTOV'];
 const OPTICS = [{ name: '레드도트', zoom: '1x', fov: 58, rec: 1 }, { name: '홀로그램', zoom: '1x', fov: 58, rec: 1 }, { name: '2배율', zoom: '2x', fov: 37.5, rec: 0.9 }, { name: '4배율', zoom: '4x', fov: 18.75, rec: 0.75 }];
 const opticSel = { SENTINEL: 3 }; // DMR은 4배율 기본
-const WEAPON_GROUPS = [['ar', '돌격소총', ['M416', 'AKM', 'K2']], ['smg', '기관단총', ['UMP45', 'VECTOR']], ['dmr', '지정사수소총', ['SENTINEL']], ['sniper', '저격소총', ['LONGBOW', 'GOLIATH']], ['lmg', '경기관총', ['BASTION']], ['sg', '산탄총', ['THUNDER']]];
+const WEAPON_GROUPS = [['ar', '돌격소총', ['M416', 'AKM', 'K2']], ['smg', '기관단총', ['UMP45', 'VECTOR']], ['dmr', '지정사수소총', ['SENTINEL']], ['sniper', '저격소총', ['LONGBOW', 'GOLIATH']], ['lmg', '경기관총', ['BASTION']], ['sg', '산탄총', ['THUNDER', 'TYPHOON']]];
 const PRIMARY_KEYS = WEAPON_GROUPS.flatMap(g => g[2]);
 const PISTOL_KEYS = ['DEAGLE', 'P92', 'MULE', 'HORNET'];
 // 총기 모드: 저격전(DMR·SR만) / 샷건전(샷건·소드오프만) / 칼전(칼만 + 보조무기 팩)
 const WMODES = { normal: '자유', sniper: '저격전', shotgun: '샷건전', knife: '칼전' };
-const MODE_PRIM = { sniper: ['SENTINEL', 'LONGBOW', 'GOLIATH'], shotgun: ['THUNDER'] };
+const MODE_PRIM = { sniper: ['SENTINEL', 'LONGBOW', 'GOLIATH'], shotgun: ['THUNDER', 'TYPHOON'] };
 const MODE_PIST = { shotgun: ['MULE'] };
-const WM_NOTE = { normal: '', sniper: '주무기: Sentinel · Longbow · Goliath만 / 보조·투척 자유', shotgun: '주무기 Thunder S12 · 보조 Mule 소드오프 고정 / 투척 자유', knife: '칼만 사용 · 힐팩 대신 🔫보조무기 팩(랜덤) · 죽으면 사라짐' };
+const WM_NOTE = { normal: '', sniper: '주무기: Sentinel · Longbow · Goliath만 / 보조·투척 자유', shotgun: '주무기 Thunder S12 · Typhoon AA-20 / 보조 Mule 소드오프 고정 / 투척 자유', knife: '칼만 사용 · 힐팩 대신 🔫보조무기 팩(랜덤) · 죽으면 사라짐' };
 function weaponAllowed(tab, k) {
   const wm = settings.wmode;
   if (wm === 'knife') return tab === 'throw' ? false : false;
@@ -1890,6 +1891,7 @@ function soldierGun(m, key) {
   else if (cls === 'sniper') { rb(0.065, 0.1, 0.62, fm, 0, 0, 0.02); cyl(0.013, 0.55, mG, -0.55); cyl(0.032, 0.32, mG, -0.04, 0.1); rb(0.05, 0.14, 0.07, mG, 0, -0.1, 0.05); rb(0.05, 0.09, 0.24, fm, 0, -0.02, 0.4); mz = -0.83; }
   else if (cls === 'dmr') { const sd = SM(0xb39a6c, { roughness: 0.75 }); rb(0.065, 0.1, 0.4, mG, 0, 0, -0.05, 0.15); rb(0.075, 0.075, 0.4, sd, 0, -0.005, -0.42); cyl(0.012, 0.3, mG, -0.75); rb(0.05, 0.05, 0.1, mG, 0, 0, -0.95); rb(0.045, 0.14, 0.07, mG, 0, -0.11, -0.08); rb(0.045, 0.03, 0.22, sd, 0, 0.03, 0.27); rb(0.045, 0.03, 0.24, sd, 0, -0.07, 0.25); rb(0.05, 0.14, 0.03, mG, 0, -0.02, 0.37); mz = -1.0; }
   else if (cls === 'lmg') { rb(0.08, 0.12, 0.62, mG, 0, 0, 0); cyl(0.017, 0.35, mG, -0.48); rb(0.12, 0.13, 0.13, SM(0x3c4630), -0.02, -0.12, -0.05); rb(0.05, 0.08, 0.22, mG, 0, -0.02, 0.38); mz = -0.66; }
+  else if (key === 'TYPHOON') { const od = SM(0x4d5a3a, { roughness: 0.7 }); rb(0.075, 0.11, 0.45, od, 0, 0, -0.08); rb(0.06, 0.07, 0.24, mG, 0, 0.01, -0.42); cyl(0.02, 0.15, mG, -0.6); const dr = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.08, 14), mG); dr.rotation.z = Math.PI / 2; dr.position.set(0, -0.15, -0.15); dr.castShadow = true; gun.add(dr); rb(0.06, 0.1, 0.24, od, 0, -0.02, 0.26); mz = -0.7; }
   else if (cls === 'shotgun') { rb(0.065, 0.09, 0.42, mG, 0, 0, 0); cyl(0.02, 0.5, mG, -0.42); rb(0.07, 0.06, 0.18, m.mW, 0, -0.04, -0.35); rb(0.05, 0.09, 0.26, m.mW, 0, -0.03, 0.33); mz = -0.68; }
   else if (cls === 'smg') { rb(0.065, 0.11, 0.42, key === 'VECTOR' ? SM(0x8d7b58) : mG, 0, 0, -0.05); cyl(0.013, 0.12, mG, -0.32); rb(0.045, 0.18, 0.06, mG, 0, -0.13, -0.12); rb(0.04, 0.07, 0.18, mG, 0, -0.01, 0.26); mz = -0.39; }
   else { rb(0.07, 0.11, 0.6, mG, 0, 0, 0, 0.15); rb(0.075, 0.08, 0.25, fm, 0, -0.005, -0.25); rb(0.05, 0.16, 0.08, mG, 0, -0.12, 0.02); cyl(0.014, 0.25, mG, -0.45); rb(0.05, 0.08, 0.22, fm, 0, -0.02, 0.38); }
@@ -2019,6 +2021,20 @@ function makeGunModel(key, arms = true) {
     vc(g, 0.022, 0.03, K.black, 0, 0.012, -0.5); vb(g, 0.06, 0.012, 0.015, K.dark, -0.025, -0.06, -0.1);
     for (let i = 0; i < 4; i++) vb(g, 0.004, 0.012, 0.012, K.silver, -0.075, -0.07 - i * 0.02, -0.1);
     optZ = -0.04; optBase = 0.058; sightY = 0.085; rifleArms(-0.4);
+  } else if (key === 'TYPHOON') {
+    // Typhoon AA-20: 각진 올리브 리시버 · 대형 드럼탄창 · 통풍 총열덮개 · 캐리핸들 · 직선 개머리판
+    const od = VMM(0x4d5a3a, { metalness: 0.2, roughness: 0.7 });
+    vb(g, 0.072, 0.1, 0.42, od, 0, 0.0, -0.1);
+    vb(g, 0.076, 0.03, 0.42, K.black, 0, -0.06, -0.1);
+    vb(g, 0.06, 0.07, 0.24, K.black, 0, 0.01, -0.42); for (let i = 0; i < 5; i++) for (const a of [-1, 1]) vb(g, 0.004, 0.022, 0.03, K.dark, a * 0.031, 0.012, -0.34 - i * 0.042);
+    vc(g, 0.02, 0.12, K.dark, 0, 0.02, -0.6); vb(g, 0.05, 0.05, 0.06, K.black, 0, 0.02, -0.68); muzzle.set(0, 0.02, -0.72);
+    vb(g, 0.022, 0.04, 0.024, K.black, 0, 0.07, -0.3); vb(g, 0.022, 0.04, 0.024, K.black, 0, 0.07, 0.04); vb(g, 0.024, 0.016, 0.36, K.black, 0, 0.095, -0.13);
+    const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.075, 24), K.black); drum.rotation.z = Math.PI / 2; drum.position.set(0, -0.15, -0.16); g.add(drum);
+    vc(g, 0.03, 0.08, od, 0, -0.15, -0.16).rotation.set(0, 0, Math.PI / 2); vb(g, 0.045, 0.06, 0.07, K.black, 0, -0.08, -0.16);
+    vb(g, 0.042, 0.11, 0.05, K.black, 0, -0.1, 0.06, -0.3);
+    vb(g, 0.06, 0.1, 0.24, od, 0, -0.02, 0.24); vb(g, 0.064, 0.13, 0.03, K.black, 0, -0.03, 0.37);
+    gTrig(g, -0.06, 0.05, K.black); gPort(g, 0.037, 0.01, -0.06, 0.09);
+    optZ = -0.13; optBase = 0.103; sightY = 0.12; rifleArms(-0.45);
   } else if (cls === 'shotgun') {
     vb(g, 0.06, 0.08, 0.3, K.black, 0, 0, -0.04);
     vc(g, 0.017, 0.5, K.black, 0, 0.022, -0.43); vc(g, 0.013, 0.38, K.dark, 0, -0.016, -0.38);
@@ -2199,7 +2215,7 @@ let player = null;
 const BLUE_NAMES = ['YOU', '김상병', '이병장', '박하사', '최중사', '정일병', '강상사', '윤병장'];
 const RED_NAMES = ['Viper', 'Wolf', 'Ghost', 'Raven', 'Cobra', 'Hawk', 'Reaper', 'Shadow'];
 
-const AI_PRIMS = ['M416', 'AKM', 'K2', 'M416', 'AKM', 'K2', 'M416', 'AKM', 'K2', 'UMP45', 'VECTOR', 'UMP45', 'BASTION', 'THUNDER', 'LONGBOW', 'GOLIATH', 'SENTINEL'];
+const AI_PRIMS = ['M416', 'AKM', 'K2', 'M416', 'AKM', 'K2', 'M416', 'AKM', 'K2', 'UMP45', 'VECTOR', 'UMP45', 'BASTION', 'THUNDER', 'TYPHOON', 'LONGBOW', 'GOLIATH', 'SENTINEL'];
 const aiPrimary = () => AI_PRIMS[Math.random() * AI_PRIMS.length | 0];
 function createEntity(team, name, isPlayer) {
   const prim = aiPrimary(), pis = Math.random() < 0.5 ? 'DEAGLE' : 'P92';
