@@ -67,6 +67,22 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 #hint{position:absolute;left:16px;bottom:22px;font-size:12px;line-height:1.7;opacity:.8;background:rgba(0,0,0,.4);padding:8px 12px;transition:opacity 1s}
 #hint b{color:#ffd23f}
 /* overlays */
+.aw-wrap{width:min(860px,94vw);color:#e9e7e1}
+.aw-top{display:flex;justify-content:space-between;font-size:13px;letter-spacing:.06em;color:#8c8a83;margin-bottom:4px}
+.aw-h{font-size:30px;font-weight:800;color:#fff;margin-bottom:16px}.aw-h em{font-style:normal;color:#ffd23f}
+.aw-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.aw-card{background:#171b22;border:2px solid #2a2f38;border-radius:12px;padding:14px 14px 13px;opacity:0;transform:rotateY(80deg) scale(.9);transition:opacity .35s,transform .45s cubic-bezier(.2,1.4,.4,1)}
+.aw-card.on{opacity:1;transform:none}.aw-card.me{border-color:#ffd23f;box-shadow:0 0 18px rgba(255,210,63,.18)}
+.aw-row{display:flex;justify-content:space-between;align-items:center}
+.aw-ic{width:42px;height:42px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.aw-tag{font-size:12px;padding:2px 8px;border-radius:5px;font-weight:700}
+.aw-t{font-size:18px;font-weight:800;margin:10px 0 2px;color:#fff}.aw-n{font-size:14px;color:#c9c6bd}
+.aw-s{font-size:24px;font-weight:800;margin-top:6px;color:#ffd23f}.aw-s small{font-size:12px;color:#8c8a83;margin-left:3px;font-weight:500}
+.aw-c-brag .aw-ic,.aw-c-brag .aw-tag{background:#3a3110;color:#ffd23f}.aw-c-tease .aw-ic,.aw-c-tease .aw-tag{background:#2d1a1a;color:#ff9a8c}.aw-c-rival .aw-ic,.aw-c-rival .aw-tag{background:#251a33;color:#c3a4ff}
+.aw-card.me .aw-tag{background:#ffd23f;color:#2a2205}
+.aw-bot{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+.aw-dots{display:flex;gap:6px}.aw-dots i{width:22px;height:5px;border-radius:3px;background:#3a3f48}.aw-dots i.on{background:#ffd23f}
+.aw-btn{background:#ffd23f;color:#2a2205;font-size:15px;font-weight:800;padding:10px 18px;border-radius:7px;border:0;cursor:pointer;font-family:inherit}
 .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,8,12,.78);backdrop-filter:blur(3px);z-index:10}
 .panel{background:rgba(18,22,28,.95);border:1px solid rgba(255,255,255,.1);padding:28px 34px;max-width:900px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 .panel h1{font-size:38px;letter-spacing:4px;font-weight:900}
@@ -491,6 +507,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
   </div>
 </div>
 
+<div id="awards" class="overlay hidden"><div class="aw-wrap"><div class="aw-top"><span id="awSub"></span><span id="awCnt"></span></div><div class="aw-h">오늘의 칭호 <em>시상식</em></div><div class="aw-grid" id="awGrid"></div><div class="aw-bot"><div class="aw-dots" id="awDots"></div><div style="display:flex;gap:12px;align-items:center"><span style="font-size:13px;color:#8c8a83">Space로 건너뛰기</span><button class="aw-btn" id="awBtn">결과 보기 →</button></div></div></div></div>
 <div id="end" class="overlay hidden">
   <div class="panel wide">
     <h1 id="endTitle">승리</h1>
@@ -2268,7 +2285,7 @@ function spawnEntity(e) {
   e.pos.copy(spawnPoint(e.team)); e.vel.set(0, 0, 0); e.knock.set(0, 0, 0);
   e.dmgBy.clear(); e.streak = 0; e.crouch = 0; e.prone = 0; e.lean = 0; e.stance = 0;
   e.yaw = e.team === 'blue' ? 0 : Math.PI; e.pitch = 0; e.hp = 100; e.alive = true; e.onGround = true; e.protectT = PROTECT_TIME;
-  setupWeapons(e); if (!e.isPlayer && !e.remote) e.lightOn = true; else if (e.isPlayer) e.lightOn = playerLightOn;
+  if (e.aw) { e.aw.spawnAt = now; e.aw.lp = null; } setupWeapons(e); if (!e.isPlayer && !e.remote) e.lightOn = true; else if (e.isPlayer) e.lightOn = playerLightOn;
   if (e.model && e.loadout) soldierGun(e.model, e.modelKey || e.loadout.primary);
   if (e.model) { e.model.root.visible = !e.isPlayer; e.model.body.rotation.set(0, 0, 0); e.model.body.position.set(0, 0, 0); e.model.helmet.visible = true; e.flashT = 0; }
   if (e.ai) { Object.assign(e.ai, { blindT: 0, target: null, seen: false, path: [], waitT: 0, sideT: 0, alertT: 0, coverPos: null, stuckCount: 0, aimErr: 0.1 }); e.ai.lastPos.copy(e.pos); }
@@ -2340,7 +2357,7 @@ function applyDamage(v, dmg, att, wname, head, fromPos) {
   if (CHEAT_BUILD && CHEAT.god && v === player && !MP.on) return false;
   if (!v.alive || v.protectT > 0) return false;
   if (att && att !== v && att.team === v.team) return false;
-  const real = Math.min(dmg, v.hp); v.hp -= dmg;
+  const real = Math.min(dmg, v.hp); v.hp -= dmg; if (att === v && v.aw) v.aw.selfDmg += real;
   if (att && att !== v) { att.dmgDealt += real; v.dmgBy.set(att, (v.dmgBy.get(att) || 0) + real); }
   if (v.isPlayer) { hurt = Math.min(1, hurt + dmg / 55); if (fromPos) showDamageDir(fromPos); sfx('hurt'); }
   else if (v.remote) netSendTo(v, { t: 'hurt', d: Math.round(dmg), f: fromPos ? [r2(fromPos.x), r2(fromPos.y), r2(fromPos.z)] : null });
@@ -2348,7 +2365,87 @@ function applyDamage(v, dmg, att, wname, head, fromPos) {
   if (v.hp <= 0) { killEntity(v, att, wname, head); return 'kill'; }
   return 'hit';
 }
+// ===================== 칭호 시상식 =====================
+const AW = { first: null, last: null, pair: new Map(), list: null, shown: false, timers: [] };
+function awInit(e) { e.aw = { longKill: 0, multi: 0, lastKillT: -99, selfDmg: 0, packs: 0, knife: 0, lightDeaths: 0, quick: 1e9, revenge: 0, lastKiller: null, dist: 0, lp: null, spawnAt: 0 }; }
+function awReset() { AW.first = AW.last = null; AW.pair.clear(); AW.list = null; AW.shown = false; for (const e of entities) awInit(e); }
+function awTrack(dt) {
+  if (isClient()) return;
+  for (const e of entities) { if (!e.aw || !e.alive || e.off) continue; const a = e.aw;
+    if (a.lp) { const d = Math.hypot(e.pos.x - a.lp.x, e.pos.z - a.lp.z); if (d < 3) a.dist += d; a.lp.set(e.pos.x, 0, e.pos.z); } else a.lp = V(e.pos.x, 0, e.pos.z); }
+}
+function awKill(v, k, wname) {
+  if (!v.aw) return;
+  if (MAP.night && v.lightOn !== false) v.aw.lightDeaths++;
+  v.aw.quick = Math.min(v.aw.quick, now - v.aw.spawnAt);
+  if (!k || k === v || !k.aw) return;
+  const a = k.aw; a.longKill = Math.max(a.longKill, k.pos.distanceTo(v.pos));
+  if (now - a.lastKillT < 3) a.multi++; a.lastKillT = now;
+  if (wname === WEAPONS.KNIFE.name) a.knife++;
+  if (a.lastKiller === v) { a.revenge++; a.lastKiller = null; }
+  v.aw.lastKiller = k;
+  const key = k.id + '>' + v.id; AW.pair.set(key, (AW.pair.get(key) || 0) + 1);
+  if (AW.first === null) AW.first = k.id; AW.last = k.id;
+}
+function computeAwards() {
+  let pool = entities.filter(e => !e.off && e.aw);
+  if (MP.on) { const hu = pool.filter(e => e.isPlayer || e.remote); if (hu.length >= 2) pool = hu; }
+  const isIn = e => pool.includes(e);
+  const top = (f, min, lowest) => { let b = null, bv = lowest ? 1e9 : -1e9; for (const e of pool) { const v = f(e); if (v == null) continue; if (lowest ? v < bv : v > bv) { bv = v; b = e; } } return b && (lowest ? bv <= min : bv >= min) ? [b, bv] : null; };
+  const C = [];
+  const add = (cat, ic, t, r, fmt) => { if (r) C.push({ cat, ic, t, id: r[0].id, v: fmt(r[1], r[0]) }); };
+  add('brag', '👑', 'MVP', top(e => e.kills * 2 + e.assists + e.dmgDealt / 100, 2), (v, e) => [e.kills, '킬', e.assists, '어시']);
+  const brag = [], tease = [], rival = [];
+  const B = (ic, t, r, fmt) => { if (r) brag.push({ cat: 'brag', ic, t, id: r[0].id, v: fmt(r[1], r[0]) }); };
+  const T = (ic, t, r, fmt) => { if (r) tease.push({ cat: 'tease', ic, t, id: r[0].id, v: fmt(r[1], r[0]) }); };
+  B('🎯', '헤드샷 장인', top(e => e.kills >= 3 ? e.hsKills / e.kills : null, 0.3), v => [Math.round(v * 100), '% 헤드샷 킬']);
+  B('🔭', '저격왕', top(e => e.aw.longKill, 40), v => [Math.round(v), 'm 처치']);
+  B('🔥', '학살자', top(e => e.bestStreak, 4), v => [v, '연속 처치']);
+  B('⚡', '다다다다', top(e => e.aw.multi, 1), v => [v, '번 연속킬(3초 내)']);
+  const fb = entities[AW.first]; if (fb && isIn(fb)) brag.push({ cat: 'brag', ic: '🩸', t: '퍼스트 블러드', id: fb.id, v: ['1', '번째 킬의 주인공'] });
+  const lk = entities[AW.last]; if (lk && isIn(lk)) brag.push({ cat: 'brag', ic: '🏁', t: '끝내기', id: lk.id, v: ['마지막', '킬로 경기 종료'] });
+  B('🤝', '도우미', top(e => e.assists, 3), v => [v, '어시스트']);
+  B('💥', '딜찍누', top(e => e.dmgDealt, 300), v => [Math.round(v), '피해']);
+  T('🧟', '총알받이', top(e => e.deaths, 3), v => [v, '데스']);
+  T('🐢', '잠수함', top(e => e.aw.dist, 1e9, true), v => [Math.round(v), 'm 이동']);
+  T('🏃', '마라토너', top(e => e.aw.dist, 300), v => v >= 1000 ? [(v / 1000).toFixed(1), 'km 뛰었음'] : [Math.round(v), 'm 뛰었음']);
+  T('💣', '수류탄 자폭러', top(e => e.aw.selfDmg, 30), v => [Math.round(v), '자기 피해']);
+  T('🍗', settings.wmode === 'knife' ? '보급 중독' : '힐팩 중독', top(e => e.aw.packs, 2), v => [v, '개 먹음']);
+  if (settings.wmode !== 'knife') T('🔪', '칼잡이', top(e => e.aw.knife, 1), v => [v, '칼 킬']);
+  if (MAP.night) T('🔦', '등대', top(e => e.aw.lightDeaths, 2), v => [v, '번 라이트 켜고 사망']);
+  T('💀', '즉사', top(e => e.aw.quick < 1e8 ? e.aw.quick : null, 6, true), v => [Math.max(1, Math.round(v)), '초 만에 사망']);
+  let bp = null, bc = 2; for (const [k, c] of AW.pair) { const [a, b] = k.split('>').map(Number); if (c > bc && isIn(entities[a])) { bc = c; bp = [a, b]; } }
+  if (bp) rival.push({ cat: 'rival', ic: '😈', t: '천적', id: bp[0], vs: bp[1], v: [bc, '번 처치'] });
+  const rv = top(e => e.aw.revenge, 2); if (rv) rival.push({ cat: 'rival', ic: '🔁', t: '복수 성공', id: rv[0].id, v: [rv[1], '번 복수'] });
+  const shuf = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const cnt = new Map(), out = []; const ok = c => (cnt.get(c.id) || 0) < 2 && !out.some(o => o.t === c.t);
+  const take = (list, n) => { for (const c of list) { if (n <= 0) break; if (ok(c)) { out.push(c); cnt.set(c.id, (cnt.get(c.id) || 0) + 1); n--; } } };
+  take(C, 1); take(shuf(brag), 2); take(shuf(tease), 2); take(rival, 1);
+  if (out.length < 6) take(shuf([...brag, ...tease, ...rival]), 6 - out.length);
+  return out.map(c => { const e = entities[c.id]; return { ...c, name: c.vs != null ? `${e.name} → ${entities[c.vs].name}` : e.name, team: e.team }; });
+}
+function showAwards(done) {
+  const L = AW.list || [];
+  if (AW.shown || !L.length) { done(); return; }
+  AW.shown = true; AW.done = done;
+  const tagTxt = { brag: '자랑', tease: '놀림', rival: '천적' };
+  $('awSub').textContent = `${score.blue > score.red ? 'BLUE 승리' : score.red > score.blue ? 'RED 승리' : '무승부'} · ${score.blue} : ${score.red} · ${MAP.name}`;
+  $('awGrid').innerHTML = L.map((c, i) => { const me = c.id === player.id || (c.vs != null && c.vs === player.id && false);
+    return `<div class="aw-card aw-c-${c.cat} ${me ? 'me' : ''}"><div class="aw-row"><div class="aw-ic">${c.ic}</div><span class="aw-tag">${me ? '나' : tagTxt[c.cat]}</span></div><div class="aw-t">${c.t}</div><div class="aw-n">${c.name}${c.vs == null ? ' · ' + (c.team === 'blue' ? 'BLUE' : 'RED') : ''}</div><div class="aw-s">${c.v[0]}<small>${c.v[1]}</small>${c.v[2] != null ? ` ${c.v[2]}<small>${c.v[3]}</small>` : ''}</div></div>`; }).join('');
+  $('awDots').innerHTML = L.map(() => '<i></i>').join('');
+  $('awards').classList.remove('hidden');
+  const cards = [...document.querySelectorAll('#awGrid .aw-card')], dots = [...document.querySelectorAll('#awDots i')];
+  AW.timers.forEach(clearTimeout); AW.timers = [];
+  cards.forEach((c, i) => AW.timers.push(setTimeout(() => { c.classList.add('on'); dots[i].classList.add('on'); $('awCnt').textContent = `${i + 1} / ${cards.length}`; sfx(L[i].cat === 'tease' ? 'switch' : 'kill'); }, 500 + i * 400)));
+}
+function closeAwards() {
+  if ($('awards').classList.contains('hidden')) return;
+  const cards = [...document.querySelectorAll('#awGrid .aw-card')];
+  if (cards.some(c => !c.classList.contains('on'))) { AW.timers.forEach(clearTimeout); cards.forEach(c => c.classList.add('on')); document.querySelectorAll('#awDots i').forEach(d => d.classList.add('on')); $('awCnt').textContent = `${cards.length} / ${cards.length}`; return; }
+  $('awards').classList.add('hidden'); const d = AW.done; AW.done = null; if (d) d();
+}
 function killEntity(v, k, wname, head) {
+  awKill(v, k, wname);
   v.alive = false; v.hp = 0; v.deaths++; v.respawnT = RESPAWN_DELAY; v.deadT = 0; v.deathSign = -1; v.deathAt = now;
   if (k && k !== v) { const fwd = V(-Math.sin(v.yaw), 0, -Math.cos(v.yaw)); const toK = k.pos.clone().sub(v.pos).setY(0).normalize(); v.deathSign = fwd.dot(toK) > 0 ? 1 : -1; }
   if (v.model && k && k.isPlayer && k !== v) { v.flashT = 0.2; v.flashCol = head ? 0xffd23f : 0xff3b30; if (head) helmetPop(v, k); }
@@ -3161,7 +3258,7 @@ function showLobby() {
   for (const e of entities) e.off = false; loadMap(settings.map); showMapPreview();
   for (const e of entities) { e.alive = false; if (e.model) e.model.root.visible = false; if (!e.isPlayer) { e.loadout.primary = aiPrimary(); e.loadout.throw = ['GRENADE', 'GRENADE', 'FLASH', 'SMOKE', 'MOLOTOV'][Math.random() * 5 | 0]; } }
   fixLoadoutForMode(); player.loadout = { ...selLoadout };
-  ['pause', 'death', 'end', 'scoreboard', 'title', 'multi', 'options', 'howto'].forEach(id => $(id).classList.add('hidden'));
+  ['pause', 'death', 'end', 'scoreboard', 'title', 'multi', 'options', 'howto', 'awards'].forEach(id => $(id).classList.add('hidden'));
   clearAreas(); flashT = 0; updateFlashOverlay(0);
   $('hud').classList.add('hidden'); $('menu').classList.remove('hidden');
   renderRoster(); attachPreview('armMenu');
@@ -3212,7 +3309,7 @@ function resetMatch() {
   $('killfeed').innerHTML = '';
   for (const e of entities) { e.kills = e.deaths = e.assists = e.dmgDealt = e.hsKills = e.shots = e.hits = e.streak = e.bestStreak = 0; }
   player.name = ($('callsign').value.trim() || 'YOU').slice(0, 10);
-  player.loadout = { ...selLoadout };
+  player.loadout = { ...selLoadout }; awReset();
   for (const e of entities) spawnEntity(e);
   recStart(); lastHighlight = null;
 }
@@ -3244,12 +3341,13 @@ function checkWin() {
 }
 function endMatch() {
   if (KC.on) endKillcam(true);
-  if (MP.on && MP.host) { MP.started = false; sendAll({ t: 'end', sc: [score.blue, score.red], tm: matchTime }); }
+  if (!isClient()) { try { AW.list = computeAwards(); } catch (err) { console.warn(err); AW.list = []; } AW.shown = false; }
+  if (MP.on && MP.host) { MP.started = false; sendAll({ t: 'end', sc: [score.blue, score.red], tm: matchTime, aw: AW.list }); }
   state = 'ended'; controls.unlock(); recordFrame(1 / REC.fps);
   $('death').classList.add('hidden'); $('pause').classList.add('hidden'); $('scoreboard').classList.add('hidden'); $('scope').classList.add('hidden'); setOpticOverlay(-1);
   lastHighlight = findHighlight(player.id) || bestHighlight();
   if (lastHighlight) setTimeout(() => startReplay(lastHighlight), 1200);
-  else showEndScreen();
+  else showAwards(showEndScreen);
 }
 function showEndScreen() {
   $('hud').classList.add('hidden');
@@ -3278,6 +3376,7 @@ addEventListener('keydown', e => {
   const code = mapKey(e.code);
   keys[code] = true;
   if (state === 'replay' && ['Space', 'Enter', 'Escape'].includes(e.code)) { e.preventDefault(); finishReplay(); return; }
+  if (!$('awards').classList.contains('hidden') && ['Space', 'Enter', 'Escape'].includes(e.code)) { e.preventDefault(); closeAwards(); return; }
   if (KC.on && ['Space', 'Enter'].includes(e.code)) { e.preventDefault(); endKillcam(); return; }
   if (code === 'Tab') { e.preventDefault(); if (state === 'playing') { scoreboardOpen = true; renderScoreboard($('scoreboard')); $('scoreboard').classList.remove('hidden'); } }
   if (state !== 'playing' || !player.alive) return;
@@ -3375,6 +3474,7 @@ function updateCheatHud() {
 }
 $('quitBtn').addEventListener('click', () => { if (MP.on) showTitle(); else showLobby(); });
 $('lobbyBtn').addEventListener('click', () => { if (MP.on) mpBackToRoom(); else showLobby(); });
+$('awBtn').addEventListener('click', closeAwards);
 $('hlBtn').addEventListener('click', () => { if (lastHighlight) startReplay(lastHighlight); });
 $('againBtn').addEventListener('click', () => { if (MP.on) { if (MP.host) mpStartMatch(); return; } $('end').classList.add('hidden'); $('hud').classList.remove('hidden'); initAudio(); resetMatch(); state = 'playing'; controls.lock(); });
 const onSens = v => { sens = +v; $('sensVal').textContent = sens.toFixed(2); $('sensRange').value = v; $('sensRange2').value = v; };
@@ -3515,7 +3615,7 @@ function finishReplay() {
   state = 'ended'; $('potg').classList.add('hidden'); $('scope').classList.add('hidden'); setOpticOverlay(-1);
   for (const g of RP.grens) scene.remove(g.mesh); RP.grens = []; clearAreas(); flashT = 0; updateFlashOverlay(0);
   camera.fov = BASE_FOV; camera.updateProjectionMatrix(); camera.rotation.z = 0;
-  showEndScreen();
+  showAwards(showEndScreen);
 }
 function replayEvent(ev) {
   switch (ev.type) {
@@ -3644,7 +3744,7 @@ function updateHealPacks(dt) {
       for (const e of entities) {
         if (!e.alive || e.off || e.packGun) continue;
         if (Math.hypot(e.pos.x - hp.pos.x, e.pos.z - hp.pos.z) < 1.3 && Math.abs(e.pos.y - hp.pos.y) < 1.2) {
-          const k = PISTOL_KEYS[Math.random() * PISTOL_KEYS.length | 0]; hp.cd = HEAL_CD; givePackGun(e, k); sfx('switch', hp.pos);
+          const k = PISTOL_KEYS[Math.random() * PISTOL_KEYS.length | 0]; hp.cd = HEAL_CD; givePackGun(e, k); if (e.aw) e.aw.packs++; sfx('switch', hp.pos);
           if (e.remote) netSendTo(e, { t: 'pk', k });
           if (e.ai) { e.ai.healPack = null; e.ai.path = []; }
           break;
@@ -3655,7 +3755,7 @@ function updateHealPacks(dt) {
     for (const e of entities) {
       if (!e.alive || e.hp >= 100) continue;
       if (Math.hypot(e.pos.x - hp.pos.x, e.pos.z - hp.pos.z) < 1.3 && Math.abs(e.pos.y - hp.pos.y) < 1.2) {
-        e.hp = Math.min(100, e.hp + HEAL_AMT); hp.cd = HEAL_CD;
+        e.hp = Math.min(100, e.hp + HEAL_AMT); hp.cd = HEAL_CD; if (e.aw) e.aw.packs++;
         for (let i = 0; i < 14; i++) particle(hp.pos.clone().add(V(rand(-0.4, 0.4), rand(0.3, 1.2), rand(-0.4, 0.4))), V(rand(-1, 1), rand(1.5, 3.5), rand(-1, 1)), PMAT.heal, rand(0.5, 0.9), rand(0.05, 0.09), -2);
         sfx('heal', hp.pos);
         if (e.isPlayer) { showCenterMsg('✚ +50 HP 회복', '#5dff8a'); hurt = 0; }
@@ -4031,7 +4131,7 @@ function clientOnData(m) {
     case 'pf': flashT = Math.max(flashT, m.d); sfx('ring'); recEvent({ type: 'pf', d: m.d }); break;
     case 'healed': showCenterMsg('✚ +50 HP 회복', '#5dff8a'); hurt = 0; break;
     case 'pk': if (player.alive && WEAPONS[m.k]) givePackGun(player, m.k); break;
-    case 'end': if (MP.started) { score.blue = m.sc[0]; score.red = m.sc[1]; matchTime = m.tm; MP.started = false; endMatch(); } break;
+    case 'end': if (MP.started) { score.blue = m.sc[0]; score.red = m.sc[1]; matchTime = m.tm; MP.started = false; AW.list = Array.isArray(m.aw) ? m.aw.slice(0, 6) : []; AW.shown = false; endMatch(); } break;
     case 'toRoom': MP.started = false; if (KC.on) endKillcam(true); showRoom(); break;
     case 'closed': clientLost(); break;
   }
@@ -4136,7 +4236,7 @@ function dealDamage(v, dmg, att, w, head, from) {
 }
 
 // ===================== 타이틀 · 옵션 · 도움말 =====================
-function hideAllOverlays() { ['title', 'menu', 'multi', 'options', 'howto', 'pause', 'death', 'end', 'scoreboard'].forEach(id => $(id).classList.add('hidden')); }
+function hideAllOverlays() { ['title', 'menu', 'multi', 'options', 'howto', 'pause', 'death', 'end', 'scoreboard', 'awards'].forEach(id => $(id).classList.add('hidden')); }
 function showTitle() {
   if (MP.on) mpLeave(true);
   if (KC.on) endKillcam(true);
@@ -4289,7 +4389,7 @@ function update(dt) {
     $('deployBtn').disabled = left > 0;
   }
   updateGrenades(dt);
-  updateHealPacks(dt);
+  updateHealPacks(dt); awTrack(dt);
   updateAreas(dt); updateFlashOverlay(dt);
   updateFx(dt);
   updateArc();
