@@ -3415,7 +3415,7 @@ function endMatch() {
   state = 'ended'; controls.unlock(); recordFrame(1 / REC.fps);
   $('death').classList.add('hidden'); $('pause').classList.add('hidden'); $('scoreboard').classList.add('hidden'); $('scope').classList.add('hidden'); setOpticOverlay(-1);
   lastHighlight = findHighlight(player.id) || bestHighlight();
-  if (lastHighlight) setTimeout(() => startReplay(lastHighlight), 1200);
+  if (lastHighlight) setTimeout(() => startReplay(lastHighlight, true), 1200);
   else showAwards(showEndScreen);
 }
 function showEndScreen() {
@@ -3444,7 +3444,7 @@ function showEndScreen() {
 addEventListener('keydown', e => {
   const code = mapKey(e.code);
   keys[code] = true;
-  if (state === 'replay' && ['Space', 'Enter', 'Escape'].includes(e.code)) { e.preventDefault(); finishReplay(); return; }
+  if (state === 'replay' && ['Space', 'Enter', 'Escape'].includes(e.code)) { e.preventDefault(); if (!RP.locked) finishReplay(); return; }
   if (!$('awards').classList.contains('hidden') && ['Space', 'Enter', 'Escape'].includes(e.code)) { e.preventDefault(); closeAwards(); return; }
   if (KC.on && ['Space', 'Enter'].includes(e.code)) { e.preventDefault(); endKillcam(); return; }
   if (code === 'Tab') { e.preventDefault(); if (state === 'playing') { scoreboardOpen = true; renderScoreboard($('scoreboard')); $('scoreboard').classList.remove('hidden'); } }
@@ -3702,7 +3702,8 @@ function bestHighlight() {
 }
 const RP = { t: 0, start: 0, end: 0, evIdx: 0, kick: 0, vmOn: false, grens: [], kills: 0, hl: null };
 let lastHighlight = null;
-function startReplay(h) {
+function startReplay(h, locked) {
+  RP.locked = !!locked; { const sk = document.querySelector('#potg .potg-skip'); if (sk) sk.textContent = locked ? '' : '클릭 / SPACE — 건너뛰기'; } $('potg').style.cursor = locked ? 'default' : 'pointer';
   RP.lastRl = 0;
   state = 'replay'; RP.hl = h; RP.t = h.start; RP.start = h.start; RP.end = h.end; RP.kills = 0; RP.kick = 0;
   RP.evIdx = REC.events.findIndex(ev => ev.t >= h.start); if (RP.evIdx < 0) RP.evIdx = REC.events.length;
@@ -3749,7 +3750,7 @@ function replayEvent(ev) {
 }
 function replayUpdate(dt) {
   RP.t += dt;
-  if (RP.t >= RP.end) { finishReplay(); return; }
+  if (RP.t >= RP.end) { RP.locked = false; finishReplay(); return; }
   while (RP.evIdx < REC.events.length && REC.events[RP.evIdx].t <= RP.t) { replayEvent(REC.events[RP.evIdx]); RP.evIdx++; }
   const f = clamp(RP.t * REC.fps - 1, 0, REC.n - 1), i0 = Math.floor(f), i1 = Math.min(i0 + 1, REC.n - 1), a = f - i0;
   const b = REC.buf, S = REC.stride, N = entities.length;
@@ -3806,7 +3807,7 @@ function replayUpdate(dt) {
   updateFx(dt);
   $('potgProg').style.width = ((RP.t - RP.start) / (RP.end - RP.start) * 100).toFixed(1) + '%';
 }
-$('potg').addEventListener('click', finishReplay);
+$('potg').addEventListener('click', () => { if (!RP.locked) finishReplay(); });
 
 // ===================== 힐팩 =====================
 const healPacks = [];
