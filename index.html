@@ -1937,9 +1937,7 @@ const K = {
 };
 // 근접무기 공통 손: 손바닥 + 손가락 4개가 손잡이를 감싸 쥠 + 엄지 + 소매
 function meleeHand(g) {
-  vb(g, 0.05, 0.062, 0.088, K.glove, 0.02, -0.003, 0.004);
-  for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0105, 0.03, 3, 8), K.glove); f.rotation.z = Math.PI / 2; f.position.set(-0.004, -0.004 + (i % 2) * 0.002, -0.036 + i * 0.022); g.add(f); const t = new THREE.Mesh(new THREE.SphereGeometry(0.0105, 8, 6), K.glove); t.position.set(-0.02, 0.012, -0.036 + i * 0.022); g.add(t); }
-  const th = new THREE.Mesh(new THREE.CapsuleGeometry(0.011, 0.035, 3, 8), K.glove); th.rotation.set(Math.PI / 2, 0, 0.3); th.position.set(-0.012, 0.03, -0.045); g.add(th);
+  vb(g, 0.056, 0.07, 0.094, K.glove, 0.012, -0.004, 0.004); vb(g, 0.024, 0.062, 0.088, K.glove, -0.016, 0.0, 0.0); vb(g, 0.026, 0.024, 0.05, K.glove, -0.006, 0.034, -0.02);
   limb(g, V(0.022, -0.01, 0.05), V(0.13, -0.3, 0.34), 0.075, K.sleeve);
 }
 function vb(p, w, h, d, m, x, y, z, rx = 0, ry = 0, rz = 0) { const mn = Math.min(w, h, d); const k = new THREE.Mesh(mn > 0.012 ? new RoundedBoxGeometry(w, h, d, 2, mn * 0.22) : new THREE.BoxGeometry(w, h, d), m); k.position.set(x, y, z); k.rotation.set(rx, ry, rz); p.add(k); return k; }
@@ -2140,38 +2138,41 @@ function makeGunModel(key, arms = true) {
     vb(g, 0.05, 0.07, 0.06, K.glove, -0.03, -0.055, 0.0, -0.25);
     limb(g, V(-0.03, -0.08, 0.03), V(-0.19, -0.33, 0.3), 0.07, K.sleeve);
   } else if (key === 'KARAMBIT') {
+    const P = new THREE.Group(); P.position.set(0, 0, 0.072); g.add(P); const B = new THREE.Group(); B.position.set(0, 0, -0.072); P.add(B); g.userData.blade = P;
     // 카람빗: 갈고리 모양 곡선 날 · 짧은 손잡이 · 손잡이 끝 손가락 링
     const sh = new THREE.Shape(); sh.moveTo(0, -0.006); sh.lineTo(0, 0.022); sh.quadraticCurveTo(0.075, 0.034, 0.112, -0.042); sh.quadraticCurveTo(0.07, -0.004, 0.01, -0.012); sh.lineTo(0, -0.006);
-    const bl = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.0035, bevelEnabled: true, bevelThickness: 0.001, bevelSize: 0.001, bevelSegments: 1, curveSegments: 10 }), VMM(0x2a2c30, { metalness: 0.6, roughness: 0.35 })); bl.rotation.y = Math.PI / 2; bl.position.set(-0.00175, 0.004, -0.05); g.add(bl);
+    const bl = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.0035, bevelEnabled: true, bevelThickness: 0.001, bevelSize: 0.001, bevelSegments: 1, curveSegments: 10 }), VMM(0x2a2c30, { metalness: 0.6, roughness: 0.35 })); bl.rotation.y = Math.PI / 2; bl.position.set(-0.00175, 0.004, -0.05); B.add(bl);
     const eg = new THREE.Shape(); eg.moveTo(0.01, -0.012); eg.quadraticCurveTo(0.07, -0.004, 0.11, -0.04); eg.lineTo(0.104, -0.036); eg.quadraticCurveTo(0.068, -0.0, 0.012, -0.006);
-    const ed = new THREE.Mesh(new THREE.ExtrudeGeometry(eg, { depth: 0.0045, bevelEnabled: false, curveSegments: 10 }), K.blade); ed.rotation.y = Math.PI / 2; ed.position.set(-0.00225, 0.004, -0.05); g.add(ed);
-    vb(g, 0.03, 0.034, 0.1, VMM(0x3c4630, { metalness: 0.1, roughness: 0.8 }), 0, 0.008, 0.0); for (let i = 0; i < 4; i++) vb(g, 0.033, 0.037, 0.006, K.dark, 0, 0.008, -0.035 + i * 0.02);
-    vb(g, 0.04, 0.014, 0.012, K.dark, 0, 0.012, -0.052);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.0065, 8, 18), K.silver); ring.rotation.y = Math.PI / 2; ring.position.set(0, 0.0, 0.072); g.add(ring);
+    const ed = new THREE.Mesh(new THREE.ExtrudeGeometry(eg, { depth: 0.0045, bevelEnabled: false, curveSegments: 10 }), K.blade); ed.rotation.y = Math.PI / 2; ed.position.set(-0.00225, 0.004, -0.05); B.add(ed);
+    vb(B, 0.03, 0.034, 0.1, VMM(0x3c4630, { metalness: 0.1, roughness: 0.8 }), 0, 0.008, 0.0); for (let i = 0; i < 4; i++) vb(B, 0.033, 0.037, 0.006, K.dark, 0, 0.008, -0.035 + i * 0.02);
+    vb(B, 0.04, 0.014, 0.012, K.dark, 0, 0.012, -0.052);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.0065, 8, 18), K.silver); ring.rotation.y = Math.PI / 2; ring.position.set(0, 0.0, 0.072); B.add(ring);
     if (arms) meleeHand(g); muzzle.set(0, -0.02, -0.17); sightY = 0;
   } else if (key === 'MACHETE') {
+    const B = new THREE.Group(); g.add(B); g.userData.blade = B;
     // 마체테: 긴 직선 날 + 넓은 끝 · 나무 손잡이 · 황동 리벳
     const sh = new THREE.Shape(); sh.moveTo(0, -0.004); sh.lineTo(0, 0.03); sh.lineTo(0.33, 0.036); sh.quadraticCurveTo(0.41, 0.042, 0.425, 0.006); sh.lineTo(0.39, -0.022); sh.quadraticCurveTo(0.2, -0.016, 0, -0.004);
-    const bl = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.003, bevelEnabled: true, bevelThickness: 0.001, bevelSize: 0.001, bevelSegments: 1, curveSegments: 8 }), VMM(0x5c6066, { metalness: 0.75, roughness: 0.4 })); bl.rotation.y = Math.PI / 2; bl.position.set(-0.0015, 0.0, -0.062); g.add(bl);
+    const bl = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.003, bevelEnabled: true, bevelThickness: 0.001, bevelSize: 0.001, bevelSegments: 1, curveSegments: 8 }), VMM(0x5c6066, { metalness: 0.75, roughness: 0.4 })); bl.rotation.y = Math.PI / 2; bl.position.set(-0.0015, 0.0, -0.062); B.add(bl);
     const eg = new THREE.Shape(); eg.moveTo(0.01, -0.0035); eg.quadraticCurveTo(0.2, -0.015, 0.39, -0.021); eg.lineTo(0.42, 0.004); eg.lineTo(0.414, 0.006); eg.lineTo(0.386, -0.014); eg.quadraticCurveTo(0.2, -0.009, 0.01, 0.0);
-    const ed = new THREE.Mesh(new THREE.ExtrudeGeometry(eg, { depth: 0.004, bevelEnabled: false, curveSegments: 8 }), K.blade); ed.rotation.y = Math.PI / 2; ed.position.set(-0.002, 0.0, -0.062); g.add(ed);
-    vb(g, 0.05, 0.016, 0.014, K.dark, 0, 0.012, -0.058);
-    vb(g, 0.032, 0.036, 0.12, K.wood, 0, 0.008, 0.0); for (const z of [-0.03, 0.0, 0.03]) vc(g, 0.006, 0.036, VMM(0xc89a3a, { metalness: 0.8, roughness: 0.3 }), 0, 0.008, z).rotation.set(0, 0, Math.PI / 2);
-    vb(g, 0.034, 0.03, 0.02, K.dark, 0, 0.004, 0.068);
+    const ed = new THREE.Mesh(new THREE.ExtrudeGeometry(eg, { depth: 0.004, bevelEnabled: false, curveSegments: 8 }), K.blade); ed.rotation.y = Math.PI / 2; ed.position.set(-0.002, 0.0, -0.062); B.add(ed);
+    vb(B, 0.05, 0.016, 0.014, K.dark, 0, 0.012, -0.058);
+    vb(B, 0.032, 0.036, 0.12, K.wood, 0, 0.008, 0.0); for (const z of [-0.03, 0.0, 0.03]) vc(B, 0.006, 0.036, VMM(0xc89a3a, { metalness: 0.8, roughness: 0.3 }), 0, 0.008, z).rotation.set(0, 0, Math.PI / 2);
+    vb(B, 0.034, 0.03, 0.02, K.dark, 0, 0.004, 0.068);
     if (arms) meleeHand(g); muzzle.set(0, 0.012, -0.48); sightY = 0;
   } else if (key === 'KNIFE') {
+    const P = new THREE.Group(); P.position.set(0, 0.008, -0.01); g.add(P); const B = new THREE.Group(); B.position.set(0, -0.008, 0.01); P.add(B); g.userData.blade = P;
     // 전술 나이프: 클립포인트 블레이드(검은 코팅 + 은색 날) · 가드 · 고무 그립 · 폼멜
     const sh = new THREE.Shape(); sh.moveTo(0, -0.003); sh.lineTo(0, 0.03); sh.lineTo(0.115, 0.03); sh.quadraticCurveTo(0.15, 0.026, 0.172, 0.006); sh.lineTo(0.12, -0.006); sh.quadraticCurveTo(0.06, -0.008, 0, -0.003);
     const bg = new THREE.ExtrudeGeometry(sh, { depth: 0.0035, bevelEnabled: true, bevelThickness: 0.0012, bevelSize: 0.0012, bevelSegments: 1, curveSegments: 8 });
-    const blade = new THREE.Mesh(bg, VMM(0x2a2c30, { metalness: 0.6, roughness: 0.35 })); blade.rotation.y = Math.PI / 2; blade.position.set(-0.00175, 0.0, -0.068); g.add(blade);
+    const blade = new THREE.Mesh(bg, VMM(0x2a2c30, { metalness: 0.6, roughness: 0.35 })); blade.rotation.y = Math.PI / 2; blade.position.set(-0.00175, 0.0, -0.068); B.add(blade);
     const eg = new THREE.Shape(); eg.moveTo(0.004, -0.0025); eg.lineTo(0.12, -0.0055); eg.lineTo(0.17, 0.0065); eg.lineTo(0.165, 0.009); eg.lineTo(0.118, -0.001); eg.lineTo(0.004, 0.0015);
-    const edge = new THREE.Mesh(new THREE.ExtrudeGeometry(eg, { depth: 0.0045, bevelEnabled: false }), K.blade); edge.rotation.y = Math.PI / 2; edge.position.set(-0.00225, 0, -0.068); g.add(edge);
-    vb(g, 0.0042, 0.006, 0.075, K.black, 0, 0.018, -0.11);
-    for (let i = 0; i < 5; i++) vb(g, 0.008, 0.004, 0.003, K.silver, 0, 0.0335, -0.08 - i * 0.007);
-    vb(g, 0.06, 0.016, 0.014, K.dark, 0, 0.012, -0.062); vb(g, 0.012, 0.03, 0.012, K.dark, 0, -0.012, -0.062);
-    vb(g, 0.03, 0.034, 0.112, K.black, 0, 0.008, 0.0);
-    for (let i = 0; i < 6; i++) vb(g, 0.033, 0.037, 0.006, K.dark, 0, 0.008, -0.045 + i * 0.016);
-    vc(g, 0.017, 0.016, K.silver, 0, 0.008, 0.064); vb(g, 0.006, 0.006, 0.02, K.dark, 0, 0.008, 0.078);
+    const edge = new THREE.Mesh(new THREE.ExtrudeGeometry(eg, { depth: 0.0045, bevelEnabled: false }), K.blade); edge.rotation.y = Math.PI / 2; edge.position.set(-0.00225, 0, -0.068); B.add(edge);
+    vb(B, 0.0042, 0.006, 0.075, K.black, 0, 0.018, -0.11);
+    for (let i = 0; i < 5; i++) vb(B, 0.008, 0.004, 0.003, K.silver, 0, 0.0335, -0.08 - i * 0.007);
+    vb(B, 0.06, 0.016, 0.014, K.dark, 0, 0.012, -0.062); vb(B, 0.012, 0.03, 0.012, K.dark, 0, -0.012, -0.062);
+    vb(B, 0.03, 0.034, 0.112, K.black, 0, 0.008, 0.0);
+    for (let i = 0; i < 6; i++) vb(B, 0.033, 0.037, 0.006, K.dark, 0, 0.008, -0.045 + i * 0.016);
+    vc(B, 0.017, 0.016, K.silver, 0, 0.008, 0.064); vb(B, 0.006, 0.006, 0.02, K.dark, 0, 0.008, 0.078);
     if (arms) meleeHand(g); muzzle.set(0, 0.012, -0.24); sightY = 0;
   } else if (key === 'FLASH' || key === 'SMOKE') {
     const big = key === 'SMOKE', r = big ? 0.036 : 0.03, h = big ? 0.12 : 0.1;
@@ -2206,7 +2207,7 @@ function makeGunModel(key, arms = true) {
   }
   if (!arms) g.children.filter(c => c.material === K.glove || c.material === K.sleeve).forEach(c => g.remove(c));
   const flash = new THREE.Sprite(flashMat); flash.scale.setScalar(0.16); flash.position.copy(muzzle); flash.visible = false; g.add(flash);
-  g.userData = { muzzle, sightY, flash, optZ, optBase };
+  g.userData = { muzzle, sightY, flash, optZ, optBase, blade: g.userData.blade || null };
   return g;
 }
 const vmRoot = new THREE.Group(); wScene.add(vmRoot);
@@ -2322,7 +2323,7 @@ function spawnEntity(e) {
   if (e.model && e.loadout) soldierGun(e.model, e.modelKey || e.loadout.primary);
   if (e.model) { e.model.root.visible = !e.isPlayer; e.model.body.rotation.set(0, 0, 0); e.model.body.position.set(0, 0, 0); e.model.helmet.visible = true; e.flashT = 0; }
   if (e.ai) { Object.assign(e.ai, { blindT: 0, target: null, seen: false, path: [], waitT: 0, sideT: 0, alertT: 0, coverPos: null, stuckCount: 0, aimErr: 0.1 }); e.ai.lastPos.copy(e.pos); }
-  if (e.isPlayer) { camera.rotation.set(0, e.yaw, 0); adsAmt = 0; bloom = 0; buildViewModel(e.slots[e.cur].def.key); vm.swapT = 0; }
+  if (e.isPlayer) { camera.rotation.set(0, e.yaw, 0); adsAmt = 0; bloom = 0; buildViewModel(e.slots[e.cur].def.key); vm.swapT = 0; if (e.slots[e.cur].def.kind === 'melee') meleeDraw(e.slots[e.cur].def.key); }
 }
 
 // ===================== 물리 =====================
@@ -2364,7 +2365,7 @@ function switchSlot(e, i) {
   if (!e.alive || i === e.cur || i < 0 || i > 3) return;
   if (i === 3 && e.grenades <= 0) return; if (e.slots[i].empty) return;
   e.cur = i; e.swapT = i === 2 ? 0.25 : 0.4; e.reloadT = 0; e.burstQ = 0; e.modeIdx = 0;
-  if (e.isPlayer) { const d = e.slots[i].def; buildViewModel(d.key); sfx('switch'); if (d.kind === 'rifle' || d.kind === 'pistol') { e.modeIdx = playerModeMemory[d.key] || 0; } }
+  if (e.isPlayer) { const d = e.slots[i].def; buildViewModel(d.key); sfx('switch'); if (d.kind === 'melee') { meleeDraw(d.key); e.swapT = 0.3; } if (d.kind === 'rifle' || d.kind === 'pistol') { e.modeIdx = playerModeMemory[d.key] || 0; } }
 }
 const playerModeMemory = {};
 function fireBullet(e, origin, dir, def, muzzlePos, quiet) {
@@ -2820,7 +2821,7 @@ function updatePlayer(dt) {
   const s = p.slots[p.cur];
   const ready = p.swapT <= 0 && p.reloadT <= 0 && !sprinting;
   if (p.burstQ > 0 && p.fireCD <= 0 && ready) { playerAttack(); p.burstQ--; p.fireCD = p.burstQ > 0 ? 60 / (def.burstGap ? def.rpm : 900) : (def.burstGap || 0.26); }
-  if (p.stabT > 0) { p.stabT -= dt; if (!p.stabHit && p.stabT0 - p.stabT >= (p.stabWind || 0.25)) { p.stabHit = true; if (p.alive && p.slots[p.cur].def.kind === 'melee') meleeStrike(true); } }
+  if (p.stabT > 0) { p.stabT -= dt; if (!p.stabHit && p.stabT0 - p.stabT >= (p.stabWind || 0.25)) { p.stabHit = true; shake = Math.max(shake, 0.1); if (p.alive && p.slots[p.cur].def.kind === 'melee') meleeStrike(true); } }
   if (def.kind === 'melee' && mouseR && ready && p.fireCD <= 0) startHeavyStab();
   else if (mouseL && ready && p.fireCD <= 0) {
     if (def.kind === 'rifle' || def.kind === 'pistol') {
@@ -3544,6 +3545,9 @@ function updateArc() {
   arcGeo.attributes.position.needsUpdate = true; arcGeo.setDrawRange(0, Math.min(90, n + 1)); arcLine.computeLineDistances();
   arcRing.position.set(gp.x, gp.y - 0.05, gp.z);
 }
+const DRAW_DUR = { KNIFE: 0.5, KARAMBIT: 0.65, MACHETE: 0.55 };
+function meleeDraw(key) { vm.drawT = 1; vm.drawDur = DRAW_DUR[key] || 0.5; vm.stab = 0; vm.swing = 0; vm.twT = 0; if (key === 'KARAMBIT') setTimeout(() => sfx('swing', null, 1.8), 120); }
+const easeOut = t => 1 - Math.pow(1 - t, 3), easeIn = t => t * t;
 function updateViewModel(dt) {
   const p = player; if (!vmModel || !p.alive) return;
   const def = p.slots[p.cur].def; buildViewModel(def.key); const ud = vmModel.userData;
@@ -3566,16 +3570,33 @@ function updateViewModel(dt) {
   vm.kick = Math.max(0, vm.kick - dt * (def.kind === 'pistol' ? 9 : 14));
   z += vm.kick * (def.kind === 'pistol' ? 0.06 : 0.035); rx += vm.kick * (def.kind === 'pistol' ? 0.25 : 0.05) * (1 - adsAmt * 0.6);
   if (p.reloadT > 0) { const pr = 1 - p.reloadT / def.reload; const dip = Math.sin(pr * Math.PI); y -= dip * 0.1; rx -= dip * 0.5; rz += dip * 0.6; }
-  if (p.swapT > 0) { y -= Math.min(1, p.swapT / 0.3) * 0.3; }
+  if (p.swapT > 0 && def.kind !== 'melee') { y -= Math.min(1, p.swapT / 0.3) * 0.3; }
   if (vm.swing > 0) { vm.swing = Math.max(0, vm.swing - dt * 4.4); const t = 1 - vm.swing, s = Math.sin(t * Math.PI), d = vm.swingDir || 1, a = t * 2 - 1; x -= d * a * 0.15 + s * 0.04; z -= s * 0.12; y += s * 0.03 - a * a * 0.02; ry += d * a * 0.9; rz -= d * s * 0.8 + 0.2 * s; rx -= s * 0.25; }
-  if (vm.stab > 0 && vm.stabChop) { vm.stab = Math.max(0, vm.stab - dt / (vm.stabDur || 0.9)); const t = 1 - vm.stab; let k; // 마체테 내려찍기
-    if (t < 0.38) { k = Math.sin(t / 0.38 * Math.PI / 2); y += k * 0.12; z += k * 0.05; rx -= k * 0.75; x += k * 0.03; }
-    else if (t < 0.52) { k = (t - 0.38) / 0.14; y += 0.12 - k * 0.24; z += 0.05 - k * 0.15; rx += -0.75 + k * 1.55; x += 0.03 - k * 0.08; }
-    else { k = 1 - Math.pow(1 - (t - 0.52) / 0.48, 2); y += -0.12 * (1 - k); z += -0.1 * (1 - k); rx += 0.8 * (1 - k); x += -0.05 * (1 - k); } }
-  else if (vm.stab > 0) { vm.stab = Math.max(0, vm.stab - dt / (vm.stabDur || 0.75)); const t = 1 - vm.stab; let k;
-    if (t < 0.3) { k = Math.sin(t / 0.3 * Math.PI / 2); z += k * 0.09; rx += k * 0.4; y += k * 0.04; x += k * 0.02; }
-    else if (t < 0.47) { k = (t - 0.3) / 0.17; z += 0.09 - k * 0.4; rx += 0.4 - k * 0.75; y += 0.04 - k * 0.05; x += 0.02 - k * 0.12; }
-    else { k = 1 - Math.pow(1 - (t - 0.47) / 0.53, 2); z += -0.31 * (1 - k); rx += -0.35 * (1 - k); y += -0.01 * (1 - k); x += -0.1 * (1 - k); } }
+  let spin = 0; const mk = def.kind === 'melee' ? def.key : '';
+  if (mk && vm.drawT > 0) { vm.drawT = Math.max(0, vm.drawT - dt / (vm.drawDur || 0.5)); const t = 1 - vm.drawT, e = easeOut(t), q = 1 - e;
+    if (mk === 'KNIFE') { spin = -Math.PI * 2 * e; y -= q * 0.24; rx += q * 0.7; rz += q * 0.3; }          // 위로 던져 한 바퀴 돌려 잡기
+    else if (mk === 'KARAMBIT') { spin = -Math.PI * 4 * easeOut(Math.min(1, t * 1.15)); y -= q * 0.18; x += q * 0.06; rz -= q * 0.4; } // 링에 걸고 두 바퀴 돌리기
+    else { x += q * 0.22; y += q * 0.2; z -= q * 0.04; rz += q * 1.2; rx -= q * 0.6; ry -= q * 0.3; }  // 어깨 위에서 뽑아 내리기
+  }
+  if (mk === 'KARAMBIT' && vm.drawT <= 0 && vm.stab <= 0 && vm.swing <= 0 && !sprinting) { // 대기 중 가끔 손가락으로 돌리기
+    vm.twT = (vm.twT || 0) + dt; const T = 4.5; if (vm.twT > T) { const u = (vm.twT - T) / 0.55; if (u >= 1) vm.twT = 0; else { spin += -Math.PI * 2 * easeOut(u); rz -= Math.sin(u * Math.PI) * 0.15; } } } else if (mk === 'KARAMBIT') vm.twT = 0;
+  if (vm.stab > 0) { vm.stab = Math.max(0, vm.stab - dt / (vm.stabDur || 0.75)); const t = 1 - vm.stab; let k;
+    if (mk === 'MACHETE') { // 크게 들어올려 한 번에 내려찍기
+      if (t < 0.32) { k = easeOut(t / 0.32); y += k * 0.12; z -= k * 0.03; rx -= k * 0.9; rz += k * 0.35; x += k * 0.07; }
+      else if (t < 0.46) { k = easeIn((t - 0.32) / 0.14); y += 0.12 - k * 0.28; z += -0.03 - k * 0.11; rx += -0.9 + k * 1.85; rz += 0.35 - k * 0.5; x += 0.07 - k * 0.14; }
+      else if (t < 0.6) { y -= 0.16; z -= 0.14; rx += 0.95; rz -= 0.15; x -= 0.07; }
+      else { k = easeOut((t - 0.6) / 0.4); y += -0.16 * (1 - k); z += -0.14 * (1 - k); rx += 0.95 * (1 - k); rz -= 0.15 * (1 - k); x -= 0.07 * (1 - k); } }
+    else if (mk === 'KARAMBIT') { // 손목을 꺾었다가 회전하며 갈고리로 훑기
+      if (t < 0.3) { k = easeOut(t / 0.3); x += k * 0.1; z -= k * 0.02; ry -= k * 0.55; rz += k * 0.2; spin += k * 0.6; }
+      else if (t < 0.46) { k = easeIn((t - 0.3) / 0.16); x += 0.1 - k * 0.32; z += -0.02 - k * 0.12; ry += -0.55 + k * 1.6; rz += 0.2 - k * 0.7; spin += 0.6 - k * (Math.PI * 2 + 0.6); }
+      else { k = easeOut((t - 0.46) / 0.54); x += -0.22 * (1 - k); z += -0.14 * (1 - k); ry += 1.05 * (1 - k); rz += -0.5 * (1 - k); spin -= Math.PI * 2; } }
+    else { // 나이프: 짧게 당겼다가 손목을 비틀며 일직선 찌르기
+      if (t < 0.3) { k = easeOut(t / 0.3); z += k * 0.08; x += k * 0.03; rz += k * 0.5; rx += k * 0.28; y += k * 0.025; }
+      else if (t < 0.46) { k = easeIn((t - 0.3) / 0.16); z += 0.08 - k * 0.48; x += 0.03 - k * 0.14; rz += 0.5 - k * 1.55; rx += 0.28 - k * 0.6; y += 0.025 - k * 0.04; }
+      else if (t < 0.56) { z -= 0.4; x -= 0.11; rz -= 1.05; rx -= 0.32; y -= 0.015; }
+      else { k = easeOut((t - 0.56) / 0.44); z += -0.4 * (1 - k); x += -0.11 * (1 - k); rz += -1.05 * (1 - k); rx += -0.32 * (1 - k); y -= 0.015 * (1 - k); } }
+  }
+  if (ud.blade) ud.blade.rotation.x = spin;
   if (vm.throwT > 0) { vm.throwT = Math.max(0, vm.throwT - dt); const pr = 1 - vm.throwT / 0.5; const s = pr < 0.4 ? pr / 0.4 : 1 - (pr - 0.4) / 0.6; y += s * 0.12; z += s * 0.12 - (pr > 0.4 ? (pr - 0.4) * 0.4 : 0); rx -= s * 0.9; if (pr > 0.35) { vmModel.visible = pr > 0.9; } } else vmModel.visible = true;
   if ((def.cls === 'sniper' || def.cls === 'shotgun') && p.fireCD > 0 && p.fireCD < 60 / def.rpm) { const pr = 1 - p.fireCD / (60 / def.rpm); const dp = pr > 0.25 ? Math.sin((pr - 0.25) / 0.75 * Math.PI) : 0; if (def.cls === 'sniper') { rz += dp * 0.35; y -= dp * 0.03; } else { z += dp * 0.05; rx += dp * 0.08; } }
   const mag = canOptic(def) && (opticSel[def.key] || 0) >= 2 && adsAmt > 0.85;
