@@ -439,7 +439,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
   <div id="slots">
     <div class="slot" data-i="0"><span>1</span><em id="slot0">M416</em></div>
     <div class="slot" data-i="1"><span>2</span><em id="slot1">P92</em></div>
-    <div class="slot" data-i="2"><span>3</span><em>전술용 나이프</em></div>
+    <div class="slot" data-i="2"><span>3</span><em id="slot2">전술용 나이프</em></div>
     <div class="slot" data-i="3"><span>4</span><em id="slot3">파편 수류탄 x2</em></div>
   </div>
   <div id="weaponbox"><div id="wName">M416</div><div id="wAmmo"><b id="ammoMag">30</b><span id="ammoRes">/ 210</span></div><div id="wMode">연사</div><div id="reloadTxt" class="hidden">재장전 중...</div></div>
@@ -669,7 +669,9 @@ const WEAPONS = {
   TYPHOON:{ key:'TYPHOON', name:'Typhoon AA-20', kind:'rifle', cls:'shotgun', dmg:12, pellets:8, rpm:240, mag:12, reserve:48, reload:3.9, recoil:0.028, recoilYaw:0.012, hip:0.047, ads:0.045, move:0.014, modes:['AUTO'], adsFov:62, sfx:'shotgun', range:20, cal:'12게이지 드럼', type:'산탄총', origin:'가상 · 블랙타이드', desc:'자동 산탄총 · 8펠릿 × 12 · 12발 드럼 · 근거리 난사형 · 재장전 느림' },
   MULE:  { key:'MULE', name:'Mule 소드오프', kind:'pistol', cls:'sawed', dmg:15, pellets:9, rpm:300, mag:2, reserve:24, reload:1.7, recoil:0.07, recoilYaw:0.015, hip:0.055, ads:0.045, move:0.01, modes:['SINGLE'], adsFov:66, sfx:'shotgun', range:15, cal:'12게이지', type:'소드오프 산탄총', origin:'가상 · 더스트밸리', desc:'2연장 · 9펠릿 × 15 · 근접 2연발 즉사' },
   HORNET:{ key:'HORNET', name:'Hornet MP-9R', kind:'pistol', cls:'mp', dmg:16, rpm:1100, mag:25, reserve:150, reload:1.7, recoil:0.009, recoilYaw:0.007, hip:0.03, ads:0.012, move:0.012, modes:['AUTO','SINGLE'], adsFov:62, sfx:'p92', range:25, cal:'9mm', type:'기관권총', origin:'가상 · 하이브 택티컬', desc:'연발 권총 · 분당 1000발' },
-  KNIFE: { key:'KNIFE', name:'전술용 나이프', kind:'melee', dmg:30, rpm:200, range:2.2, heavyDmg:65, heavyRange:2.6 },
+  KNIFE: { key:'KNIFE', name:'전술용 나이프', kind:'melee', dmg:30, rpm:200, range:2.3, heavyDmg:65, heavyRange:2.7, hWind:0.25, hCD:0.95, type:'근접무기', cal:'클립포인트', origin:'기본형', desc:'균형형 · 베기 30 (0.3초) · 찌르기 65 · 등 뒤 찌르기 즉사' },
+  KARAMBIT: { key:'KARAMBIT', name:'카람빗', kind:'melee', dmg:20, rpm:286, range:1.9, heavyDmg:45, heavyRange:2.2, hWind:0.15, hCD:0.6, speedMul:1.06, type:'근접무기', cal:'갈고리날', origin:'암살형', desc:'빠른 베기 20 (0.21초) · 찌르기가 가장 빠름(0.15초) → 등 뒤 암살 특화 · 사거리 짧음 · 이속 +6%' },
+  MACHETE: { key:'MACHETE', name:'마체테', kind:'melee', dmg:46, rpm:128, range:2.9, heavyDmg:95, heavyRange:3.1, hWind:0.35, hCD:1.15, speedMul:0.93, type:'근접무기', cal:'장검날', origin:'파워형', desc:'묵직한 베기 46 (0.47초) · 내려찍기 95 · 사거리 가장 김 · 휘두르기 느림 · 이속 -7%' },
   GRENADE:{ key:'GRENADE', name:'파편 수류탄', kind:'throw', fuse:3, radius:8, dmg:125, type:'투척무기', cal:'파편형', origin:'공용', desc:'3초 후 폭발 · 범위 피해 + 넉백', tv:[['최대 피해',125,1,''],['효과 반경',8,8/22,'m'],['폭발 지연',3,0.4,'초'],['넉백','강함',0.9,'']] },
   FLASH: { key:'FLASH', name:'섬광탄', kind:'throw', fuse:1.8, radius:22, type:'투척무기', cal:'전술형', origin:'공용', desc:'1.8초 후 섬광 · 바라본 적을 최대 4.5초 실명 (아군·본인도 주의)', tv:[['실명 시간','최대 4.8',0.8,'초'],['효과 반경',22,1,'m'],['폭발 지연',1.8,0.65,'초'],['피해',0,0.04,'']] },
   SMOKE: { key:'SMOKE', name:'연막탄', kind:'throw', fuse:2, radius:6.5, dur:14, type:'투척무기', cal:'전술형', origin:'공용', desc:'2초 후 연막 · 14초간 시야 차단 (적 AI도 못 봄)', tv:[['연막 지속',14,14/15,'초'],['연막 반경',6.5,0.65,'m'],['폭발 지연',2,0.6,'초'],['피해',0,0.04,'']] },
@@ -682,6 +684,8 @@ const opticSel = { SENTINEL: 3 }; // DMR은 4배율 기본
 const WEAPON_GROUPS = [['ar', '돌격소총', ['M416', 'AKM', 'K2']], ['smg', '기관단총', ['UMP45', 'VECTOR']], ['dmr', '지정사수소총', ['SENTINEL']], ['sniper', '저격소총', ['LONGBOW', 'GOLIATH']], ['lmg', '경기관총', ['BASTION']], ['sg', '산탄총', ['THUNDER', 'TYPHOON']]];
 const PRIMARY_KEYS = WEAPON_GROUPS.flatMap(g => g[2]);
 const PISTOL_KEYS = ['DEAGLE', 'P92', 'MULE', 'HORNET'];
+const MELEE_KEYS = ['KNIFE', 'KARAMBIT', 'MACHETE'];
+const isMeleeName = n => MELEE_KEYS.some(k => WEAPONS[k].name === n);
 // 총기 모드: 저격전(DMR·SR만) / 샷건전(샷건·소드오프만) / 칼전(칼만 + 보조무기 팩)
 const WMODES = { normal: '자유', sniper: '저격전', shotgun: '샷건전', knife: '칼전' };
 const MODE_PRIM = { sniper: ['SENTINEL', 'LONGBOW', 'GOLIATH'], shotgun: ['THUNDER', 'TYPHOON'] };
@@ -689,7 +693,8 @@ const MODE_PIST = { shotgun: ['MULE'] };
 const WM_NOTE = { normal: '', sniper: '주무기: Sentinel · Longbow · Goliath만 / 보조·투척 자유', shotgun: '주무기 Thunder S12 · Typhoon AA-20 / 보조 Mule 소드오프 고정 / 투척 자유', knife: '칼만 사용 · 힐팩 대신 🔫보조무기 팩(랜덤) · 죽으면 사라짐' };
 function weaponAllowed(tab, k) {
   const wm = settings.wmode;
-  if (wm === 'knife') return tab === 'throw' ? false : false;
+  if (tab === 'melee') return true;
+  if (wm === 'knife') return false;
   if (tab === 'primary' && MODE_PRIM[wm]) return MODE_PRIM[wm].includes(k);
   if (tab === 'pistol' && MODE_PIST[wm]) return MODE_PIST[wm].includes(k);
   return true;
@@ -1909,7 +1914,7 @@ function soldierGun(m, key) {
   const rb = (w, h, dd, mt, x, y, z, r = 0.2) => { const k = new THREE.Mesh(new RoundedBoxGeometry(w, h, dd, 1, Math.min(w, h, dd) * r), mt); k.position.set(x, y, z); k.castShadow = true; gun.add(k); return k; };
   const cyl = (r, len, mt, z, y = 0.02) => { const k = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 8), mt); k.rotation.x = Math.PI / 2; k.position.set(0, y, z); k.castShadow = true; gun.add(k); return k; };
   let mz = -0.6;
-  if (d.kind === 'melee') { rb(0.03, 0.035, 0.11, mG, 0, -0.02, 0.05); rb(0.06, 0.016, 0.016, mG, 0, -0.02, -0.01); rb(0.008, 0.035, 0.17, SM(0xc8ccd2, { metalness: 0.9, roughness: 0.2 }), 0, -0.02, -0.1); mz = -0.2; }
+  if (d.kind === 'melee') { const L = key === 'MACHETE' ? 0.42 : key === 'KARAMBIT' ? 0.11 : 0.17; rb(0.03, 0.035, key === 'MACHETE' ? 0.13 : 0.11, key === 'MACHETE' ? SM(0x7a4520) : mG, 0, -0.02, 0.05); rb(0.06, 0.016, 0.016, mG, 0, -0.02, -0.01); const bl = rb(0.008, key === 'MACHETE' ? 0.05 : 0.035, L, SM(0xc8ccd2, { metalness: 0.9, roughness: 0.2 }), 0, -0.02, -0.02 - L / 2); if (key === 'KARAMBIT') bl.rotation.x = -0.6; mz = -0.05 - L; }
   else if (d.kind === 'pistol') { rb(0.045, 0.06, 0.2, mG, 0, 0.0, -0.08); rb(0.04, 0.12, 0.05, mG, 0, -0.08, 0.0); if (d.pellets) { cyl(0.018, 0.22, mG, -0.25, 0.0); } mz = d.pellets ? -0.37 : -0.2; }
   else if (cls === 'sniper') { rb(0.065, 0.1, 0.62, fm, 0, 0, 0.02); cyl(0.013, 0.55, mG, -0.55); cyl(0.032, 0.32, mG, -0.04, 0.1); rb(0.05, 0.14, 0.07, mG, 0, -0.1, 0.05); rb(0.05, 0.09, 0.24, fm, 0, -0.02, 0.4); mz = -0.83; }
   else if (cls === 'dmr') { const sd = SM(0xb39a6c, { roughness: 0.75 }); rb(0.065, 0.1, 0.4, mG, 0, 0, -0.05, 0.15); rb(0.075, 0.075, 0.4, sd, 0, -0.005, -0.42); cyl(0.012, 0.3, mG, -0.75); rb(0.05, 0.05, 0.1, mG, 0, 0, -0.95); rb(0.045, 0.14, 0.07, mG, 0, -0.11, -0.08); rb(0.045, 0.03, 0.22, sd, 0, 0.03, 0.27); rb(0.045, 0.03, 0.24, sd, 0, -0.07, 0.25); rb(0.05, 0.14, 0.03, mG, 0, -0.02, 0.37); mz = -1.0; }
@@ -1930,6 +1935,13 @@ const K = {
   glove: VMM(0x2a2a28, { metalness: 0, roughness: 0.95 }), sleeve: VMM(0x4b5538, { metalness: 0, roughness: 0.95 }), blade: VMM(0xd5d9de, { metalness: 0.95, roughness: 0.15 }),
   green: VMM(0x40592c, { metalness: 0.2, roughness: 0.6 }), red: new THREE.MeshBasicMaterial({ color: 0xff2a2a }), lens: new THREE.MeshBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.12, depthWrite: false })
 };
+// 근접무기 공통 손: 손바닥 + 손가락 4개가 손잡이를 감싸 쥠 + 엄지 + 소매
+function meleeHand(g) {
+  vb(g, 0.05, 0.062, 0.088, K.glove, 0.02, -0.003, 0.004);
+  for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0105, 0.03, 3, 8), K.glove); f.rotation.z = Math.PI / 2; f.position.set(-0.004, -0.004 + (i % 2) * 0.002, -0.036 + i * 0.022); g.add(f); const t = new THREE.Mesh(new THREE.SphereGeometry(0.0105, 8, 6), K.glove); t.position.set(-0.02, 0.012, -0.036 + i * 0.022); g.add(t); }
+  const th = new THREE.Mesh(new THREE.CapsuleGeometry(0.011, 0.035, 3, 8), K.glove); th.rotation.set(Math.PI / 2, 0, 0.3); th.position.set(-0.012, 0.03, -0.045); g.add(th);
+  limb(g, V(0.022, -0.01, 0.05), V(0.13, -0.3, 0.34), 0.075, K.sleeve);
+}
 function vb(p, w, h, d, m, x, y, z, rx = 0, ry = 0, rz = 0) { const mn = Math.min(w, h, d); const k = new THREE.Mesh(mn > 0.012 ? new RoundedBoxGeometry(w, h, d, 2, mn * 0.22) : new THREE.BoxGeometry(w, h, d), m); k.position.set(x, y, z); k.rotation.set(rx, ry, rz); p.add(k); return k; }
 function vc(p, r, len, m, x, y, z) { const k = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 20), m); k.rotation.x = Math.PI / 2; k.position.set(x, y, z); p.add(k); return k; }
 function limb(p, from, to, th, m) { const cg = new THREE.CapsuleGeometry(th * 0.55, Math.max(0.01, from.distanceTo(to) - th), 4, 12); cg.rotateX(Math.PI / 2); const k = new THREE.Mesh(cg, m); k.position.copy(from).add(to).multiplyScalar(0.5); p.add(k); k.lookAt(to); return k; }
@@ -2127,6 +2139,26 @@ function makeGunModel(key, arms = true) {
     limb(g, V(0.01, -0.07, 0.04), V(0.13, -0.32, 0.34), 0.07, K.sleeve);
     vb(g, 0.05, 0.07, 0.06, K.glove, -0.03, -0.055, 0.0, -0.25);
     limb(g, V(-0.03, -0.08, 0.03), V(-0.19, -0.33, 0.3), 0.07, K.sleeve);
+  } else if (key === 'KARAMBIT') {
+    // 카람빗: 갈고리 모양 곡선 날 · 짧은 손잡이 · 손잡이 끝 손가락 링
+    const sh = new THREE.Shape(); sh.moveTo(0, -0.006); sh.lineTo(0, 0.022); sh.quadraticCurveTo(0.075, 0.034, 0.112, -0.042); sh.quadraticCurveTo(0.07, -0.004, 0.01, -0.012); sh.lineTo(0, -0.006);
+    const bl = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.0035, bevelEnabled: true, bevelThickness: 0.001, bevelSize: 0.001, bevelSegments: 1, curveSegments: 10 }), VMM(0x2a2c30, { metalness: 0.6, roughness: 0.35 })); bl.rotation.y = Math.PI / 2; bl.position.set(-0.00175, 0.004, -0.05); g.add(bl);
+    const eg = new THREE.Shape(); eg.moveTo(0.01, -0.012); eg.quadraticCurveTo(0.07, -0.004, 0.11, -0.04); eg.lineTo(0.104, -0.036); eg.quadraticCurveTo(0.068, -0.0, 0.012, -0.006);
+    const ed = new THREE.Mesh(new THREE.ExtrudeGeometry(eg, { depth: 0.0045, bevelEnabled: false, curveSegments: 10 }), K.blade); ed.rotation.y = Math.PI / 2; ed.position.set(-0.00225, 0.004, -0.05); g.add(ed);
+    vb(g, 0.03, 0.034, 0.1, VMM(0x3c4630, { metalness: 0.1, roughness: 0.8 }), 0, 0.008, 0.0); for (let i = 0; i < 4; i++) vb(g, 0.033, 0.037, 0.006, K.dark, 0, 0.008, -0.035 + i * 0.02);
+    vb(g, 0.04, 0.014, 0.012, K.dark, 0, 0.012, -0.052);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.0065, 8, 18), K.silver); ring.rotation.y = Math.PI / 2; ring.position.set(0, 0.0, 0.072); g.add(ring);
+    if (arms) meleeHand(g); muzzle.set(0, -0.02, -0.17); sightY = 0;
+  } else if (key === 'MACHETE') {
+    // 마체테: 긴 직선 날 + 넓은 끝 · 나무 손잡이 · 황동 리벳
+    const sh = new THREE.Shape(); sh.moveTo(0, -0.004); sh.lineTo(0, 0.03); sh.lineTo(0.33, 0.036); sh.quadraticCurveTo(0.41, 0.042, 0.425, 0.006); sh.lineTo(0.39, -0.022); sh.quadraticCurveTo(0.2, -0.016, 0, -0.004);
+    const bl = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.003, bevelEnabled: true, bevelThickness: 0.001, bevelSize: 0.001, bevelSegments: 1, curveSegments: 8 }), VMM(0x5c6066, { metalness: 0.75, roughness: 0.4 })); bl.rotation.y = Math.PI / 2; bl.position.set(-0.0015, 0.0, -0.062); g.add(bl);
+    const eg = new THREE.Shape(); eg.moveTo(0.01, -0.0035); eg.quadraticCurveTo(0.2, -0.015, 0.39, -0.021); eg.lineTo(0.42, 0.004); eg.lineTo(0.414, 0.006); eg.lineTo(0.386, -0.014); eg.quadraticCurveTo(0.2, -0.009, 0.01, 0.0);
+    const ed = new THREE.Mesh(new THREE.ExtrudeGeometry(eg, { depth: 0.004, bevelEnabled: false, curveSegments: 8 }), K.blade); ed.rotation.y = Math.PI / 2; ed.position.set(-0.002, 0.0, -0.062); g.add(ed);
+    vb(g, 0.05, 0.016, 0.014, K.dark, 0, 0.012, -0.058);
+    vb(g, 0.032, 0.036, 0.12, K.wood, 0, 0.008, 0.0); for (const z of [-0.03, 0.0, 0.03]) vc(g, 0.006, 0.036, VMM(0xc89a3a, { metalness: 0.8, roughness: 0.3 }), 0, 0.008, z).rotation.set(0, 0, Math.PI / 2);
+    vb(g, 0.034, 0.03, 0.02, K.dark, 0, 0.004, 0.068);
+    if (arms) meleeHand(g); muzzle.set(0, 0.012, -0.48); sightY = 0;
   } else if (key === 'KNIFE') {
     // 전술 나이프: 클립포인트 블레이드(검은 코팅 + 은색 날) · 가드 · 고무 그립 · 폼멜
     const sh = new THREE.Shape(); sh.moveTo(0, -0.003); sh.lineTo(0, 0.03); sh.lineTo(0.115, 0.03); sh.quadraticCurveTo(0.15, 0.026, 0.172, 0.006); sh.lineTo(0.12, -0.006); sh.quadraticCurveTo(0.06, -0.008, 0, -0.003);
@@ -2140,12 +2172,7 @@ function makeGunModel(key, arms = true) {
     vb(g, 0.03, 0.034, 0.112, K.black, 0, 0.008, 0.0);
     for (let i = 0; i < 6; i++) vb(g, 0.033, 0.037, 0.006, K.dark, 0, 0.008, -0.045 + i * 0.016);
     vc(g, 0.017, 0.016, K.silver, 0, 0.008, 0.064); vb(g, 0.006, 0.006, 0.02, K.dark, 0, 0.008, 0.078);
-    // 손: 손바닥 + 손가락 4개가 손잡이를 감싸 쥠 + 엄지
-    vb(g, 0.05, 0.062, 0.088, K.glove, 0.02, -0.003, 0.004);
-    for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.0105, 0.03, 3, 8), K.glove); f.rotation.z = Math.PI / 2; f.position.set(-0.004, -0.004 + (i % 2) * 0.002, -0.036 + i * 0.022); g.add(f); const t = new THREE.Mesh(new THREE.SphereGeometry(0.0105, 8, 6), K.glove); t.position.set(-0.02, 0.012, -0.036 + i * 0.022); g.add(t); }
-    const th = new THREE.Mesh(new THREE.CapsuleGeometry(0.011, 0.035, 3, 8), K.glove); th.rotation.set(Math.PI / 2, 0, 0.3); th.position.set(-0.012, 0.03, -0.045); g.add(th);
-    limb(g, V(0.022, -0.01, 0.05), V(0.13, -0.3, 0.34), 0.075, K.sleeve);
-    muzzle.set(0, 0.012, -0.24); sightY = 0;
+    if (arms) meleeHand(g); muzzle.set(0, 0.012, -0.24); sightY = 0;
   } else if (key === 'FLASH' || key === 'SMOKE') {
     const big = key === 'SMOKE', r = big ? 0.036 : 0.03, h = big ? 0.12 : 0.1;
     const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 16), big ? VMM(0x56685a, { metalness: 0.3 }) : VMM(0xa4aab0, { metalness: 0.75, roughness: 0.3 })); g.add(body);
@@ -2258,13 +2285,13 @@ function createEntity(team, name, isPlayer) {
 }
 function setupWeapons(e) {
   e.packGun = null;
+  const K = WEAPONS[e.loadout.melee] && WEAPONS[e.loadout.melee].kind === 'melee' ? WEAPONS[e.loadout.melee] : (e.isPlayer || e.remote ? WEAPONS.KNIFE : WEAPONS[MELEE_KEYS[e.id % 3]]);
   if (settings.wmode === 'knife') {
-    const K = WEAPONS.KNIFE;
     e.slots = [{ def: K, mag: 0, reserve: 0, empty: !!e.isPlayer }, { def: K, mag: 0, reserve: 0, empty: true }, { def: K, mag: 0, reserve: 0 }, { def: WEAPONS[e.loadout.throw || 'GRENADE'], mag: 0, reserve: 0, empty: true }];
-    e.cur = e.isPlayer ? 2 : 0; e.grenades = 0; e.modelKey = 'KNIFE';
+    e.cur = e.isPlayer ? 2 : 0; e.grenades = 0; e.modelKey = K.key;
   } else {
     const p = WEAPONS[modePrimary(e.loadout.primary, e)], s = WEAPONS[modePistol(e.loadout.pistol)];
-    e.slots = [{ def: p, mag: p.mag, reserve: p.reserve }, { def: s, mag: s.mag, reserve: s.reserve }, { def: WEAPONS.KNIFE, mag: 0, reserve: 0 }, { def: WEAPONS[e.loadout.throw || 'GRENADE'], mag: 0, reserve: 0 }];
+    e.slots = [{ def: p, mag: p.mag, reserve: p.reserve }, { def: s, mag: s.mag, reserve: s.reserve }, { def: K, mag: 0, reserve: 0 }, { def: WEAPONS[e.loadout.throw || 'GRENADE'], mag: 0, reserve: 0 }];
     e.cur = 0; e.grenades = 2; e.modelKey = p.key;
   }
   e.reloadT = 0; e.fireCD = 0; e.swapT = 0; e.burstQ = 0; e.modeIdx = 0;
@@ -2387,7 +2414,7 @@ function awKill(v, k, wname) {
   if (!k || k === v || !k.aw) return;
   const a = k.aw; a.longKill = Math.max(a.longKill, k.pos.distanceTo(v.pos));
   if (now - a.lastKillT < 3) a.multi++; a.lastKillT = now;
-  if (wname === WEAPONS.KNIFE.name) a.knife++;
+  if (isMeleeName(wname)) a.knife++;
   if (a.lastKiller === v) { a.revenge++; a.lastKiller = null; }
   v.aw.lastKiller = k;
   const key = k.id + '>' + v.id; AW.pair.set(key, (AW.pair.get(key) || 0) + 1);
@@ -2685,7 +2712,7 @@ const controls = new PointerLockControls(camera, document.body);
 
 // 근접: 좌클릭 = 빠른 베기(약), 우클릭 = 찌르기(느림 · 등 뒤면 즉사)
 function meleeStrike(heavy) {
-  const p = player, def = WEAPONS.KNIFE; const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
+  const p = player, cd0 = p.slots[p.cur].def, def = cd0.kind === 'melee' ? cd0 : WEAPONS.KNIFE; const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
   const range = heavy ? def.heavyRange : def.range; let best = null, bd = 99;
   for (const e of entities) {
     if (!e.alive || e.off || e.team === p.team) continue;
@@ -2710,7 +2737,8 @@ function meleeStrike(heavy) {
   if (heavy && back && r === 'kill') showCenterMsg('🗡 백스탭!', '#ff5a4a'); else if (head && r === 'kill') showCenterMsg('🔪 헤드 컷!', '#ffd23f');
 }
 function startHeavyStab() {
-  const p = player; p.fireCD = 0.95; p.stabT = 0.75; p.stabHit = false; vm.stab = 1; sfx('swing', null, 1.3);
+  const p = player, def = p.slots[p.cur].def; const w = def.hWind || 0.25; vm.stabDur = w / 0.38; vm.stabChop = def.key === 'MACHETE';
+  p.fireCD = def.hCD || 0.95; p.stabT0 = p.stabT = Math.max(vm.stabDur, w + 0.1); p.stabWind = w; p.stabHit = false; vm.stab = 1; sfx('swing', null, def.key === 'MACHETE' ? 0.8 : def.key === 'KARAMBIT' ? 1.5 : 1.3);
 }
 function playerAttack() {
   const p = player, s = p.slots[p.cur], def = s.def;
@@ -2792,7 +2820,7 @@ function updatePlayer(dt) {
   const s = p.slots[p.cur];
   const ready = p.swapT <= 0 && p.reloadT <= 0 && !sprinting;
   if (p.burstQ > 0 && p.fireCD <= 0 && ready) { playerAttack(); p.burstQ--; p.fireCD = p.burstQ > 0 ? 60 / (def.burstGap ? def.rpm : 900) : (def.burstGap || 0.26); }
-  if (p.stabT > 0) { p.stabT -= dt; if (!p.stabHit && p.stabT < 0.5) { p.stabHit = true; if (p.alive && p.slots[p.cur].def.kind === 'melee') meleeStrike(true); } }
+  if (p.stabT > 0) { p.stabT -= dt; if (!p.stabHit && p.stabT0 - p.stabT >= (p.stabWind || 0.25)) { p.stabHit = true; if (p.alive && p.slots[p.cur].def.kind === 'melee') meleeStrike(true); } }
   if (def.kind === 'melee' && mouseR && ready && p.fireCD <= 0) startHeavyStab();
   else if (mouseL && ready && p.fireCD <= 0) {
     if (def.kind === 'rifle' || def.kind === 'pistol') {
@@ -2879,9 +2907,9 @@ function findCover(e, threat) {
   return best;
 }
 function aiMelee(e, t) {
-  e.fireCD = rand(0.42, 0.6); const head = Math.random() < 0.15; const fwd = V(-Math.sin(t.yaw), 0, -Math.cos(t.yaw)); const fromDir = t.pos.clone().sub(e.pos).setY(0).normalize();
-  const back = fwd.dot(fromDir) > 0.6 && Math.random() < 0.5; const dmg = back ? 250 : WEAPONS.KNIFE.dmg * (head ? 2 : 1);
-  applyDamage(t, dmg, e, WEAPONS.KNIFE.name, head, e.pos); bloodFx(t.pos.clone().add(V(0, head ? headY(t) : 1.2, 0))); sfx('swing', e.pos); sfx('stab', e.pos);
+  const md = e.slots[0].def.kind === 'melee' ? e.slots[0].def : WEAPONS.KNIFE; e.fireCD = 60 / md.rpm * rand(1.35, 1.9); const head = Math.random() < 0.15; const fwd = V(-Math.sin(t.yaw), 0, -Math.cos(t.yaw)); const fromDir = t.pos.clone().sub(e.pos).setY(0).normalize();
+  const back = fwd.dot(fromDir) > 0.6 && Math.random() < 0.5; const dmg = back ? 250 : md.dmg * (head ? 2 : 1);
+  applyDamage(t, dmg, e, md.name, head, e.pos); bloodFx(t.pos.clone().add(V(0, head ? headY(t) : 1.2, 0))); sfx('swing', e.pos); sfx('stab', e.pos);
   recEvent({ type: 'as', id: e.id, s: 'swing' });
 }
 function aiShoot(e, t) {
@@ -2970,7 +2998,7 @@ function updateAI(e, dt) {
     if (def.kind === 'melee' && !fleeing && !ai.healPack) { wish.copy(tn); if (d > 3) wish.addScaledVector(V(-tn.z * ai.strafeDir, 0, tn.x * ai.strafeDir), 0.35); speed = SPRINT; ai.coverPos = null; }
     ai.reactT -= dt;
     const want = Math.atan2(-tn.x, -tn.z);
-    if (def.kind === 'melee') { if (ai.reactT <= 0 && d < 2.1 && Math.abs(t.pos.y - e.pos.y) < 1.2 && Math.abs(angDiff(e.yaw, want)) < 0.5 && e.fireCD <= 0) aiMelee(e, t); }
+    if (def.kind === 'melee') { if (ai.reactT <= 0 && d < def.range - 0.15 && Math.abs(t.pos.y - e.pos.y) < 1.2 && Math.abs(angDiff(e.yaw, want)) < 0.5 && e.fireCD <= 0) aiMelee(e, t); }
     else if (ai.reactT <= 0 && !(def.pellets && d > def.range * 1.5) && Math.abs(angDiff(e.yaw, want)) < (def.cls === 'sniper' ? 0.08 : 0.22) && e.reloadT <= 0 && e.fireCD <= 0 && ai.burstCD <= 0) {
       if (s.mag <= 0) startReload(e);
       else { aiShoot(e, t); if (--ai.burstLeft <= 0) { const bo = def.modes[0] === 'BURST'; ai.burstLeft = bo ? 3 : 3 + (Math.random() * 5 | 0); ai.burstCD = bo ? def.burstGap + rand(0, 0.1) : rand(0.22, 0.55); } }
@@ -3114,10 +3142,10 @@ function updateHUD(dt) {
   setText('wName', def.name);
   if (def.kind === 'rifle' || def.kind === 'pistol') { setText('ammoMag', String(s.mag)); setText('ammoRes', '/ ' + s.reserve); setText('wMode', MODE_KO[def.modes[p.modeIdx]] + (def.modes.length > 1 ? ' [B]' : '') + (canOptic(def) ? ` · ${OPTICS[opticSel[def.key] || 0].name} [ ]` : def.cls === 'sniper' ? ` · 전용 스코프 ${(BASE_FOV / def.adsFov).toFixed(1)}x` : '')); }
   else if (def.kind === 'throw') { setText('ammoMag', String(p.grenades)); setText('ammoRes', '개'); setText('wMode', '좌클릭 강투척 · 우클릭+좌클릭 약투척'); }
-  else { setText('ammoMag', '∞'); setText('ammoRes', ''); setText('wMode', '좌클릭 베기 · 우클릭 찌르기(등 뒤 즉사) · 이속 +25%'); }
+  else { setText('ammoMag', '∞'); setText('ammoRes', ''); setText('wMode', `좌클릭 베기 · 우클릭 ${def.key === 'MACHETE' ? '내려찍기' : '찌르기'}(등 뒤 즉사) · 이속 +${Math.round((KIND_SPEED.melee * (def.speedMul || 1) - 1) * 100)}%`); }
   setStyle($('ammoMag'), 'color', (def.kind === 'rifle' || def.kind === 'pistol') && s.mag <= def.mag * 0.2 ? '#ff7b70' : '#fff');
   $('reloadTxt').classList.toggle('hidden', !(p.reloadT > 0));
-  setText('slot0', p.slots[0].empty ? '—' : p.slots[0].def.name); setText('slot1', p.slots[1].empty ? (settings.wmode === 'knife' ? '— (보조무기 팩)' : '—') : p.slots[1].def.name); setText('slot3', p.slots[3].empty ? '—' : `${p.slots[3].def.name} x${p.grenades}`);
+  setText('slot2', p.slots[2].def.name); setText('slot0', p.slots[0].empty ? '—' : p.slots[0].def.name); setText('slot1', p.slots[1].empty ? (settings.wmode === 'knife' ? '— (보조무기 팩)' : '—') : p.slots[1].def.name); setText('slot3', p.slots[3].empty ? '—' : `${p.slots[3].def.name} x${p.grenades}`);
   document.querySelectorAll('.slot').forEach(el => el.classList.toggle('on', +el.dataset.i === p.cur));
   $('protect').classList.toggle('hidden', !(p.alive && p.protectT > 0));
   // 크로스헤어
@@ -3185,7 +3213,7 @@ function renderScoreboard(el, forEnd = false) {
 }
 
 // ===================== 무기고 (로드아웃) + 3D 프리뷰 =====================
-const selLoadout = { primary: 'M416', pistol: 'P92', throw: 'GRENADE' };
+const selLoadout = { primary: 'M416', pistol: 'P92', throw: 'GRENADE', melee: 'KNIFE' };
 const armState = { tab: 'primary' };
 const pvRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 pvRenderer.setPixelRatio(Math.min(devicePixelRatio, 2)); pvRenderer.setSize(420, 220); pvRenderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -3216,6 +3244,9 @@ function renderPreview(dt) {
   pvRenderer.render(pvScene, pvCam);
 }
 function weaponStats(d) {
+  if (d.kind === 'melee') { const sp = KIND_SPEED.melee * (d.speedMul || 1), bh = Math.ceil(100 / d.dmg), hh = Math.ceil(100 / (d.dmg * 2));
+    return { rows: [['베기 데미지', d.dmg, d.dmg / 50, ''], ['베기 헤드샷', d.dmg * 2, d.dmg / 50, ''], ['베기 속도', (60 / d.rpm).toFixed(2), 0.2 / (60 / d.rpm), '초', false], ['찌르기 데미지', d.heavyDmg, d.heavyDmg / 100, ''], ['찌르기 준비', d.hWind.toFixed(2), 0.15 / d.hWind, '초', d.hWind > 0.3], ['사거리', d.range, d.range / 3, 'm', d.range < 2], ['이동 속도', Math.round(sp * 100), sp / 1.35, '%']],
+      tags: `<span>베기 몸통 ${bh}회 · 머리 ${hh}회 킬</span><span>등 뒤 ${d.key === 'MACHETE' ? '내려찍기' : '찌르기'} 즉사</span><span>좌·우클릭 헤드샷 2배</span>` }; }
   if (d.kind === 'throw') return { rows: d.tv.map(([n, v, f, u]) => [n, v, f, u]), tags: '<span>2개 지급</span><span>좌클릭 강투척 · 우클릭+좌클릭 약투척</span>' };
   const tot = d.dmg * (d.pellets ? d.pellets * 0.75 : 1), hm = d.hsMul || 2;
   const hits = Math.ceil(100 / tot), hhits = Math.ceil(100 / (d.pellets ? tot * 1.4 : d.dmg * hm)), ttk = Math.round((hits - 1) * 60000 / d.rpm);
@@ -3229,20 +3260,20 @@ function weaponStats(d) {
   ], tags: `<span>사격 모드: ${d.modes.map(m => MODE_KO[m]).join(' / ')}</span><span>몸통 ${hits}발 · 머리 ${hhits}발 킬</span><span>정조준 배율 ${(BASE_FOV / adsFovOf(d)).toFixed(1)}x</span>${d.speedMul ? `<span>무기 보정 ${d.speedMul > 1 ? '+' : ''}${Math.round((d.speedMul - 1) * 100)}%</span>` : ''}${d.burstGap ? `<span>3점사 전용 · 점사 간격 ${d.burstGap}초</span>` : ''}${d.pellets ? '<span>산탄 · 근거리 전용</span>' : ''}${d.amr ? '<span>단발 장전 · 쏠 때마다 재장전</span><span>몸통 1발 킬</span>' : d.cls === 'sniper' ? '<span>볼트액션 · 몸통 2발 / 머리 1발</span>' : ''}` };
 }
 function buildArmory(root) {
-  root.innerHTML = `<div class="arm-tabs"><button data-tab="primary">1 · 주무기</button><button data-tab="pistol">2 · 보조무기</button><button data-tab="throw">4 · 투척무기</button><span class="arm-fixed">3 · 전술용 나이프 (고정 · 이동속도 125%)</span></div>
+  root.innerHTML = `<div class="arm-tabs"><button data-tab="primary">1 · 주무기</button><button data-tab="pistol">2 · 보조무기</button><button data-tab="melee">3 · 근접무기</button><button data-tab="throw">4 · 투척무기</button></div>
   <div class="arm-body"><div class="arm-list"></div><div class="arm-preview"><div class="pv-host"></div><div class="pv-title"></div><div class="pv-desc"></div><div class="pv-hint">⟲ 드래그하여 회전</div></div><div class="arm-stats"></div></div>
   <div class="arm-sum"></div>`;
   root.querySelectorAll('.arm-tabs button').forEach(b => b.addEventListener('click', () => { armState.tab = b.dataset.tab; refreshArmories(); }));
 }
 function refreshArmories() {
   const tab = armState.tab;
-  const keysIn = tab === 'primary' ? PRIMARY_KEYS : tab === 'pistol' ? ['DEAGLE', 'P92', 'MULE', 'HORNET'] : THROWS;
+  const keysIn = tab === 'primary' ? PRIMARY_KEYS : tab === 'pistol' ? ['DEAGLE', 'P92', 'MULE', 'HORNET'] : tab === 'melee' ? MELEE_KEYS : THROWS;
   const cat = armState.cat || 'all';
   const sel = selLoadout[tab], d = WEAPONS[sel], st = weaponStats(d);
   for (const root of [$('armMenu'), $('armDeath'), $('armRoom')]) {
     root.querySelectorAll('.arm-tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
     const card = k => { const w = WEAPONS[k];
-      const mini = w.kind === 'throw' ? w.desc.split(' · ')[0] : `DMG ${w.dmg}${w.pellets ? '×' + w.pellets : ''} · ${w.rpm} RPM · ${w.mag}발`;
+      const mini = w.kind === 'throw' ? w.desc.split(' · ')[0] : w.kind === 'melee' ? `베기 ${w.dmg} · ${w.key === 'MACHETE' ? '내려찍기' : '찌르기'} ${w.heavyDmg} · 사거리 ${w.range}m` : `DMG ${w.dmg}${w.pellets ? '×' + w.pellets : ''} · ${w.rpm} RPM · ${w.mag}발`;
       return `<div class="wcard ${k === sel ? 'sel' : ''} ${weaponAllowed(tab, k) ? '' : 'lock'}" data-key="${k}"><div class="ty">${w.type} · ${w.cal}</div><div class="nm">${w.name}</div><div class="mini">${mini}</div></div>`; };
     if (tab === 'primary') {
       const chips = `<div class="wcats"><button data-cat="all" class="${cat === 'all' ? 'on' : ''}">전체</button>${WEAPON_GROUPS.map(g => `<button data-cat="${g[0]}" class="${cat === g[0] ? 'on' : ''}">${g[1]}</button>`).join('')}</div>`;
@@ -3254,7 +3285,7 @@ function refreshArmories() {
     root.querySelector('.pv-desc').textContent = d.desc;
     root.querySelector('.arm-stats').innerHTML = st.rows.map(([n, v, f, u, bad]) => `<div class="row"><label>${n}</label><div class="bar"><i class="${bad ? 'lo' : ''}" style="width:${clamp(f, 0.04, 1) * 100}%"></i></div><b>${v}${u}</b></div>`).join('') + `<div class="tags">${st.tags}</div>` + (canOptic(d) ? `<div class="optsel"><label>조준경 <small>(인게임 [ ] 키)</small></label><div class="seg">${OPTICS.map((o, i) => `<button data-o="${i}" class="${(opticSel[d.key] || 0) === i ? 'on' : ''}">${o.name}${o.rec < 1 ? `<br><small>반동 -${Math.round((1 - o.rec) * 100)}%</small>` : ''}</button>`).join('')}</div></div>` : '');
     root.querySelectorAll('.optsel button').forEach(btn => btn.addEventListener('click', () => { opticSel[d.key] = +btn.dataset.o; refreshArmories(); }));
-    root.querySelector('.arm-sum').innerHTML = `<div class="${tab === 'primary' ? 'on' : ''}"><em>1</em>${WEAPONS[selLoadout.primary].name}</div><div class="${tab === 'pistol' ? 'on' : ''}"><em>2</em>${WEAPONS[selLoadout.pistol].name}</div><div><em>3</em>전술용 나이프</div><div class="${tab === 'throw' ? 'on' : ''}"><em>4</em>${WEAPONS[selLoadout.throw].name} x2</div>`;
+    root.querySelector('.arm-sum').innerHTML = `<div class="${tab === 'primary' ? 'on' : ''}"><em>1</em>${WEAPONS[selLoadout.primary].name}</div><div class="${tab === 'pistol' ? 'on' : ''}"><em>2</em>${WEAPONS[selLoadout.pistol].name}</div><div class="${tab === 'melee' ? 'on' : ''}"><em>3</em>${WEAPONS[selLoadout.melee].name}</div><div class="${tab === 'throw' ? 'on' : ''}"><em>4</em>${WEAPONS[selLoadout.throw].name} x2</div>`;
   }
   setPreview(sel); mpLoadoutChanged();
 }
@@ -3537,7 +3568,11 @@ function updateViewModel(dt) {
   if (p.reloadT > 0) { const pr = 1 - p.reloadT / def.reload; const dip = Math.sin(pr * Math.PI); y -= dip * 0.1; rx -= dip * 0.5; rz += dip * 0.6; }
   if (p.swapT > 0) { y -= Math.min(1, p.swapT / 0.3) * 0.3; }
   if (vm.swing > 0) { vm.swing = Math.max(0, vm.swing - dt * 4.4); const t = 1 - vm.swing, s = Math.sin(t * Math.PI), d = vm.swingDir || 1, a = t * 2 - 1; x -= d * a * 0.15 + s * 0.04; z -= s * 0.12; y += s * 0.03 - a * a * 0.02; ry += d * a * 0.9; rz -= d * s * 0.8 + 0.2 * s; rx -= s * 0.25; }
-  if (vm.stab > 0) { vm.stab = Math.max(0, vm.stab - dt / 0.75); const t = 1 - vm.stab; let k;
+  if (vm.stab > 0 && vm.stabChop) { vm.stab = Math.max(0, vm.stab - dt / (vm.stabDur || 0.9)); const t = 1 - vm.stab; let k; // 마체테 내려찍기
+    if (t < 0.38) { k = Math.sin(t / 0.38 * Math.PI / 2); y += k * 0.12; z += k * 0.05; rx -= k * 0.75; x += k * 0.03; }
+    else if (t < 0.52) { k = (t - 0.38) / 0.14; y += 0.12 - k * 0.24; z += 0.05 - k * 0.15; rx += -0.75 + k * 1.55; x += 0.03 - k * 0.08; }
+    else { k = 1 - Math.pow(1 - (t - 0.52) / 0.48, 2); y += -0.12 * (1 - k); z += -0.1 * (1 - k); rx += 0.8 * (1 - k); x += -0.05 * (1 - k); } }
+  else if (vm.stab > 0) { vm.stab = Math.max(0, vm.stab - dt / (vm.stabDur || 0.75)); const t = 1 - vm.stab; let k;
     if (t < 0.3) { k = Math.sin(t / 0.3 * Math.PI / 2); z += k * 0.09; rx += k * 0.4; y += k * 0.04; x += k * 0.02; }
     else if (t < 0.47) { k = (t - 0.3) / 0.17; z += 0.09 - k * 0.4; rx += 0.4 - k * 0.75; y += 0.04 - k * 0.05; x += 0.02 - k * 0.12; }
     else { k = 1 - Math.pow(1 - (t - 0.47) / 0.53, 2); z += -0.31 * (1 - k); rx += -0.35 * (1 - k); y += -0.01 * (1 - k); x += -0.1 * (1 - k); } }
@@ -3959,7 +3994,7 @@ function myName() { const n = ($('mpName').value.trim() || $('callsign').value.t
 function defaultSlots() { return entities.map(e => ({ kind: 'ai', name: e.aiName, peer: null, lo: null })); }
 function sanitizeLo(lo) {
   const P = PRIMARY_KEYS, S = ['DEAGLE', 'P92', 'MULE', 'HORNET'];
-  lo = lo || {}; return { primary: P.includes(lo.primary) ? lo.primary : 'M416', pistol: S.includes(lo.pistol) ? lo.pistol : 'P92', throw: THROWS.includes(lo.throw) ? lo.throw : 'GRENADE' };
+  lo = lo || {}; return { primary: P.includes(lo.primary) ? lo.primary : 'M416', pistol: S.includes(lo.pistol) ? lo.pistol : 'P92', throw: THROWS.includes(lo.throw) ? lo.throw : 'GRENADE', melee: MELEE_KEYS.includes(lo.melee) ? lo.melee : 'KNIFE' };
 }
 function showToast(t) { const el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 3500); }
 function sysFeed(t) { const kf = $('killfeed'); const d = document.createElement('div'); d.className = 'kf sys'; d.textContent = '📢 ' + t; kf.prepend(d); setTimeout(() => d.remove(), 6000); }
