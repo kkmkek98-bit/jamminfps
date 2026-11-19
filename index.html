@@ -634,6 +634,7 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const $ = id => document.getElementById(id);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -714,20 +715,57 @@ const adsFovOf = (d, opt) => canOptic(d) ? OPTICS[opt ?? (opticSel[d.key] || 0)]
 const MODE_KO = { AUTO:'연사', BURST:'3점사', SINGLE:'단발' };
 
 // ===================== 렌더러 / 씬 =====================
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true; renderer.shadowMap.autoUpdate = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.autoClear = false;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.88;
 $('game').appendChild(renderer.domElement);
+// ----- 후처리: 화면을 한 장(RT)에 그린 뒤 FXAA + 톤매핑으로 출력 · 자동 해상도 -----
+const POST = { rt: new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 0 }), scale: 1, fpsE: 60, adjT: 0, upT: 0, sz: new THREE.Vector2() };
+const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), postScene = new THREE.Scene();
+const postMat = new THREE.ShaderMaterial({ uniforms: { tDiffuse: { value: POST.rt.texture }, res: { value: new THREE.Vector2(4, 4) } }, depthTest: false, depthWrite: false,
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 res; varying vec2 vUv;
+vec3 S(vec2 uv){ vec3 c = texture2D(tDiffuse, uv).rgb;
+#ifdef TONE_MAPPING
+  c = toneMapping(c);
+#endif
+  return linearToOutputTexel(vec4(c, 1.0)).rgb; }
+float L(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+void main(){ vec2 px = 1.0 / res;
+  vec3 nw = S(vUv + vec2(-1.0, -1.0) * px), ne = S(vUv + vec2(1.0, -1.0) * px), sw = S(vUv + vec2(-1.0, 1.0) * px), se = S(vUv + vec2(1.0, 1.0) * px), m = S(vUv);
+  float lnw = L(nw), lne = L(ne), lsw = L(sw), lse = L(se), lm = L(m);
+  float lmin = min(lm, min(min(lnw, lne), min(lsw, lse))), lmax = max(lm, max(max(lnw, lne), max(lsw, lse)));
+  if (lmax - lmin < max(0.0312, lmax * 0.125)) { gl_FragColor = vec4(m, 1.0); return; }
+  vec2 dir = vec2(-((lnw + lne) - (lsw + lse)), (lnw + lsw) - (lne + lse));
+  float red = max((lnw + lne + lsw + lse) * 0.03125, 0.0078125); float rcp = 1.0 / (min(abs(dir.x), abs(dir.y)) + red);
+  dir = clamp(dir * rcp, vec2(-8.0), vec2(8.0)) * px;
+  vec3 a = 0.5 * (S(vUv + dir * (1.0 / 3.0 - 0.5)) + S(vUv + dir * (2.0 / 3.0 - 0.5)));
+  vec3 b = a * 0.5 + 0.25 * (S(vUv - dir * 0.5) + S(vUv + dir * 0.5));
+  float lb = L(b); gl_FragColor = vec4((lb < lmin || lb > lmax) ? a : b, 1.0); }` });
+postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
+function postBegin(dt) {
+  // 자동 해상도: 프레임이 떨어지면 렌더 해상도를 낮추고, 여유가 생기면 다시 올림 (60~100%)
+  if (dt > 0 && dt < 0.5) POST.fpsE += (1 / dt - POST.fpsE) * Math.min(1, dt * 3);
+  POST.adjT -= dt;
+  if (state === 'playing' && POST.adjT <= 0 && !POST.lock) { POST.adjT = 0.5;
+    if (POST.fpsE < 48 && POST.scale > 0.6) { POST.scale = Math.max(0.6, POST.scale - 0.1); POST.upT = 0; }
+    else if (POST.fpsE > 57) { POST.upT += 0.5; if (POST.upT >= 2 && POST.scale < 1) { POST.scale = Math.min(1, POST.scale + 0.05); POST.upT = 0; } } else POST.upT = 0; }
+  renderer.getDrawingBufferSize(POST.sz); const w = Math.max(2, Math.round(POST.sz.x * POST.scale)), h = Math.max(2, Math.round(POST.sz.y * POST.scale));
+  if (POST.rt.width !== w || POST.rt.height !== h) { POST.rt.setSize(w, h); postMat.uniforms.res.value.set(w, h); }
+  renderer.setRenderTarget(POST.rt);
+}
+function postEnd() { renderer.setRenderTarget(null); renderer.render(postScene, postCam); }
 
 const scene = new THREE.Scene();
 {
   const c = document.createElement('canvas'); c.width = 4; c.height = 256;
   const g = c.getContext('2d'); const gr = g.createLinearGradient(0, 0, 0, 256);
-  gr.addColorStop(0, '#5d8fc4'); gr.addColorStop(0.55, '#a9c9e3'); gr.addColorStop(1, '#d9e4ea');
+  gr.addColorStop(0, '#3a72b8'); gr.addColorStop(0.55, '#86b4de'); gr.addColorStop(1, '#c6d9e6');
   g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; scene.background = t;
 }
@@ -742,13 +780,21 @@ const camera = new THREE.PerspectiveCamera(BASE_FOV, innerWidth / innerHeight, 0
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 
-const hemi = new THREE.HemisphereLight(0xdcecff, 0x6b5f48, 1.25); scene.add(hemi);
+const ENV_TEX = (() => { const pm = new THREE.PMREMGenerator(renderer); const t = pm.fromScene(new RoomEnvironment(renderer), 0.04).texture; pm.dispose(); return t; })();
+// 재질별 반사 세기: 금속은 또렷하게, 나머지는 은은하게
+function tuneEnv(root) { root.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) if (m && m.isMeshStandardMaterial && !m.userData.envT) { m.userData.envT = 1; m.envMapIntensity = m.metalness > 0.45 ? 0.65 : m.transparent ? 0.25 : 0.22; } }); }
+const hemi = new THREE.HemisphereLight(0xdcecff, 0x6b5f48, 1.05); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0d8, 2.6);
 sun.position.set(60, 110, 40); sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -130, right: 130, top: 130, bottom: -130, near: 10, far: 320 });
-sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.04;
-scene.add(sun);
+Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, near: 1, far: 320 });
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+scene.add(sun); scene.add(sun.target);
+const SUN_DIR = new THREE.Vector3(60, 110, 40).normalize(); let shadowAt = '';
+// 그림자 범위를 카메라 주변으로 좁혀 따라가게 함 (2m 단위로 끊어 이동 → 깜빡임 방지)
+function followShadow() { const c = camera.getWorldPosition(new THREE.Vector3()); const gx = Math.round(c.x / 2) * 2, gz = Math.round(c.z / 2) * 2, key = gx + ',' + gz;
+  sun.target.position.set(gx, 0, gz); sun.position.set(gx + SUN_DIR.x * 160, SUN_DIR.y * 160, gz + SUN_DIR.z * 160); sun.target.updateMatrixWorld(); sun.updateMatrixWorld();
+  if (key !== shadowAt) { shadowAt = key; renderer.shadowMap.needsUpdate = true; } }
 // 손전등 (내 화면 · 실제 조명)
 const playerLight = new THREE.SpotLight(0xfff1d0, 0, 75, 0.36, 0.55, 1.3); playerLight.position.set(0.18, -0.12, 0);
 const playerLightTgt = new THREE.Object3D(); playerLightTgt.position.set(0.04, -0.04, -10); camera.add(playerLight); camera.add(playerLightTgt); playerLight.target = playerLightTgt;
@@ -756,15 +802,15 @@ let playerLightOn = true;
 function setEnv(night) {
   scene.background = night ? NIGHT_BG : DAY_BG;
   scene.fog.color.setHex(night ? 0x060a14 : 0xc4d6e4); scene.fog.near = night ? 10 : 70; scene.fog.far = night ? 95 : 260;
-  hemi.intensity = night ? 0.13 : 1.25; hemi.color.setHex(night ? 0x3a4c78 : 0xdcecff); hemi.groundColor.setHex(night ? 0x0c0c12 : 0x6b5f48);
+  hemi.intensity = night ? 0.13 : 1.05; scene.environment = night ? null : ENV_TEX; wScene.environment = night ? null : ENV_TEX; renderer.toneMappingExposure = night ? 1.05 : 0.88; hemi.color.setHex(night ? 0x3a4c78 : 0xdcecff); hemi.groundColor.setHex(night ? 0x0c0c12 : 0x6b5f48);
   sun.intensity = night ? 0.2 : 2.6; sun.color.setHex(night ? 0x8ea4dc : 0xfff0d8);
   sun.castShadow = !night && opts.gfx === 'high'; // 야간엔 그림자 계산 생략
   camera.far = night ? 140 : 600; camera.updateProjectionMatrix(); playerLight.visible = night;
 }
 
 // 1인칭 무기 전용 씬 (벽 관통 방지)
-const wScene = new THREE.Scene();
-const wCam = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.01, 10);
+var wScene = wScene || new THREE.Scene();
+const wCam = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.01, 10); wScene.environment = ENV_TEX;
 wScene.add(new THREE.HemisphereLight(0xffffff, 0x555555, 1.6));
 const wSun = new THREE.DirectionalLight(0xffffff, 2.2); wSun.position.set(1, 2, 1); wScene.add(wSun);
 
@@ -1477,6 +1523,21 @@ function floodTower(x, z) {
   lightPool(x, z + 2, 30, 12, 7, z + 1.5); const gl = new THREE.Sprite(LENS_MAT); gl.scale.setScalar(3.2); gl.position.set(x, 12.1, z + 0.6); mapRoot.add(gl);
 }
 // 가짜 조명(실제 광원 X): 바닥 빛 웅덩이 + 빛기둥 — 같은 재질끼리 합쳐서 한 번에 그림
+const AO_MAT = (() => { const c = document.createElement('canvas'); c.width = 4; c.height = 64; const g = c.getContext('2d'); const gr = g.createLinearGradient(0, 0, 0, 64);
+  gr.addColorStop(0, 'rgba(0,0,0,.46)'); gr.addColorStop(0.35, 'rgba(0,0,0,.2)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 4, 64);
+  return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2, toneMapped: false }); })();
+// 벽·엄폐물이 바닥과 만나는 곳에 부드러운 그늘 (실시간 비용 0)
+function contactShadows() {
+  const W = 0.6, list = boxes.slice();
+  for (const b of list) {
+    const w = b.max[0] - b.min[0], d = b.max[2] - b.min[2], h = b.max[1] - b.min[1]; if (h < 0.3 || w > 45 || d > 45 || (w < 0.12 && d < 0.12)) continue;
+    const cx = (b.min[0] + b.max[0]) / 2, cz = (b.min[2] + b.max[2]) / 2; if (outsideArena(cx, cz)) continue;
+    const grounded = b.min[1] < 0.06 || list.some(o => o !== b && Math.abs(o.max[1] - b.min[1]) < 0.06 && cx > o.min[0] && cx < o.max[0] && cz > o.min[2] && cz < o.max[2]); if (!grounded) continue;
+    const y = b.min[1] + 0.045;
+    for (const [len, th, px, pz] of [[w + W, 0, cx, b.max[2] + W / 2], [w + W, Math.PI, cx, b.min[2] - W / 2], [d + W, Math.PI / 2, b.max[0] + W / 2, cz], [d + W, -Math.PI / 2, b.min[0] - W / 2, cz]]) {
+      const g = new THREE.PlaneGeometry(len, W); g.rotateX(-Math.PI / 2); g.rotateY(th); const o = batchAdd(g, AO_MAT, false, true); o.position.set(px, y, pz); }
+  }
+}
 function lightPool(x, z, size, h, r, zc = z, xc = x) {
   const pg = new THREE.PlaneGeometry(size, size); pg.rotateX(-Math.PI / 2); const o = batchAdd(pg, POOL_MAT, false, true); o.position.set(x, 0.06, z);
   if (h) { const cg = new THREE.ConeGeometry(r, h, 10, 1, true); const c = batchAdd(cg, SHAFT_MAT, false, true); c.position.set(xc, h / 2, zc); }
@@ -1592,7 +1653,7 @@ function loadMap(id, small = false) {
   mapRoot = new THREE.Group(); scene.add(mapRoot);
   for (const a of [boxes, ramps, rampMeshes, coverBoxes, aiGoals, highGoals, coverPoints, flags, healPacks]) a.length = 0;
   cIdx = 0; curMapId = key; MAP = Object.assign({ id }, MAPS[id], small ? MAPS[id].small : {}); MAP.night = night; setEnv(night); if (small) MAP.name = MAPS[id].name + ' (축소)'; if (night) MAP.name = '🌙 ' + MAP.name + ' · 밤'; ARENA.x = MAP.ax; ARENA.z = MAP.az;
-  MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (night && id !== 'harbor') nightLamps(); flushBatch(); MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase();
+  MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (night && id !== 'harbor') nightLamps(); contactShadows(); flushBatch(); tuneEnv(scene); shadowAt = ''; MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase();
   { const lm = $('lobbyMap').getContext('2d'); lm.clearRect(0, 0, 180, 192); lm.drawImage(mmBase, 0, 0); }
   $('lbMapInfo').innerHTML = `<b>${MAP.name}</b>${settings.wmode !== 'normal' ? ' · ' + WMODES[settings.wmode] : ''}<br>${MAP.info}${night ? '<br>🔦 야간전 · F로 라이트 켜기/끄기 · 불빛을 노려 쏘세요' : ''}<br><span class="bdot"></span>BLUE 스폰 (남)<br><span class="rdot"></span>RED 스폰 (북)`;
   $('lbMapName').textContent = MAP.name;
@@ -1909,8 +1970,16 @@ function makeSoldier(team, name, gunKey) {
   let tag = null;
   tag = makeTag(name, blue ? '#7fb4ff' : '#ff9a8a'); tag.position.set(0, 2.25, 0); root.add(tag);
   mergeParts(body, [helmet]); for (const L of legs) mergeParts(L); mergeParts(arms);
+  // 35m 밖에서 쓰는 단순 모델: 상자 몇 개를 색상째 합쳐 한 번에 그림
+  const lp = [], col = (g, c) => { const n = g.attributes.position.count, a = new Float32Array(n * 3), cc = new THREE.Color(c); for (let i = 0; i < n; i++) { a[i * 3] = cc.r; a[i * 3 + 1] = cc.g; a[i * 3 + 2] = cc.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; };
+  const lb = (w, h, d, x, y, z, c) => { const g = new THREE.BoxGeometry(w, h, d).toNonIndexed(); g.translate(x, y, z); lp.push(col(g, c)); };
+  lb(0.36, 0.86, 0.22, 0, 0.45, 0, mU.color); lb(0.2, 0.12, 0.3, -0.12, 0.05, -0.04, 0x222222); lb(0.2, 0.12, 0.3, 0.12, 0.05, -0.04, 0x222222);
+  lb(0.5, 0.5, 0.34, 0, 1.22, 0, mV.color); lb(0.36, 0.42, 0.18, 0, 1.24, 0.26, mP.color); lb(0.24, 0.26, 0.24, 0, 1.64, 0, mS.color); lb(0.32, 0.14, 0.32, 0, 1.79, 0.01, mH.color);
+  lb(0.6, 0.12, 0.14, 0, 1.38, -0.2, mU.color); lb(0.07, 0.1, 0.6, 0.12, 1.36, -0.5, 0x1c1d1f);
+  const lod = new THREE.Mesh(mergeGeometries(lp, false), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05 })); lp.forEach(g => g.dispose());
+  lod.castShadow = true; lod.visible = false; root.add(lod);
   root.traverse(o => { if (o.isMesh) o.receiveShadow = false; });
-  return Object.assign(mdl, { root, body, legs, arms, muzzle, tag, helmet, mats: [mU, mV, mS, mH, mB, mP] });
+  return Object.assign(mdl, { root, body, legs, arms, muzzle, tag, helmet, lod, mats: [mU, mV, mS, mH, mB, mP] });
 }
 function mergeParts(grp, skip) {
   const by = new Map();
@@ -2273,7 +2342,7 @@ function buildViewModel(key, opt) {
   const id = key + '|' + (cap ? opt : '');
   if (vmKey === id && vmModel) return;
   if (vmModel) vmRoot.remove(vmModel);
-  vmModel = makeGunModel(key); if (cap) attachOptic(vmModel, opt); vmKey = id; vmRoot.add(vmModel);
+  vmModel = makeGunModel(key); if (cap) attachOptic(vmModel, opt); vmKey = id; vmRoot.add(vmModel); tuneEnv(vmModel);
 }
 
 // ===================== 엔티티 =====================
@@ -3087,6 +3156,7 @@ function updateModel(e, dt) {
     e._fl = k > 0;
   }
   m.root.position.copy(e.pos); m.root.rotation.y = e.yaw;
+  if (m.lod) { const far = e.alive && !e.prone && !(MAP.night && e.lightOn !== false) && !(state === 'replay' || KC.on) && e.pos.distanceToSquared(camera.position) > 1225; m.lod.visible = far; m.body.visible = !far; }
   if (e.alive) {
     const hs = Math.hypot(e.vel.x, e.vel.z);
     e.walkPhase += dt * hs * 2.2; const sw = Math.sin(e.walkPhase) * Math.min(0.7, hs * 0.12);
@@ -3242,7 +3312,7 @@ function renderScoreboard(el, forEnd = false) {
 const selLoadout = { primary: 'M416', pistol: 'P92', throw: 'GRENADE', melee: 'KNIFE' };
 const armState = { tab: 'primary' };
 const pvRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-pvRenderer.setPixelRatio(Math.min(devicePixelRatio, 2)); pvRenderer.setSize(420, 220); pvRenderer.outputColorSpace = THREE.SRGBColorSpace;
+pvRenderer.setPixelRatio(Math.min(devicePixelRatio, 2)); pvRenderer.setSize(420, 220); pvRenderer.outputColorSpace = THREE.SRGBColorSpace; pvRenderer.toneMapping = THREE.ACESFilmicToneMapping; pvRenderer.toneMappingExposure = 1.2;
 const pvScene = new THREE.Scene();
 pvScene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.8));
 const pvKey1 = new THREE.DirectionalLight(0xffffff, 2.6); pvKey1.position.set(2, 3, 2); pvScene.add(pvKey1);
@@ -4645,11 +4715,12 @@ function loop(t) {
   playerLight.intensity = (MAP.night && playerLightOn && state === 'playing' && player.alive && !KC.on) ? 160 : 0;
   updateCamera(dt);
   camera.updateMatrixWorld();
-  renderer.shadowMap.needsUpdate = (++shadowTick & 1) === 0;
-  renderer.clear(); renderer.render(scene, camera);
+  renderer.shadowMap.needsUpdate = (++shadowTick & 1) === 0; followShadow();
+  postBegin(dt); renderer.clear(); renderer.render(scene, camera);
   if (xrayT > 0) { xrayT -= dt; if (state === 'playing' && player.alive && !KC.on) xrayPass(); }
   $('xrayOv').classList.toggle('on', xrayT > 0 && state === 'playing' && player.alive && !KC.on);
   if ((state === 'playing' && player.alive && !KC.on) || (state === 'replay' && RP.vmOn) || (KC.on && KC.vmOn)) { renderer.clearDepth(); renderer.render(wScene, wCam); }
+  postEnd();
 }
 
 // ===================== 초기화 =====================
@@ -4673,7 +4744,7 @@ showLobby(); applyOpts(); showTitle();
   }
 }
 $('loading').remove();
-window.__game = { renderer, renderCheat, spawnFire, loadMap, CHEAT, MAPS, settings, get MAP() { return MAP; }, coverPoints, buildDebug, ramps, startReload, vmRoot, MP, mpCreate, mpJoin, opts, healPacks, eyeH, KC, headY, bodyTop, camera, setMouseR: v => { mouseR = v; }, opticSel, areas, throwGrenade, get flashT() { return flashT; }, setupWeapons, tick: dt => { now += dt; update(dt); }, killEntity, endMatch, startReplay, findHighlight, REC, RP, WEAPONS, switchSlot, playerAttack: () => playerAttack(), get now() { return now; }, entities, score, get state() { return state; }, set state(v) { state = v; }, resetMatch, update, get player() { return player; }, boxes, aiGoals };
+window.__game = { POST, renderer, renderCheat, spawnFire, loadMap, CHEAT, MAPS, settings, get MAP() { return MAP; }, coverPoints, buildDebug, ramps, startReload, vmRoot, MP, mpCreate, mpJoin, opts, healPacks, eyeH, KC, headY, bodyTop, camera, setMouseR: v => { mouseR = v; }, opticSel, areas, throwGrenade, get flashT() { return flashT; }, setupWeapons, tick: dt => { now += dt; update(dt); }, killEntity, endMatch, startReplay, findHighlight, REC, RP, WEAPONS, switchSlot, playerAttack: () => playerAttack(), get now() { return now; }, entities, score, get state() { return state; }, set state(v) { state = v; }, resetMatch, update, get player() { return player; }, boxes, aiGoals };
 requestAnimationFrame(loop);
 </script>
 </body>
