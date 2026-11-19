@@ -1373,8 +1373,16 @@ function aptBlock(s) {
   floorPlane(-X, X, zMin, zMax, MAT.tile, 0.03, 1.2);
   for (let f = 1; f <= 3; f++) {
     const y = LV[f];
-    addBox(0, y - 0.3, zc, 2 * X, 0.3, 12, MAT.concrete);
-    floorPlane(-X + 0.3, X - 0.3, ...span(16.3, 25.7), MAT.woodFloor, y + 0.025, 2.0); floorPlane(-X + 0.3, X - 0.3, ...span(26, 27.97), MAT.tile, y + 0.025, 1.0);
+    const HX0 = 1.7, HX1 = 4.75, HZ0 = 17.6, HZ1 = 23.6; // 중앙 계단실 구멍
+    addBox((-X + HX0) / 2, y - 0.3, zc, X + HX0, 0.3, 12, MAT.concrete); addBox((HX1 + X) / 2, y - 0.3, zc, X - HX1, 0.3, 12, MAT.concrete);
+    addBox((HX0 + HX1) / 2, y - 0.3, s * (16 + HZ0) / 2, HX1 - HX0, 0.3, HZ0 - 16, MAT.concrete); addBox((HX0 + HX1) / 2, y - 0.3, s * (HZ1 + 28) / 2, HX1 - HX0, 0.3, 28 - HZ1, MAT.concrete);
+    floorPlane(-X + 0.3, HX0, ...span(16.3, 25.7), MAT.woodFloor, y + 0.025, 2.0); floorPlane(HX1, X - 0.3, ...span(16.3, 25.7), MAT.woodFloor, y + 0.025, 2.0);
+    floorPlane(HX0, HX1, ...span(16.3, HZ0), MAT.woodFloor, y + 0.025, 2.0); floorPlane(HX0, HX1, ...span(HZ1, 25.7), MAT.woodFloor, y + 0.025, 2.0);
+    // 계단 구멍 난간 (계단이 이어지는 쪽만 열어둠)
+    const rail = (x0, x1, z0, z1) => { const [a0, a1] = span(z0, z1); addBox((x0 + x1) / 2, y, (a0 + a1) / 2, Math.max(0.08, x1 - x0), 1.0, Math.max(0.08, a1 - a0), MAT.steel); };
+    rail(HX0 - 0.08, HX0, HZ0, HZ1);
+    const LA = [HX0 + 0.08, 3.05], LB = [3.3, HX1];
+    if (f === 1) rail(HX0, HX1, HZ0 - 0.08, HZ0); if (f === 2) rail(HX0, HX1, HZ1, HZ1 + 0.08); if (f === 3) { rail(HX0, HX1, HZ0 - 0.08, HZ0); rail(LB[0], LB[1], HZ1, HZ1 + 0.08); } floorPlane(-X + 0.3, X - 0.3, ...span(26, 27.97), MAT.tile, y + 0.025, 1.0);
     // 안뜰 쪽 벽: 창문 (3층 가운데는 구름다리 출입문)
     const ops = []; for (let x = -27.5; x <= 27.6; x += 5) ops.push({ a: x - 1.1, b: x + 1.1, y0: 1.0, y1: 2.3 });
     if (f === 2) ops.push({ a: -1.0, b: 1.0, y0: 0, y1: 2.4 });
@@ -1388,7 +1396,7 @@ function aptBlock(s) {
     const dz = f % 2 === 1 ? 26.5 : 17.5;
     for (const o of [-1, 1]) wallZ(zMin, zMax, o * (X - T / 2), T, y, 3.2, [{ a: s * dz - 0.9, b: s * dz + 0.9, y0: 0, y1: 2.3 }, { a: zc - 1.0, b: zc + 1.0, y0: 1.0, y1: 2.2 }].sort((p, q) => p.a - q.a), MAT.brick);
     // 세대 안 소품 (식탁/소파 = 낮은 엄폐)
-    for (const x of [-20, 0, 20]) { addBox(x - 2, y, s * 19.5, 1.6, 0.75, 0.9, MAT.woodDark); addBox(x + 2.5, y, s * 23.8, 2.2, 0.8, 0.9, SM(0x56606e)); }
+    for (const x of [-20, 0, 20]) { addBox(x - 2, y, s * 19.5, 1.6, 0.75, 0.9, MAT.woodDark); if (x !== 0) addBox(x + 2.5, y, s * 23.8, 2.2, 0.8, 0.9, SM(0x56606e)); }
   }
   // 옥상
   addBox(0, LV[4] - 0.3, zc, 2 * X + 0.4, 0.3, 12.4, MAT.concreteDark);
@@ -1396,6 +1404,15 @@ function aptBlock(s) {
   for (const o of [-1, 1]) { const [a0, a1] = span(19.2, 28.0); addBox(o * (X + 0.05), LV[4], (a0 + a1) / 2, 0.3, 1.1, a1 - a0, MAT.concrete); }
   addBox(-12, LV[4], zc, 3, 2.4, 3, MAT.concreteDark, {}); addBox(14, LV[4], s * 24, 4, 1.6, 2, MAT.steel);
   signBoard(0, LV[4] - 1.6, s * 15.82, 8, 1.3, s > 0 ? '잼민아파트 101동' : '잼민아파트 102동', '#e9e5dc', '#2a3a5a', s > 0 ? Math.PI : 0);
+  // 중앙 계단실: 안뜰 창문 바로 안쪽 — 층 사이 계단이 창문에 노출됨
+  { const la = 2.43, lb = 4.03, z0 = 17.6;
+    for (let k = 0; k < 3; k++) { const ln = k % 2 === 0 ? la : lb;
+      for (let i = 1; i <= 10; i++) { const z = k % 2 === 0 ? z0 + (i - 0.5) * 0.6 : z0 + 6 - (i - 0.5) * 0.6; addBox(ln, LV[k] + (i - 1) * 0.35, s * z, ln === la ? 1.25 : 1.35, 0.35, 0.6, MAT.concrete); } }
+    deco(3.18, 5.2, s * 20.6, 0.06, 0.06, 6, MAT.steel); deco(3.18, 8.7, s * 20.6, 0.06, 0.06, 6, MAT.steel); deco(3.18, 12.2, s * 20.6, 0.06, 0.06, 6, MAT.steel);
+    const c1 = [V(la, 0, s * 15), V(la, 0, s * 17.2), V(la, 3.5, s * 24.1)], c2 = [...c1, V(lb, 3.5, s * 24.3), V(lb, 7, s * 17.1)], c3 = [...c2, V(la, 7, s * 16.9), V(la, 10.5, s * 24.1)];
+    aiGoals.push({ path: [...c1, V(0.9, 3.5, s * 24.4), V(rand(-3, 0), 3.5, s * rand(18, 24))], high: true, side: s });
+    aiGoals.push({ path: [...c2, V(rand(-3.5, -1.5), 7, s * 16.9)], high: true, side: s });
+    aiGoals.push({ path: [...c3, V(0.9, 10.5, s * 24.4), V(rand(-3.5, 0), 10.5, s * rand(17, 19))], high: true, side: s }); }
   // 양 끝 계단실 (지그재그 2열)
   for (const o of [-1, 1]) {
     const l1 = o * (X + 0.8), l2 = o * (X + 2.0), lc = o * (X + 1.4);
@@ -1554,8 +1571,8 @@ const MAPS = {
       tp: [['BLUE 스폰', -13, 0, 60], ['RED 스폰', -13, 0, -60], ['고가도로 위', 34, 7, 0], ['휴게소 옥상', -18, 4.5, 0], ['고가 아래', 34, 0, 10], ['주차장', -30, 0, 27]] } },
   apt: { name: '아파트 단지', ax: 70, az: 85, spawn: { x0: -20, x1: 20, z0: 66, z1: 79 }, build: buildApartment,
     heal: [{ x: 0, z: 21, ent: [[[0, 12], [0, 17]], [[0, 30], [0, 26]]] }, { x: 0, z: -21, ent: [[[0, -12], [0, -17]], [[0, -30], [0, -26]]] }],
-    info: '140 × 170 m · 수직 전투<br>4층 아파트 2동 + 옥상 · 3층 구름다리<br>지그재그 계단실 · 안뜰 놀이터',
-    tp: [['BLUE 스폰', 0, 0, 72], ['RED 스폰', 0, 0, -72], ['3층 구름다리', 0, 7, 0], ['101동 옥상', 10, 14, 22], ['101동 2층 복도', 10, 3.5, 27], ['계단실', 31.2, 0, 15], ['놀이터', -15, 0, 6]],
+    info: '140 × 170 m · 수직 전투<br>4층 아파트 2동 + 옥상 · 3층 구름다리<br>양 끝 + 중앙 계단실 · 안뜰 놀이터',
+    tp: [['BLUE 스폰', 0, 0, 72], ['RED 스폰', 0, 0, -72], ['3층 구름다리', 0, 7, 0], ['101동 옥상', 10, 14, 22], ['101동 2층 복도', 10, 3.5, 27], ['계단실', 31.2, 0, 15], ['101동 중앙 계단', 2.4, 0, 15], ['놀이터', -15, 0, 6]],
     small: { ax: 36, az: 50, spawn: { x0: -14, x1: 14, z0: 40, z1: 47 }, heal: [{ x: 0, z: 0 }], info: '72 × 100 m · 사람만 축소판<br>아파트 2동 · 구름다리 · 힐팩: 안뜰 중앙',
       tp: [['BLUE 스폰', 0, 0, 43], ['RED 스폰', 0, 0, -43], ['3층 구름다리', 0, 7, 0], ['101동 옥상', 10, 14, 22]] } },
   harbor: { name: '항구', ax: 75, az: 90, spawn: { x0: -12, x1: 28, z0: 72, z1: 86 }, build: buildHarbor,
