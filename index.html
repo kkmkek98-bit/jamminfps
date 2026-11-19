@@ -2323,7 +2323,7 @@ function spawnEntity(e) {
   if (e.model && e.loadout) soldierGun(e.model, e.modelKey || e.loadout.primary);
   if (e.model) { e.model.root.visible = !e.isPlayer; e.model.body.rotation.set(0, 0, 0); e.model.body.position.set(0, 0, 0); e.model.helmet.visible = true; e.flashT = 0; }
   if (e.ai) { Object.assign(e.ai, { blindT: 0, target: null, seen: false, path: [], waitT: 0, sideT: 0, alertT: 0, coverPos: null, stuckCount: 0, aimErr: 0.1 }); e.ai.lastPos.copy(e.pos); }
-  if (e.isPlayer) { camera.rotation.set(0, e.yaw, 0); adsAmt = 0; bloom = 0; buildViewModel(e.slots[e.cur].def.key); vm.swapT = 0; if (e.slots[e.cur].def.kind === 'melee') meleeDraw(e.slots[e.cur].def.key); }
+  if (e.isPlayer) { camera.rotation.set(0, e.yaw, 0); adsAmt = 0; bloom = 0; buildViewModel(e.slots[e.cur].def.key); vm.swapT = 0; if (e.slots[e.cur].def.kind === 'melee') meleeDraw(e.slots[e.cur].def.key); else gunDraw(e.slots[e.cur].def); }
 }
 
 // ===================== 물리 =====================
@@ -2365,7 +2365,7 @@ function switchSlot(e, i) {
   if (!e.alive || i === e.cur || i < 0 || i > 3) return;
   if (i === 3 && e.grenades <= 0) return; if (e.slots[i].empty) return;
   e.cur = i; e.swapT = i === 2 ? 0.25 : 0.4; e.reloadT = 0; e.burstQ = 0; e.modeIdx = 0;
-  if (e.isPlayer) { const d = e.slots[i].def; buildViewModel(d.key); sfx('switch'); if (d.kind === 'melee') { meleeDraw(d.key); e.swapT = 0.3; } if (d.kind === 'rifle' || d.kind === 'pistol') { e.modeIdx = playerModeMemory[d.key] || 0; } }
+  if (e.isPlayer) { const d = e.slots[i].def; buildViewModel(d.key); sfx('switch'); if (d.kind === 'melee') { meleeDraw(d.key); e.swapT = 0.3; } else gunDraw(d); if (d.kind === 'rifle' || d.kind === 'pistol') { e.modeIdx = playerModeMemory[d.key] || 0; } }
 }
 const playerModeMemory = {};
 function fireBullet(e, origin, dir, def, muzzlePos, quiet) {
@@ -3546,8 +3546,14 @@ function updateArc() {
   arcRing.position.set(gp.x, gp.y - 0.05, gp.z);
 }
 const DRAW_DUR = { KNIFE: 0.5, KARAMBIT: 0.65, MACHETE: 0.55 };
-function meleeDraw(key) { vm.drawT = 1; vm.drawDur = DRAW_DUR[key] || 0.5; vm.stab = 0; vm.swing = 0; vm.twT = 0; if (key === 'KARAMBIT') setTimeout(() => sfx('swing', null, 1.8), 120); }
+function meleeDraw(key) { vm.gdrawT = 0; vm.drawT = 1; vm.drawDur = DRAW_DUR[key] || 0.5; vm.stab = 0; vm.swing = 0; vm.twT = 0; if (key === 'KARAMBIT') setTimeout(() => sfx('swing', null, 1.8), 120); }
 const easeOut = t => 1 - Math.pow(1 - t, 3), easeIn = t => t * t;
+const easeBack = t => { const c1 = 1.7, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+// 총기 꺼내기: 종류별로 아래에서 돌려 올리며 자세 잡고, 끝에 장전 손잡이·슬라이드·펌프·볼트 확인
+function gunDraw(d) {
+  const c = d.kind === 'pistol' ? (d.cls === 'sawed' ? 'sawed' : 'pistol') : d.kind === 'throw' ? 'throw' : d.cls === 'sniper' ? 'sniper' : d.cls === 'shotgun' ? 'shotgun' : 'rifle';
+  vm.drawT = 0; vm.gdrawT = 1; vm.gdrawK = c; vm.gdrawDur = { pistol: 0.36, sawed: 0.4, throw: 0.34, sniper: 0.5, shotgun: 0.46, rifle: 0.44 }[c]; vm.gdrawSnd = false;
+}
 function updateViewModel(dt) {
   const p = player; if (!vmModel || !p.alive) return;
   const def = p.slots[p.cur].def; buildViewModel(def.key); const ud = vmModel.userData;
@@ -3570,7 +3576,16 @@ function updateViewModel(dt) {
   vm.kick = Math.max(0, vm.kick - dt * (def.kind === 'pistol' ? 9 : 14));
   z += vm.kick * (def.kind === 'pistol' ? 0.06 : 0.035); rx += vm.kick * (def.kind === 'pistol' ? 0.25 : 0.05) * (1 - adsAmt * 0.6);
   if (p.reloadT > 0) { const pr = 1 - p.reloadT / def.reload; const dip = Math.sin(pr * Math.PI); y -= dip * 0.1; rx -= dip * 0.5; rz += dip * 0.6; }
-  if (p.swapT > 0 && def.kind !== 'melee') { y -= Math.min(1, p.swapT / 0.3) * 0.3; }
+  if (vm.gdrawT > 0 && def.kind !== 'melee') { vm.gdrawT = Math.max(0, vm.gdrawT - dt / (vm.gdrawDur || 0.44)); const t = 1 - vm.gdrawT, b = Math.min(1, easeBack(Math.min(1, t / 0.7))), q = 1 - b, K = vm.gdrawK;
+    const act = t > 0.66 && t < 0.94 ? Math.sin((t - 0.66) / 0.28 * Math.PI) : 0;   // 마무리 동작 구간
+    if (act > 0.5 && !vm.gdrawSnd) { vm.gdrawSnd = true; if (K !== 'throw') sfx('switch', null, K === 'shotgun' ? 0.7 : K === 'sniper' ? 0.8 : 1.3); }
+    if (K === 'pistol' || K === 'sawed') { y -= q * 0.2; rx += q * 1.1; rz += q * 0.35; x += q * 0.04; z += act * 0.03; rx += act * (K === 'sawed' ? -0.3 : 0.06); }   // 아래에서 손목 튕겨 올리기 + 슬라이드/꺾기
+    else if (K === 'throw') { y -= q * 0.22; rx += q * 0.6; y += act * 0.045; rz -= act * 0.25; }                                       // 들어올려 손에서 살짝 튕겨 잡기
+    else { y -= q * 0.26; x += q * 0.1; rz += q * 0.75; rx -= q * 0.45; ry += q * 0.2;                                                   // 옆으로 눕힌 채 올라와 자세 잡기
+      if (K === 'shotgun') { z += act * 0.06; }                                                                                         // 펌프 당기기
+      else if (K === 'sniper') { rz += act * 0.35; x += act * 0.02; }                                                                  // 기울여 볼트 확인
+      else { rz += act * 0.18; z += act * 0.025; rx += act * 0.06; } }                                                               // 장전 손잡이 당기기
+  } else if (p.swapT > 0 && def.kind !== 'melee') { y -= Math.min(1, p.swapT / 0.3) * 0.3; }
   if (vm.swing > 0) { vm.swing = Math.max(0, vm.swing - dt * 4.4); const t = 1 - vm.swing, s = Math.sin(t * Math.PI), d = vm.swingDir || 1, a = t * 2 - 1; x -= d * a * 0.15 + s * 0.04; z -= s * 0.12; y += s * 0.03 - a * a * 0.02; ry += d * a * 0.9; rz -= d * s * 0.8 + 0.2 * s; rx -= s * 0.25; }
   let spin = 0; const mk = def.kind === 'melee' ? def.key : '';
   if (mk && vm.drawT > 0) { vm.drawT = Math.max(0, vm.drawT - dt / (vm.drawDur || 0.5)); const t = 1 - vm.drawT, e = easeOut(t), q = 1 - e;
