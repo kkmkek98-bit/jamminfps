@@ -669,9 +669,9 @@ const WEAPONS = {
   TYPHOON:{ key:'TYPHOON', name:'Typhoon AA-20', kind:'rifle', cls:'shotgun', dmg:12, pellets:8, rpm:240, mag:12, reserve:48, reload:3.9, recoil:0.028, recoilYaw:0.012, hip:0.047, ads:0.045, move:0.014, modes:['AUTO'], adsFov:62, sfx:'shotgun', range:20, cal:'12게이지 드럼', type:'산탄총', origin:'가상 · 블랙타이드', desc:'자동 산탄총 · 8펠릿 × 12 · 12발 드럼 · 근거리 난사형 · 재장전 느림' },
   MULE:  { key:'MULE', name:'Mule 소드오프', kind:'pistol', cls:'sawed', dmg:15, pellets:9, rpm:300, mag:2, reserve:24, reload:1.7, recoil:0.07, recoilYaw:0.015, hip:0.055, ads:0.045, move:0.01, modes:['SINGLE'], adsFov:66, sfx:'shotgun', range:15, cal:'12게이지', type:'소드오프 산탄총', origin:'가상 · 더스트밸리', desc:'2연장 · 9펠릿 × 15 · 근접 2연발 즉사' },
   HORNET:{ key:'HORNET', name:'Hornet MP-9R', kind:'pistol', cls:'mp', dmg:16, rpm:1100, mag:25, reserve:150, reload:1.7, recoil:0.009, recoilYaw:0.007, hip:0.03, ads:0.012, move:0.012, modes:['AUTO','SINGLE'], adsFov:62, sfx:'p92', range:25, cal:'9mm', type:'기관권총', origin:'가상 · 하이브 택티컬', desc:'연발 권총 · 분당 1000발' },
-  KNIFE: { key:'KNIFE', name:'전술용 나이프', kind:'melee', dmg:30, rpm:200, range:2.3, heavyDmg:65, heavyRange:2.7, hWind:0.25, hCD:0.95, type:'근접무기', cal:'클립포인트', origin:'기본형', desc:'균형형 · 베기 30 (0.3초) · 찌르기 65 · 등 뒤 찌르기 즉사' },
-  KARAMBIT: { key:'KARAMBIT', name:'카람빗', kind:'melee', dmg:20, rpm:286, range:1.9, heavyDmg:45, heavyRange:2.2, hWind:0.15, hCD:0.6, speedMul:1.06, type:'근접무기', cal:'갈고리날', origin:'암살형', desc:'빠른 베기 20 (0.21초) · 찌르기가 가장 빠름(0.15초) → 등 뒤 암살 특화 · 사거리 짧음 · 이속 +6%' },
-  MACHETE: { key:'MACHETE', name:'마체테', kind:'melee', dmg:46, rpm:128, range:2.9, heavyDmg:95, heavyRange:3.1, hWind:0.35, hCD:1.15, speedMul:0.93, type:'근접무기', cal:'장검날', origin:'파워형', desc:'묵직한 베기 46 (0.47초) · 내려찍기 95 · 사거리 가장 김 · 휘두르기 느림 · 이속 -7%' },
+  KNIFE: { key:'KNIFE', name:'전술용 나이프', kind:'melee', dmg:30, rpm:200, range:2.3, heavyDmg:65, heavyRange:2.7, hWind:0.25, hCD:0.95, type:'근접무기', cal:'클립포인트', origin:'기본형', desc:'균형형 · 베기 30 (0.3초) · 찌르기 65 · 사거리 2.3m' },
+  KARAMBIT: { key:'KARAMBIT', name:'카람빗', kind:'melee', dmg:20, rpm:286, range:1.9, heavyDmg:50, heavyRange:2.2, hWind:0.15, hCD:0.6, type:'근접무기', cal:'갈고리날', origin:'암살형', desc:'빠른 베기 20 (0.21초) · 찌르기 50, 준비 0.15초로 가장 빠름 → 등 뒤 찌르기 100 한 방 · 사거리 짧음' },
+  MACHETE: { key:'MACHETE', name:'마체테', kind:'melee', dmg:45, rpm:125, range:2.9, heavyDmg:95, heavyRange:3.1, hWind:0.35, hCD:1.15, type:'근접무기', cal:'장검날', origin:'파워형', desc:'묵직한 베기 45 (0.48초) · 내려찍기 95 · 사거리 가장 김 · 휘두르기 느림' },
   GRENADE:{ key:'GRENADE', name:'파편 수류탄', kind:'throw', fuse:3, radius:8, dmg:125, type:'투척무기', cal:'파편형', origin:'공용', desc:'3초 후 폭발 · 범위 피해 + 넉백', tv:[['최대 피해',125,1,''],['효과 반경',8,8/22,'m'],['폭발 지연',3,0.4,'초'],['넉백','강함',0.9,'']] },
   FLASH: { key:'FLASH', name:'섬광탄', kind:'throw', fuse:1.8, radius:22, type:'투척무기', cal:'전술형', origin:'공용', desc:'1.8초 후 섬광 · 바라본 적을 최대 4.5초 실명 (아군·본인도 주의)', tv:[['실명 시간','최대 4.8',0.8,'초'],['효과 반경',22,1,'m'],['폭발 지연',1.8,0.65,'초'],['피해',0,0.04,'']] },
   SMOKE: { key:'SMOKE', name:'연막탄', kind:'throw', fuse:2, radius:6.5, dur:14, type:'투척무기', cal:'전술형', origin:'공용', desc:'2초 후 연막 · 14초간 시야 차단 (적 AI도 못 봄)', tv:[['연막 지속',14,14/15,'초'],['연막 반경',6.5,0.65,'m'],['폭발 지연',2,0.6,'초'],['피해',0,0.04,'']] },
@@ -2711,7 +2711,7 @@ let mouseL = false, mouseR = false, triggerFresh = true, adsAmt = 0, bloom = 0, 
 let deathTime = 0, deathCam = null;
 const controls = new PointerLockControls(camera, document.body);
 
-// 근접: 좌클릭 = 빠른 베기(약), 우클릭 = 찌르기(느림 · 등 뒤면 즉사)
+// 근접: 좌클릭 = 베기, 우클릭 = 찌르기/내려찍기 · 등 뒤 2배 · 머리 2배 (중첩)
 function meleeStrike(heavy) {
   const p = player, cd0 = p.slots[p.cur].def, def = cd0.kind === 'melee' ? cd0 : WEAPONS.KNIFE; const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
   const range = heavy ? def.heavyRange : def.range; let best = null, bd = 99;
@@ -2730,12 +2730,12 @@ function meleeStrike(heavy) {
   const hx = best.pos.x - camera.position.x, hz = best.pos.z - camera.position.z, hd = Math.max(0.3, Math.hypot(hx, hz));
   const hh = Math.hypot(camDir.x, camDir.z) || 1e-3; const aimY = camera.position.y + camDir.y / hh * hd - best.pos.y; const hy = headY(best);
   const head = aimY > hy - 0.17 && aimY < hy + 0.3;
-  const base = heavy ? (back ? 250 : def.heavyDmg) : def.dmg; const dmg = head ? base * 2 : base;
+  const base = heavy ? def.heavyDmg : def.dmg; const dmg = base * (head ? 2 : 1) * (back ? 2 : 1);
   const hpB = best.hp; NET_RAY = { o: camera.position.clone(), d: camDir.clone(), mel: true }; const r = dealDamage(best, dmg, p, def.name, head, p.pos); NET_RAY = null;
   if (r) { dmgNumber(best.pos.clone().add(V(0, head ? hy : 1.2, 0)), Math.min(dmg, hpB), head, r === 'kill'); best.flashT = 0.12; best.flashCol = head ? 0xffd23f : 0xffffff; }
   bloodFx(best.pos.clone().add(V(0, head ? hy : 1.2, 0))); sfx('stab'); if (head) sfx('head'); if (heavy) shake = Math.max(shake, 0.25);
   if (r) showHitmarker(r === 'kill' ? 'kill' : head ? 'head' : '');
-  if (heavy && back && r === 'kill') showCenterMsg('🗡 백스탭!', '#ff5a4a'); else if (head && r === 'kill') showCenterMsg('🔪 헤드 컷!', '#ffd23f');
+  if (back && r === 'kill') showCenterMsg(head ? '🗡 백스탭 헤드 컷!' : '🗡 백스탭!', '#ff5a4a'); else if (head && r === 'kill') showCenterMsg('🔪 헤드 컷!', '#ffd23f');
 }
 function startHeavyStab() {
   const p = player, def = p.slots[p.cur].def; const w = def.hWind || 0.25; vm.stabDur = w / 0.38; vm.stabChop = def.key === 'MACHETE';
@@ -2909,7 +2909,7 @@ function findCover(e, threat) {
 }
 function aiMelee(e, t) {
   const md = e.slots[0].def.kind === 'melee' ? e.slots[0].def : WEAPONS.KNIFE; e.fireCD = 60 / md.rpm * rand(1.35, 1.9); const head = Math.random() < 0.15; const fwd = V(-Math.sin(t.yaw), 0, -Math.cos(t.yaw)); const fromDir = t.pos.clone().sub(e.pos).setY(0).normalize();
-  const back = fwd.dot(fromDir) > 0.6 && Math.random() < 0.5; const dmg = back ? 250 : md.dmg * (head ? 2 : 1);
+  const back = fwd.dot(fromDir) > 0.6 && Math.random() < 0.5; const dmg = md.dmg * (head ? 2 : 1) * (back ? 2 : 1);
   applyDamage(t, dmg, e, md.name, head, e.pos); bloodFx(t.pos.clone().add(V(0, head ? headY(t) : 1.2, 0))); sfx('swing', e.pos); sfx('stab', e.pos);
   recEvent({ type: 'as', id: e.id, s: 'swing' });
 }
@@ -3143,7 +3143,7 @@ function updateHUD(dt) {
   setText('wName', def.name);
   if (def.kind === 'rifle' || def.kind === 'pistol') { setText('ammoMag', String(s.mag)); setText('ammoRes', '/ ' + s.reserve); setText('wMode', MODE_KO[def.modes[p.modeIdx]] + (def.modes.length > 1 ? ' [B]' : '') + (canOptic(def) ? ` · ${OPTICS[opticSel[def.key] || 0].name} [ ]` : def.cls === 'sniper' ? ` · 전용 스코프 ${(BASE_FOV / def.adsFov).toFixed(1)}x` : '')); }
   else if (def.kind === 'throw') { setText('ammoMag', String(p.grenades)); setText('ammoRes', '개'); setText('wMode', '좌클릭 강투척 · 우클릭+좌클릭 약투척'); }
-  else { setText('ammoMag', '∞'); setText('ammoRes', ''); setText('wMode', `좌클릭 베기 · 우클릭 ${def.key === 'MACHETE' ? '내려찍기' : '찌르기'}(등 뒤 즉사) · 이속 +${Math.round((KIND_SPEED.melee * (def.speedMul || 1) - 1) * 100)}%`); }
+  else { setText('ammoMag', '∞'); setText('ammoRes', ''); setText('wMode', `좌클릭 베기 · 우클릭 ${def.key === 'MACHETE' ? '내려찍기' : '찌르기'} · 등 뒤·머리 2배 · 이속 +25%`); }
   setStyle($('ammoMag'), 'color', (def.kind === 'rifle' || def.kind === 'pistol') && s.mag <= def.mag * 0.2 ? '#ff7b70' : '#fff');
   $('reloadTxt').classList.toggle('hidden', !(p.reloadT > 0));
   setText('slot2', p.slots[2].def.name); setText('slot0', p.slots[0].empty ? '—' : p.slots[0].def.name); setText('slot1', p.slots[1].empty ? (settings.wmode === 'knife' ? '— (보조무기 팩)' : '—') : p.slots[1].def.name); setText('slot3', p.slots[3].empty ? '—' : `${p.slots[3].def.name} x${p.grenades}`);
@@ -3247,7 +3247,7 @@ function renderPreview(dt) {
 function weaponStats(d) {
   if (d.kind === 'melee') { const sp = KIND_SPEED.melee * (d.speedMul || 1), bh = Math.ceil(100 / d.dmg), hh = Math.ceil(100 / (d.dmg * 2));
     return { rows: [['베기 데미지', d.dmg, d.dmg / 50, ''], ['베기 헤드샷', d.dmg * 2, d.dmg / 50, ''], ['베기 속도', (60 / d.rpm).toFixed(2), 0.2 / (60 / d.rpm), '초', false], ['찌르기 데미지', d.heavyDmg, d.heavyDmg / 100, ''], ['찌르기 준비', d.hWind.toFixed(2), 0.15 / d.hWind, '초', d.hWind > 0.3], ['사거리', d.range, d.range / 3, 'm', d.range < 2], ['이동 속도', Math.round(sp * 100), sp / 1.35, '%']],
-      tags: `<span>베기 몸통 ${bh}회 · 머리 ${hh}회 킬</span><span>등 뒤 ${d.key === 'MACHETE' ? '내려찍기' : '찌르기'} 즉사</span><span>좌·우클릭 헤드샷 2배</span>` }; }
+      tags: `<span>베기 몸통 ${bh}회 · 머리 ${hh}회 킬</span><span>등 뒤 2배 · 머리 2배 (중첩)</span><span>등 뒤 ${d.key === 'MACHETE' ? '내려찍기' : '찌르기'} ${d.heavyDmg * 2}</span>` }; }
   if (d.kind === 'throw') return { rows: d.tv.map(([n, v, f, u]) => [n, v, f, u]), tags: '<span>2개 지급</span><span>좌클릭 강투척 · 우클릭+좌클릭 약투척</span>' };
   const tot = d.dmg * (d.pellets ? d.pellets * 0.75 : 1), hm = d.hsMul || 2;
   const hits = Math.ceil(100 / tot), hhits = Math.ceil(100 / (d.pellets ? tot * 1.4 : d.dmg * hm)), ttk = Math.round((hits - 1) * 60000 / d.rpm);
@@ -4522,12 +4522,12 @@ function renderHow(tab) {
   let h = '';
   if (tab === 'keys') {
     const K = [['W A S D', '이동'], ['Shift', '달리기 (앞으로 이동 중)'], ['Space', '점프 · 앉기/엎드리기 중이면 일어서기'], ['C', '앉기 (반동 -20%, 탄 퍼짐 -25%)'], ['Z', '엎드리기 (반동 -40%, 탄 퍼짐 -45%)'], ['Q / E', '왼쪽 / 오른쪽 기울이기'],
-      ['마우스 좌클릭', '사격 · 투척 · 칼 공격'], ['마우스 우클릭', '정조준(ADS) · 투척무기는 약하게 던지기 · 나이프는 찌르기(등 뒤 즉사)'], ['R', '재장전'], ['1 · 2 · 3 · 4 / 휠', '주무기 · 보조무기 · 칼 · 투척무기'], ['B', '사격 모드 변경 (연사/점사/단발)'], ['[ / ]', '조준경 변경 (레드도트 · 홀로그램 · 2배 · 4배)'], ['Tab', '점수판'], ['ESC', '일시정지 · 메뉴 (멀티는 게임이 멈추지 않음)']];
+      ['마우스 좌클릭', '사격 · 투척 · 칼 공격'], ['마우스 우클릭', '정조준(ADS) · 투척무기는 약하게 던지기 · 근접무기는 찌르기/내려찍기 (등 뒤·머리 2배)'], ['R', '재장전'], ['1 · 2 · 3 · 4 / 휠', '주무기 · 보조무기 · 칼 · 투척무기'], ['B', '사격 모드 변경 (연사/점사/단발)'], ['[ / ]', '조준경 변경 (레드도트 · 홀로그램 · 2배 · 4배)'], ['Tab', '점수판'], ['ESC', '일시정지 · 메뉴 (멀티는 게임이 멈추지 않음)']];
     h = `<table><tr><th>키</th><th>기능</th></tr>${K.map(([k, v]) => `<tr><td><b>${k}</b></td><td>${v}</td></tr>`).join('')}</table>`;
   } else if (tab === 'guns') {
     const row = k => { const w = WEAPONS[k]; return `<tr><td><b>${w.name}</b><br><small style="opacity:.6">${w.type} · ${w.cal}</small></td><td>${w.dmg}${w.pellets ? '×' + w.pellets : ''}</td><td>${w.rpm}</td><td>${w.mag}</td><td>${w.reload}초</td><td>${w.desc}</td></tr>`; };
     const head = '<tr><th>총기</th><th>데미지</th><th>RPM</th><th>장탄</th><th>재장전</th><th>특징</th></tr>';
-    h = `<h3>1번 · 주무기</h3><table>${head}${PRIMARY_KEYS.map(row).join('')}</table><h3>2번 · 보조무기</h3><table>${head}${['DEAGLE', 'P92', 'MULE', 'HORNET'].map(row).join('')}</table><h3>3번 · 전술용 나이프</h3><p>데미지 55 · 등 뒤에서 찌르면 한 방 · 들고 뛰면 이동속도 125%</p>`;
+    h = `<h3>1번 · 주무기</h3><table>${head}${PRIMARY_KEYS.map(row).join('')}</table><h3>2번 · 보조무기</h3><table>${head}${['DEAGLE', 'P92', 'MULE', 'HORNET'].map(row).join('')}</table><h3>3번 · 근접무기 (전술용 나이프 · 카람빗 · 마체테)</h3><p>좌클릭 베기 · 우클릭 찌르기/내려찍기 · 등 뒤 2배 · 머리 2배 (중첩) · 들고 뛰면 이동속도 125% (세 종류 동일)</p>`;
   } else if (tab === 'throw') {
     h = `<table><tr><th>투척무기</th><th>효과</th></tr>${THROWS.map(k => `<tr><td><b>${WEAPONS[k].name}</b></td><td>${WEAPONS[k].desc}</td></tr>`).join('')}</table><p style="margin-top:10px">무기고의 '4 · 투척무기' 탭에서 1종을 골라 2개를 지급받습니다. 좌클릭은 멀리, 우클릭+좌클릭은 가까이 던집니다.</p>`;
   } else {
