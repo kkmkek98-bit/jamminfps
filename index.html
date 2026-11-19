@@ -454,8 +454,8 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
       <div class="opt"><label>전장</label><div class="seg" data-opt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">고속도로 휴게소</button><button data-v="apt">아파트 단지</button><button data-v="harbor">항구</button></div></div>
       <div class="opt"><label>시간대</label><div class="seg" data-opt="tod"><button data-v="day" class="on">☀️ 낮</button><button data-v="night">🌙 밤 (F: 라이트)</button></div></div>
       <div class="opt"><label>총기 모드</label><div class="seg" data-opt="wmode"><button data-v="normal" class="on">자유</button><button data-v="sniper">🎯 저격전</button><button data-v="shotgun">💥 샷건전</button><button data-v="knife">🔪 칼전</button></div><div class="wmnote" id="wmNote"></div></div>
-      <div class="opt"><label>목표 킬 (선취 승리)</label><div class="seg" data-opt="kills"><button data-v="30">30</button><button data-v="50" class="on">50</button><button data-v="80">80</button><button data-v="100">100</button></div></div>
-      <div class="opt"><label>제한 시간</label><div class="seg" data-opt="time"><button data-v="300">5분</button><button data-v="600" class="on">10분</button><button data-v="900">15분</button></div></div>
+      <div class="opt"><label>목표 킬 (선취 승리)</label><div class="seg" data-opt="kills"><button data-v="20">20</button><button data-v="30">30</button><button data-v="50" class="on">50</button><button data-v="80">80</button><button data-v="100">100</button></div></div>
+      <div class="opt"><label>제한 시간</label><div class="seg" data-opt="time"><button data-v="180">3분</button><button data-v="300">5분</button><button data-v="600" class="on">10분</button><button data-v="900">15분</button></div></div>
       <div class="opt"><label>적 AI 난이도</label><div class="seg" data-opt="diff"><button data-v="easy">쉬움</button><button data-v="normal" class="on">보통</button><button data-v="hard">어려움</button></div></div>
       <div class="opt"><label>마우스 감도 <b id="sensVal">1.00</b></label><input type="range" id="sensRange" min="0.3" max="2.5" step="0.05" value="1"></div>
       <h2>전장 정보</h2>
@@ -571,8 +571,8 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
           <canvas class="mapShot" width="480" height="270"></canvas>
           <h2>규칙</h2>
           <div class="opt"><label>모드</label><div class="seg" data-mopt="mode"><button data-v="coop" class="on">협동</button><button data-v="mixed">팀 대전</button><button data-v="pvp">사람만</button></div><div class="rm-hint" id="modeHint"></div></div>
-          <div class="opt"><label>목표 킬</label><div class="seg" data-mopt="kills"><button data-v="30">30</button><button data-v="50" class="on">50</button><button data-v="80">80</button><button data-v="100">100</button></div></div>
-          <div class="opt"><label>제한 시간</label><div class="seg" data-mopt="time"><button data-v="300">5분</button><button data-v="600" class="on">10분</button><button data-v="900">15분</button></div></div>
+          <div class="opt"><label>목표 킬</label><div class="seg" data-mopt="kills"><button data-v="20">20</button><button data-v="30">30</button><button data-v="50" class="on">50</button><button data-v="80">80</button><button data-v="100">100</button></div></div>
+          <div class="opt"><label>제한 시간</label><div class="seg" data-mopt="time"><button data-v="180">3분</button><button data-v="300">5분</button><button data-v="600" class="on">10분</button><button data-v="900">15분</button></div></div>
           <div class="opt" id="diffOpt"><label>AI 난이도</label><div class="seg" data-mopt="diff"><button data-v="easy">쉬움</button><button data-v="normal" class="on">보통</button><button data-v="hard">어려움</button></div></div>
           <div class="rm-note" id="hostNote">설정은 방장만 바꿀 수 있어요</div>
         </section>
