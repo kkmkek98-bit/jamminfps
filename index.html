@@ -434,7 +434,8 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
   <div class="lb-grid">
     <section class="lb-col">
       <h2>매치 설정</h2>
-      <div class="opt"><label>전장</label><div class="seg" data-opt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">고속도로 휴게소</button><button data-v="apt">아파트 단지</button><button data-v="harbor">🌙 야간 항구</button></div></div>
+      <div class="opt"><label>전장</label><div class="seg" data-opt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">고속도로 휴게소</button><button data-v="apt">아파트 단지</button><button data-v="harbor">항구</button></div></div>
+      <div class="opt"><label>시간대</label><div class="seg" data-opt="tod"><button data-v="day" class="on">☀️ 낮</button><button data-v="night">🌙 밤 (F: 라이트)</button></div></div>
       <div class="opt"><label>목표 킬 (선취 승리)</label><div class="seg" data-opt="kills"><button data-v="30">30</button><button data-v="50" class="on">50</button><button data-v="80">80</button><button data-v="100">100</button></div></div>
       <div class="opt"><label>제한 시간</label><div class="seg" data-opt="time"><button data-v="300">5분</button><button data-v="600" class="on">10분</button><button data-v="900">15분</button></div></div>
       <div class="opt"><label>적 AI 난이도</label><div class="seg" data-opt="diff"><button data-v="easy">쉬움</button><button data-v="normal" class="on">보통</button><button data-v="hard">어려움</button></div></div>
@@ -545,7 +546,8 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
       <div class="rm-grid">
         <section class="rm-col">
           <h2>전장</h2>
-          <div class="seg" data-mopt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">휴게소</button><button data-v="apt">아파트</button><button data-v="harbor">🌙 항구</button></div>
+          <div class="seg" data-mopt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">휴게소</button><button data-v="apt">아파트</button><button data-v="harbor">항구</button></div>
+          <div class="seg" data-mopt="tod"><button data-v="day" class="on">☀️ 낮</button><button data-v="night">🌙 밤</button></div>
           <canvas class="mapShot" width="480" height="270"></canvas>
           <h2>규칙</h2>
           <div class="opt"><label>모드</label><div class="seg" data-mopt="mode"><button data-v="coop" class="on">협동</button><button data-v="mixed">팀 대전</button><button data-v="pvp">사람만</button></div><div class="rm-hint" id="modeHint"></div></div>
@@ -616,7 +618,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const CROUCH_EYE = 1.05, CROUCH_SPEED = 0.55, PRONE_EYE = 0.42, PRONE_SPEED = 0.22, LEAN_DIST = 0.45;
 const G = 22, JUMP_V = 7.2, WALK = 5.0, SPRINT = 7.6, STEP = 0.55, RAD = 0.38, BODY_H = 1.8, EYE = 1.62;
 let MATCH_TIME = 600, KILL_TARGET = 50; const RESPAWN_DELAY = 3, PROTECT_TIME = 2, TEAM_SIZE = 8;
-const settings = { kills: 50, time: 600, diff: 'normal', map: 'yard' };
+const settings = { kills: 50, time: 600, diff: 'normal', map: 'yard', tod: 'day' };
 const DIFF = { easy: { react: 1.6, err: 1.6, label: '쉬움' }, normal: { react: 1, err: 1, label: '보통' }, hard: { react: 0.7, err: 0.72, label: '어려움' } };
 const ARENA = { x: 85, z: 95 };
 const CHEAT_BUILD = false; // 테스트 빌드: 일시정지 메뉴에 치트 패널
@@ -1104,7 +1106,7 @@ function tree(x, z) {
 }
 const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, 3.0, 10);
 function jersey(x, z, len, alongX, y = 0) { addBox(x, y, z, alongX ? len : 0.6, 0.95, alongX ? 0.6 : len, MAT.concrete, { cover: y === 0 }); }
-function lamp(x, z) { addBox(x, 0, z, 0.22, 7, 0.22, MAT.metal); vis(new THREE.BoxGeometry(1.4, 0.2, 0.4), MAT.metal, x + 0.6, 7, z); }
+function lamp(x, z) { addBox(x, 0, z, 0.22, 7, 0.22, MAT.metal); vis(new THREE.BoxGeometry(1.4, 0.2, 0.4), MAT.metal, x + 0.6, 7, z); if (MAP.night && !outsideArena(x, z)) { deco(x + 1.1, 6.86, z, 0.4, 0.06, 0.3, MAT.headlight); lightPool(x + 1.1, z, 16, 6.8, 3.2); } }
 function lineMark(x, z, w, d, y = 0.02) { if (outsideArena(x, z)) return; const m = batchAdd(new THREE.PlaneGeometry(w, d), MAT.line, false, true); m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); }
 function signBoard(x, y, z, w, h, text, bg, fg, ry = 0) {
   if (outsideArena(x, z)) return;
@@ -1391,7 +1393,7 @@ function buildApartment() {
   buildSpawns();
 }
 
-// ---------- 야간 항구 (라이트 조준) ----------
+// ---------- 항구 (낮/밤) ----------
 const POOL_MAT = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,214,150,.55)'); gr.addColorStop(0.5, 'rgba(255,200,130,.22)'); gr.addColorStop(1, 'rgba(255,190,120,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
   return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }); })();
 const SHAFT_MAT = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
@@ -1399,10 +1401,27 @@ const SHAFT_MAT = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: tr
 function floodTower(x, z) {
   addBox(x, 0, z, 0.5, 12, 0.5, MAT.steel);
   deco(x, 12.2, z, 2.4, 0.5, 0.8, MAT.trimDark); for (const a of [-0.7, 0.7]) deco(x + a, 12.1, z + 0.42, 0.6, 0.35, 0.05, MAT.headlight);
-  if (outsideArena(x, z)) return;
-  const pool = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), POOL_MAT); pool.rotation.x = -Math.PI / 2; pool.position.set(x, 0.06, z + 2); mapRoot.add(pool);
-  const sh = new THREE.Mesh(new THREE.ConeGeometry(7, 12, 12, 1, true), SHAFT_MAT); sh.position.set(x, 6, z + 1.5); mapRoot.add(sh);
-  const gl = new THREE.Sprite(LENS_MAT); gl.scale.setScalar(3.2); gl.position.set(x, 12.1, z + 0.6); mapRoot.add(gl);
+  if (outsideArena(x, z) || !MAP.night) return;
+  lightPool(x, z + 2, 30, 12, 7, z + 1.5); const gl = new THREE.Sprite(LENS_MAT); gl.scale.setScalar(3.2); gl.position.set(x, 12.1, z + 0.6); mapRoot.add(gl);
+}
+// 가짜 조명(실제 광원 X): 바닥 빛 웅덩이 + 빛기둥 — 같은 재질끼리 합쳐서 한 번에 그림
+function lightPool(x, z, size, h, r, zc = z, xc = x) {
+  const pg = new THREE.PlaneGeometry(size, size); pg.rotateX(-Math.PI / 2); const o = batchAdd(pg, POOL_MAT, false, true); o.position.set(x, 0.06, z);
+  if (h) { const cg = new THREE.ConeGeometry(r, h, 10, 1, true); const c = batchAdd(cg, SHAFT_MAT, false, true); c.position.set(xc, h / 2, zc); }
+}
+// 밤: 맵 전체에 가로등·투광등 배치 (건물과 겹치는 자리는 건너뜀)
+function nightLamps() {
+  const hit = (x, z) => boxes.some(b => x > b.min[0] - 1.2 && x < b.max[0] + 1.2 && z > b.min[2] - 1.2 && z < b.max[2] + 1.2 && b.max[1] > 0.5);
+  const ax = ARENA.x, az = ARENA.z, cand = [];
+  for (const fx of [-0.62, -0.2, 0.2, 0.62]) for (const fz of [-0.78, -0.42, 0, 0.42, 0.78]) cand.push([fx * ax, fz * az]);
+  let n = 0;
+  for (const [cx, cz] of cand) {
+    let ok = null; for (let k = 0; k < 10 && !ok; k++) { const x = cx + (k ? rand(-6, 6) : 0), z = cz + (k ? rand(-6, 6) : 0); if (!hit(x, z)) ok = [x, z]; }
+    if (!ok || outsideArena(ok[0], ok[1])) continue; const [x, z] = ok;
+    addBox(x, 0, z, 0.22, 6.5, 0.22, MAT.metal); deco(x, 6.5, z, 0.9, 0.18, 0.5, MAT.trimDark); deco(x, 6.38, z, 0.6, 0.06, 0.32, MAT.headlight);
+    lightPool(x, z, 18, 6.4, 3.6); const gl = new THREE.Sprite(LENS_MAT); gl.scale.setScalar(2.2); gl.position.set(x, 6.35, z); mapRoot.add(gl); n++;
+  }
+  return n;
 }
 function deckContainer(x, y, z, alongX, stack = 1) {
   for (let i = 0; i < stack; i++) addBox(x, y + i * 2.6, z, alongX ? 6.06 : 2.44, 2.6, alongX ? 2.44 : 6.06, MAT.containers[(cIdx++) % MAT.containers.length]);
@@ -1484,28 +1503,29 @@ const MAPS = {
     tp: [['BLUE 스폰', 0, 0, 72], ['RED 스폰', 0, 0, -72], ['3층 구름다리', 0, 7, 0], ['101동 옥상', 10, 14, 22], ['101동 2층 복도', 10, 3.5, 27], ['계단실', 31.2, 0, 15], ['놀이터', -15, 0, 6]],
     small: { ax: 36, az: 50, spawn: { x0: -14, x1: 14, z0: 40, z1: 47 }, heal: [{ x: 0, z: 0 }], info: '72 × 100 m · 사람만 축소판<br>아파트 2동 · 구름다리 · 힐팩: 안뜰 중앙',
       tp: [['BLUE 스폰', 0, 0, 43], ['RED 스폰', 0, 0, -43], ['3층 구름다리', 0, 7, 0], ['101동 옥상', 10, 14, 22]] } },
-  harbor: { name: '야간 항구', night: true, ax: 75, az: 90, spawn: { x0: -12, x1: 28, z0: 72, z1: 86 }, build: buildHarbor,
+  harbor: { name: '항구', ax: 75, az: 90, spawn: { x0: -12, x1: 28, z0: 72, z1: 86 }, build: buildHarbor,
     heal: [{ x: 57, z: 0, ent: [[[40, 7], [51, 7]], [[57, 20], [57, 11]], [[57, -20], [57, -11]]] }, { x: 0, z: 0 }],
-    info: '150 × 180 m · 야간전 (F: 라이트)<br>컨테이너 미로 · 화물선 갑판 · 창고<br>적의 손전등 불빛을 노려 쏘세요',
+    info: '150 × 180 m<br>컨테이너 미로 · 화물선 갑판 · 창고<br>갠트리 크레인 · 조명탑',
     tp: [['BLUE 스폰', 8, 0, 79], ['RED 스폰', 8, 0, -79], ['화물선 갑판', -62, 3, 15], ['창고', 57, 0, 5], ['중앙 광장', 0, 0, 3], ['크레인 아래', -47, 0, 30]],
-    small: { ax: 45, az: 55, spawn: { x0: -14, x1: 14, z0: 44, z1: 51 }, heal: [{ x: 0, z: 0 }], info: '90 × 110 m · 사람만 축소판 · 야간<br>컨테이너 미로 · 힐팩: 중앙 광장',
+    small: { ax: 45, az: 55, spawn: { x0: -14, x1: 14, z0: 44, z1: 51 }, heal: [{ x: 0, z: 0 }], info: '90 × 110 m · 사람만 축소판<br>컨테이너 미로 · 힐팩: 중앙 광장',
       tp: [['BLUE 스폰', 0, 0, 47], ['RED 스폰', 0, 0, -47], ['중앙 광장', 0, 0, 3]] } }
 };
 let MAP = MAPS.yard, curMapId = null, MAP_CULL = false;
 function outsideArena(x, z) { return MAP_CULL && (Math.abs(x) > ARENA.x + 1.5 || Math.abs(z) > ARENA.z + 1.5); }
 function loadMap(id, small = false) {
   if (!MAPS[id]) id = 'yard';
-  const key = id + (small ? ':small' : '');
+  const night = settings.tod === 'night'; const key = id + (small ? ':small' : '') + (night ? ':night' : '');
   if (curMapId === key) return;
   scene.remove(mapRoot); mapRoot.traverse(o => { if (o.geometry && o.geometry !== wheelGeo && o.geometry !== crownGeo) o.geometry.dispose(); });
   mapRoot = new THREE.Group(); scene.add(mapRoot);
   for (const a of [boxes, ramps, rampMeshes, coverBoxes, aiGoals, highGoals, coverPoints, flags, healPacks]) a.length = 0;
-  cIdx = 0; curMapId = key; MAP = Object.assign({ id }, MAPS[id], small ? MAPS[id].small : {}); setEnv(!!MAP.night); if (small) MAP.name = MAPS[id].name + ' (축소)'; ARENA.x = MAP.ax; ARENA.z = MAP.az;
-  MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); flushBatch(); MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase();
+  cIdx = 0; curMapId = key; MAP = Object.assign({ id }, MAPS[id], small ? MAPS[id].small : {}); MAP.night = night; setEnv(night); if (small) MAP.name = MAPS[id].name + ' (축소)'; if (night) MAP.name = '🌙 ' + MAP.name + ' · 밤'; ARENA.x = MAP.ax; ARENA.z = MAP.az;
+  MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (night && id !== 'harbor') nightLamps(); flushBatch(); MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase();
   { const lm = $('lobbyMap').getContext('2d'); lm.clearRect(0, 0, 180, 192); lm.drawImage(mmBase, 0, 0); }
-  $('lbMapInfo').innerHTML = `<b>${MAP.name}</b><br>${MAP.info}<br><span class="bdot"></span>BLUE 스폰 (남)<br><span class="rdot"></span>RED 스폰 (북)`;
+  $('lbMapInfo').innerHTML = `<b>${MAP.name}</b><br>${MAP.info}${night ? '<br>🔦 야간전 · F로 라이트 켜기/끄기 · 불빛을 노려 쏘세요' : ''}<br><span class="bdot"></span>BLUE 스폰 (남)<br><span class="rdot"></span>RED 스폰 (북)`;
   $('lbMapName').textContent = MAP.name;
   document.querySelectorAll('.seg[data-opt="map"] button').forEach(b => b.classList.toggle('on', b.dataset.v === id));
+  document.querySelectorAll('.seg[data-opt="tod"] button').forEach(b => b.classList.toggle('on', b.dataset.v === settings.tod));
   if (typeof buildDebug === 'function') buildDebug();
   if (state !== 'playing') showMapPreview();
 }
@@ -3077,8 +3097,8 @@ function showLobby() {
 }
 document.querySelectorAll('.seg').forEach(seg => seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
   seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
-  const k = seg.dataset.opt; settings[k] = (k === 'diff' || k === 'map') ? b.dataset.v : +b.dataset.v;
-  if (k === 'map') loadMap(b.dataset.v);
+  const k = seg.dataset.opt; settings[k] = (k === 'diff' || k === 'map' || k === 'tod') ? b.dataset.v : +b.dataset.v;
+  if (k === 'map' || k === 'tod') loadMap(settings.map);
 })));
 $('callsign').addEventListener('input', () => { player.name = ($('callsign').value.trim() || 'YOU').slice(0, 10); renderRoster(); });
 $('callsign').addEventListener('keydown', e => e.stopPropagation());
@@ -3764,7 +3784,7 @@ function moveTeam(peerId) {
 function broadcastRoom() {
   if (!MP.host) return;
   MP.slots.forEach((s, i) => { if (s.peer === 'host') s.lo = { ...selLoadout }; });
-  sendAll({ t: 'room', slots: MP.slots.map(s => ({ kind: s.kind, name: s.name, peer: s.peer })), mode: MP.mode, set: { kills: settings.kills, time: settings.time, diff: settings.diff, map: settings.map }, code: MP.code });
+  sendAll({ t: 'room', slots: MP.slots.map(s => ({ kind: s.kind, name: s.name, peer: s.peer })), mode: MP.mode, set: { kills: settings.kills, time: settings.time, diff: settings.diff, map: settings.map, tod: settings.tod }, code: MP.code });
   if (!$('mpRoom').classList.contains('hidden')) renderRoom();
 }
 function showRoom() {
@@ -3825,7 +3845,7 @@ function mpStartMatch() {
   enterMatchUI(); controls.lock();
 }
 function startMsg(extra) {
-  return Object.assign({ t: 'start', slots: MP.slots.map(s => ({ kind: s.kind, name: s.name, peer: s.peer })), mode: MP.mode, set: { kills: settings.kills, time: settings.time, diff: settings.diff, map: settings.map },
+  return Object.assign({ t: 'start', slots: MP.slots.map(s => ({ kind: s.kind, name: s.name, peer: s.peer })), mode: MP.mode, set: { kills: settings.kills, time: settings.time, diff: settings.diff, map: settings.map, tod: settings.tod },
     pos: entities.map(e => [r2(e.pos.x), r2(e.pos.y), r2(e.pos.z), r2(e.yaw)]), lo: entities.map(e => e.loadout) }, extra || {});
 }
 // 경기 중 난입: AI 자리를 사람이 이어받음
@@ -4069,7 +4089,7 @@ $('copyLink').addEventListener('click', () => copyText(inviteLink(), '초대 링
 document.querySelectorAll('#mpRoom .seg').forEach(seg => seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
   if (!MP.host) return; const k = seg.dataset.mopt;
   if (k === 'mode') { if (MP.mode !== b.dataset.v) { MP.mode = b.dataset.v; reassignTeams(); } }
-  else settings[k] = (k === 'diff' || k === 'map') ? b.dataset.v : +b.dataset.v;
+  else settings[k] = (k === 'diff' || k === 'map' || k === 'tod') ? b.dataset.v : +b.dataset.v;
   loadMap(settings.map, MP.mode === 'pvp'); showMapPreview();
   broadcastRoom();
 })));
