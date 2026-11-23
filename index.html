@@ -635,6 +635,7 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 
 const $ = id => document.getElementById(id);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -800,8 +801,12 @@ const camera = new THREE.PerspectiveCamera(BASE_FOV, innerWidth / innerHeight, 0
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 
-const ENV_TEX = (() => { const pm = new THREE.PMREMGenerator(renderer); const t = pm.fromScene(new RoomEnvironment(renderer), 0.04).texture; pm.dispose(); return t; })();
+let ENV_TEX = (() => { const pm = new THREE.PMREMGenerator(renderer); const t = pm.fromScene(new RoomEnvironment(renderer), 0.04).texture; pm.dispose(); return t; })();
 // 재질별 반사 세기: 금속은 또렷하게, 나머지는 은은하게
+let ENV_NIGHT_FLAG = false;
+// 실사 HDRI 환경광 (Poly Haven 'city', CC0 · @pmndrs/assets) — 실패하면 기존 환경맵 유지
+new EXRLoader().load('tex/env_city.exr', t => { t.mapping = THREE.EquirectangularReflectionMapping; const pm = new THREE.PMREMGenerator(renderer); ENV_TEX = pm.fromEquirectangular(t).texture; pm.dispose(); t.dispose();
+  if (!ENV_NIGHT_FLAG) { scene.environment = ENV_TEX; wScene.environment = ENV_TEX; } }, undefined, () => {});
 function tuneEnv(root) { root.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) if (m && m.isMeshStandardMaterial && !m.userData.envT) { m.userData.envT = 1; m.envMapIntensity = m.metalness > 0.45 ? 0.65 : m.transparent ? 0.25 : 0.22; } }); }
 const hemi = new THREE.HemisphereLight(0xdcecff, 0x6b5f48, 1.05); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0d8, 2.6);
@@ -824,6 +829,7 @@ let playerLightOn = true;
 function setEnv(night) {
   scene.background = night ? NIGHT_BG : null; SKY.visible = !night;
   scene.fog.color.setHex(night ? 0x060a14 : 0xb3c8dc); scene.fog.near = night ? 10 : 55; scene.fog.far = night ? 95 : 300;
+  ENV_NIGHT_FLAG = night;
   hemi.intensity = night ? 0.13 : 1.05; scene.environment = night ? null : ENV_TEX; wScene.environment = night ? null : ENV_TEX; renderer.toneMappingExposure = night ? 1.05 : 0.88; hemi.color.setHex(night ? 0x3a4c78 : 0xdcecff); hemi.groundColor.setHex(night ? 0x0c0c12 : 0x6b5f48);
   sun.intensity = night ? 0.2 : 2.6; sun.color.setHex(night ? 0x8ea4dc : 0xfff0d8);
   sun.castShadow = !night && opts.gfx === 'high'; // 야간엔 그림자 계산 생략
@@ -981,6 +987,25 @@ const MAT = {
 { const P = new Map([[groundTex, [3, 0.95, 0.5]], [concreteTex, [3.5, 0.9, 0.6]], [wallTex, [2, 0.88, 0.4]], [asphaltTex, [4, 0.95, 0.4]], [dirtTex, [3.5, 0.98, 0.3]], [brickTex, [5, 0.9, 0.8]], [containerTex, [4.5, 0.6, 0.8]], [crateTex, [3, 0.85, 0.4]], [woodFloorTex, [2.5, 0.6, 0.6]], [tileTex, [3, 0.35, 0.9]], [linoTex, [1.5, 0.55, 0.4]]]);
   const all = [...Object.values(MAT).filter(m => m && m.isMeshStandardMaterial), ...MAT.containers];
   for (const m of all) { const cfg = m.map && P.get(m.map); if (!cfg) continue; const pb = pbrize(m.map, cfg[0], cfg[1], cfg[2]); m.normalMap = pb.normal; m.normalScale.set(0.9, 0.9); m.roughnessMap = pb.rough; m.roughness = 1; m.needsUpdate = true; } }
+// ---- 실사 사진 텍스처: 깃허브 저장소의 tex/ 폴더에서 불러와 기존 재질에 덮어씀 (실패 시 코드 텍스처 유지) ----
+function photoTex(url, cb) { const im = new Image(); im.onload = () => { try { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext('2d').drawImage(im, 0, 0); c.getContext('2d').getImageData(0, 0, 1, 1); cb(c); } catch (err) { /* 로컬 파일 실행 등으로 못 읽으면 기존 텍스처 유지 */ } }; im.onerror = () => {}; im.src = url; }
+function applyPhoto(mat, canvas, rep, bump, rough0, roughVar, nrmCanvas) {
+  const t = new THREE.CanvasTexture(canvas); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep, rep); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  const pb = pbrize(t, bump, rough0, roughVar);
+  if (nrmCanvas) { const n = new THREE.CanvasTexture(nrmCanvas); n.wrapS = n.wrapT = THREE.RepeatWrapping; n.repeat.set(rep, rep); n.anisotropy = 4; pb.normal = n; }
+  mat.map = t; mat.normalMap = pb.normal; mat.roughnessMap = pb.rough; mat.roughness = 1; mat.needsUpdate = true; return t;
+}
+const PHOTO = { ok: 0 };
+photoTex('tex/dirt.jpg', c => { applyPhoto(MAT.ground, c, 180, 4, 0.97, 0.4); MAT.ground.color.setHex(0x9e9b8c); PHOTO.ok++; });
+photoTex('tex/field.jpg', c => { applyPhoto(MAT.dirt, c, 140, 3.5, 0.98, 0.35); MAT.dirt.color.setHex(0xe2d6c4); PHOTO.ok++; });
+photoTex('tex/gravel.jpg', c => photoTex('tex/gravel_n.jpg', n => { applyPhoto(MAT.asphalt, c, 190, 4, 0.93, 0.35, n); MAT.asphalt.color.setHex(0x55575b); MAT.asphalt.normalScale.set(0.7, 0.7); PHOTO.ok++; }));
+photoTex('tex/wood.jpg', c => {
+  // 마루: 나뭇결 사진 위에 판자 이음매를 그려 넣음
+  const w = document.createElement('canvas'); w.width = w.height = 512; const g = w.getContext('2d'); g.drawImage(c, 0, 0, 512, 512);
+  for (let r = 0; r < 8; r++) { g.fillStyle = 'rgba(40,22,10,.55)'; g.fillRect(0, r * 64, 512, 2); const off = (r * 211) % 512; g.fillRect(off, r * 64, 2, 64); g.fillStyle = `rgba(${r % 2 ? 255 : 0},${r % 2 ? 230 : 0},${r % 2 ? 200 : 0},.05)`; g.fillRect(0, r * 64 + 2, 512, 62); }
+  applyPhoto(MAT.woodFloor, w, 1, 2.5, 0.62, 0.5); MAT.woodFloor.color.setHex(0xe8d8c6);
+  const k = new THREE.CanvasTexture(c); k.colorSpace = THREE.SRGBColorSpace; k.wrapS = k.wrapT = THREE.RepeatWrapping; K.wood.map = k; K.wood.color.setHex(0xc9a083); K.wood.needsUpdate = true; PHOTO.ok++;
+});
 for (const [m, t] of [[MAT.wall, 2.5], [MAT.brick, 2.2], [MAT.concrete, 2.5], [MAT.concreteDark, 2.5], [MAT.floor, 2.5], [MAT.crate, 0], [MAT.planter, 2]]) m.userData.tile = t;
 for (const m of MAT.containers) m.userData.tile = 2.6;
 // ===================== 맵 / 충돌 =====================
@@ -2113,6 +2138,20 @@ const K = {
   glove: VMM(0x2a2a28, { metalness: 0, roughness: 0.95 }), sleeve: VMM(0x4b5538, { metalness: 0, roughness: 0.95 }), blade: VMM(0xd5d9de, { metalness: 0.95, roughness: 0.15 }),
   green: VMM(0x40592c, { metalness: 0.2, roughness: 0.6 }), red: new THREE.MeshBasicMaterial({ color: 0xff2a2a }), lens: new THREE.MeshBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.12, depthWrite: false })
 };
+function gunTex(kind) {
+  const n = 256, c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d'); const f = fbmField(n, 5);
+  const im = g.createImageData(n, n), d = im.data;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x; let v;
+    if (kind === 'metal') v = 0.86 + (f[i] - 0.5) * 0.12 + Math.sin(y * 1.7 + f[i] * 6) * 0.025 + (Math.random() < 0.004 ? 0.12 : 0);
+    else if (kind === 'poly') v = 0.88 + (Math.random() - 0.5) * 0.16 + (f[i] - 0.5) * 0.1;
+    else v = 0.84 + ((x + (y >> 2)) % 6 < 3 ? 0.06 : -0.04) + ((y + (x >> 2)) % 6 < 3 ? 0.04 : -0.02) + (f[i] - 0.5) * 0.1;
+    v = Math.max(0, Math.min(1, v)) * 255; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; }
+  g.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+{ const M = gunTex('metal'), P = gunTex('poly'), F = gunTex('fabric');
+  const pm = pbrize(M, 2.5, 0.42, 0.9), pp = pbrize(P, 5, 0.8, 0.5), pf = pbrize(F, 4, 0.95, 0.3);
+  for (const [m, t, pb, sc] of [[K.black, M, pm, 0.6], [K.dark, M, pm, 0.6], [K.silver, M, pm, 0.4], [K.blade, M, pm, 0.3], [K.tan, P, pp, 0.9], [K.olive, P, pp, 0.9], [K.green, P, pp, 0.8], [K.glove, F, pf, 1], [K.sleeve, F, pf, 1]]) {
+    m.map = t; m.normalMap = pb.normal; m.normalScale.set(sc, sc); m.needsUpdate = true; } } // 거칠기맵은 생략(가벼움 우선)
 // 근접무기 공통 손: 손바닥 + 손가락 4개가 손잡이를 감싸 쥠 + 엄지 + 소매
 function meleeHand(g) {
   vb(g, 0.056, 0.07, 0.094, K.glove, 0.012, -0.004, 0.004); vb(g, 0.024, 0.062, 0.088, K.glove, -0.016, 0.0, 0.0); vb(g, 0.026, 0.024, 0.05, K.glove, -0.006, 0.034, -0.02);
@@ -4740,7 +4779,7 @@ function renderHow(tab) {
     h = `<table><tr><th>투척무기</th><th>효과</th></tr>${THROWS.map(k => `<tr><td><b>${WEAPONS[k].name}</b></td><td>${WEAPONS[k].desc}</td></tr>`).join('')}</table><p style="margin-top:10px">무기고의 '4 · 투척무기' 탭에서 1종을 골라 2개를 지급받습니다. 좌클릭은 멀리, 우클릭+좌클릭은 가까이 던집니다.</p>`;
   } else {
     h = `<h3>경기 규칙</h3><ul><li>8 대 8 팀 데스매치 · 목표 킬(기본 50)을 먼저 달성하거나 시간 종료 시 킬이 많은 팀 승리</li><li>죽으면 킬캠(나를 처치한 적 시점)을 본 뒤 3초 후 재배치 · 재배치 직후 2초간 스폰 보호</li><li>맵 중앙 좌우 2층 건물 1층에 힐팩 (+50 HP, 쿨타임 10초) · AI도 체력이 50 미만이면 힐팩을 노립니다</li><li>미니맵에는 아군 시야에 들어온 적만 표시됩니다</li><li>승리하면 내 최고 장면이 하이라이트로 재생됩니다</li></ul>
-    <h3>전투 팁</h3><ul><li>들고 있는 무기에 따라 이동속도가 다릅니다 · 칼 125% / 보조무기 94% / 주무기 80%</li><li>2배율 조준경은 반동 -10%, 4배율은 -25% · 앉거나 엎드리면 더 줄어듭니다</li><li>Q/E로 기울이면 몸은 엄폐물 뒤에 두고 머리만 내밀 수 있습니다</li><li>연막 안에서는 적 AI도 당신을 볼 수 없습니다 · 섬광탄은 바라보면 아군도 실명됩니다</li></ul>
+    <h3>크레딧</h3><p style="font-size:12px;opacity:.8">실사 텍스처(흙·운동장·자갈·나무): Babylon.js Assets (CC BY 4.0) · 환경 조명 HDRI: Poly Haven, @pmndrs/assets (CC0)</p><h3>전투 팁</h3><ul><li>들고 있는 무기에 따라 이동속도가 다릅니다 · 칼 125% / 보조무기 94% / 주무기 80%</li><li>2배율 조준경은 반동 -10%, 4배율은 -25% · 앉거나 엎드리면 더 줄어듭니다</li><li>Q/E로 기울이면 몸은 엄폐물 뒤에 두고 머리만 내밀 수 있습니다</li><li>연막 안에서는 적 AI도 당신을 볼 수 없습니다 · 섬광탄은 바라보면 아군도 실명됩니다</li></ul>
     <h3>킬스트릭</h3><ul><li><b>3연속 처치</b>: 2.5초 동안 벽 너머 적이 내 화면에만 빨갛게 보임</li><li><b>5연속 처치</b>: 탄약·체력 풀 회복 (AI도 적용)</li><li>죽으면 연속 처치 수가 초기화됩니다</li></ul>
     <h3>멀티플레이</h3><ul><li>방장이 방을 만들면 5자리 코드가 생기고, 친구는 코드로 참가합니다 (최대 8명)</li><li>빈자리는 AI가 채워 항상 8 대 8 · 경기 중 누가 나가면 AI가 자리를 이어받습니다</li><li>협동: 사람 전원 BLUE vs AI / 팀 대전: 사람을 양 팀으로 나눔 (예: 사람 4 vs 4 + AI 4 vs 4)</li><li>방장 PC가 AI와 판정을 계산합니다 · 방장이 나가면 경기가 종료됩니다</li></ul>`;
   }
