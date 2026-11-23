@@ -2508,6 +2508,8 @@ function makeSoldier(team, name, gunKey) {
   return Object.assign(mdl, { root, body, legs, arms, muzzle, tag, helmet, lod, mats: [mU, mV, mS, mH, mB, mP] });
 }
 // 몸 메쉬만 숨기고 손전등 빛줄기는 남김(원거리·벽 뒤에서도 불빛은 보이게)
+// 확대 배율 반영: 스코프로 당겨 볼 때는 '보이는 거리' 기준으로 간략화 (4배 → 실제 200m까지 원래 모델)
+const lodZ = () => Math.max(1, Math.tan(BASE_FOV * Math.PI / 360) / Math.tan(camera.fov * Math.PI / 360));
 function setBodyShown(m, on) {
   if (m._bodyOn === on && m._bodyGun === m.gunKey) return; m._bodyOn = on; m._bodyGun = m.gunKey; m._far = !on; m.body.visible = true;
   m.body.traverse(o => { if (o === m.beam) return; let p = o; while (p) { if (p === m.beam) return; p = p.parent; } if (o.isMesh || o.isSprite) o.visible = on; });
@@ -3906,7 +3908,7 @@ function updateModel(e, dt) {
     e._fl = k > 0; if (!e._fl) e._glow = -1;
   }
   m.root.position.copy(e.pos); m.root.rotation.y = e.yaw;
-  if (m.lod) { const cin = state === 'replay' || KC.on, far = e.alive && !e.prone && !cin && e.pos.distanceToSquared(camera.position) > 2500 && !isFFA();
+  if (m.lod) { const cin = state === 'replay' || KC.on, far = e.alive && !e.prone && !cin && e.pos.distanceToSquared(camera.position) > 2500 * lodZ() ** 2 && !isFFA();
     const occ = e.alive && !cin && !e.isPlayer && occluded(e); e._occ = occ;
     m.lod.visible = far && !occ; setBodyShown(m, !far && !occ); }
   if (e.alive) {
