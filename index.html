@@ -400,7 +400,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
 .rm-name{margin-bottom:12px}.rm-name label{display:block;font-size:11px;letter-spacing:2px;color:#ffd23f;font-weight:800;margin-bottom:4px}.rm-name div{display:flex;gap:6px}.rm-name input{flex:1;min-width:0;padding:6px 8px;font-size:13px}.rm-name .btn.sm{margin:0}
 #mpRoom>.rm-bottom{display:flex;gap:14px;justify-content:center;align-items:stretch;flex:0 0 auto}.rm-bottom .rm-chat-bottom{width:min(980px,70%);margin-top:0;flex:0 1 auto;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);padding:8px 12px}.rm-bottom #chatLog{height:104px;min-height:104px;max-height:104px;font-size:13px}.rm-bottom .rm-chat-in input{font-size:13px}.rm-bottom .rm-foot{width:240px;flex:none;display:flex;flex-direction:column;justify-content:flex-end;margin:0}
 .rm-chat{margin-top:10px;display:flex;flex-direction:column;min-height:0;flex:1 1 140px}.rm-chat-h{font-size:12px;font-weight:700;opacity:.8;margin-bottom:4px}
-#diag{position:fixed;top:150px;right:12px;z-index:30;background:rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.15);padding:7px 10px;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8e6f0;white-space:pre;pointer-events:none}#diag.hidden{display:none}#diag b{color:#ffd23f}
+#diag{position:fixed;top:150px;right:12px;z-index:30;background:rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.15);padding:7px 10px;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8e6f0;white-space:pre;pointer-events:none}#diag.hidden{display:none}#netWarn{position:fixed;top:118px;left:50%;transform:translateX(-50%);z-index:30;background:rgba(120,30,20,.78);border:1px solid #ff9a6a;color:#ffe2d0;font-size:12px;padding:3px 10px;border-radius:3px;pointer-events:none}#netWarn.hidden{display:none}#diag b{color:#ffd23f}
 #chatLog{flex:1;min-height:90px;max-height:240px;overflow-y:auto;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);padding:6px 8px;font-size:12px;line-height:1.5;word-break:break-all}
 #chatLog .cm b{color:#ffd23f;font-weight:700;margin-right:4px}#chatLog .cm.blue b{color:#7fb4ff}#chatLog .cm.red b{color:#ff9a8a}#chatLog .cm.sys{color:#9a9a9a;font-style:italic}
 .rm-chat-in{display:flex;gap:6px;margin-top:6px}.rm-chat-in .txt{flex:1;min-width:0;padding:6px 8px;font-size:12px}.rm-chat-in .btn{margin:0}
@@ -421,6 +421,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
 
 <div id="cheatHud" class="hidden"></div>
 <div id="diag" class="hidden"></div>
+<div id="netWarn" class="hidden"></div>
 <div id="hud" class="hidden">
   <canvas id="minimap" width="180" height="192"></canvas>
   <div id="teamList"></div>
@@ -766,7 +767,7 @@ void main(){ vec2 px = 1.0 / res;
   gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0); }` });
 postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
 // F3 진단 표시: FPS · 핑 · 연결 방식 · 보간 지연 · 수신 빈도 · 흔들림 · 예측 중인 캐릭터 수
-const DIAG = { on: false, t: 0, n: 0, fr: 0 };
+const DIAG = { on: false, t: 0, n: 0, fr: 0 }; const NET = { out: 0, inn: 0 };
 function diagTick(dt) {
   if (!DIAG.on) return; const nw = performance.now() / 1000; if (!DIAG.t0) DIAG.t0 = nw; DIAG.fr++; if (nw - DIAG.t0 < 0.5) return;
   const T = nw - DIAG.t0, fps = DIAG.fr / T; DIAG.t0 = nw; DIAG.fr = 0; const L = [`<b>FPS</b> ${fps.toFixed(0)}  해상도 ${Math.round(POST.scale * 100)}%`];
@@ -777,7 +778,7 @@ function diagTick(dt) {
       const r = ((MP.stN || 0) - (DIAG.n || 0)) / T; DIAG.n = MP.stN || 0;
       L.push('<b>방장</b> 참가자 ' + rs.length + '명', ...pg.map(p => '  ' + p), `보간 평균 ${(ip * 1000).toFixed(0)}ms  흔들림 최대 ${(jt * 1000).toFixed(0)}ms`, `수신 ${r.toFixed(0)}/s`);
     } else { const r = ((NETC.uN || 0) - (DIAG.n || 0)) / T; DIAG.n = NETC.uN || 0;
-      L.push(`<b>핑</b> ${NETC.ping[player.id] ?? '-'}ms  ${MP.route || ''}`, `보간 ${((NETC.interp || NETC.INTERP) * 1000).toFixed(0)}ms  흔들림 ${((NETC.jit || 0) * 1000).toFixed(0)}ms`, `수신 ${r.toFixed(0)}/s (정상 30)`); }
+      L.push(`<b>핑</b> ${NETC.ping[player.id] ?? '-'}ms  ${MP.route || ''}`, `보간 ${((NETC.interp || NETC.INTERP) * 1000).toFixed(0)}ms  흔들림 ${((NETC.jit || 0) * 1000).toFixed(0)}ms`, `수신 ${r.toFixed(0)}/s (정상 20)`); }
     L.push(`예측 중 ${rem.filter(e => e._ex).length}명`);
   } else L.push('싱글 플레이');
   $('diag').innerHTML = L.join('\n');
@@ -3707,6 +3708,7 @@ function addKillFeed(k, v, w, head) {
 }
 function ffaRank() { return entities.filter(e => !e.off).sort((a, b) => b.kills - a.kills || a.deaths - b.deaths); }
 function updateHUD(dt) {
+  { const pg = MP.on && MP.started && !MP.host ? (NETC.ping[player.id] ?? -1) : -1, bad = pg > 300; const w = $('netWarn'); if (w.classList.contains('hidden') === bad) w.classList.toggle('hidden', !bad); if (bad) { const t = `⚠ 연결 불안정 · 핑 ${pg}ms · 명중 판정이 늦거나 무효될 수 있어요`; if (w.textContent !== t) w.textContent = t; } }
   if (isFFA()) { const rk = ffaRank(), top = rk.find(e => e !== player) || player, lead = rk[0];
     setText('sBlue', String(player.kills)); setText('sRed', String(top.kills));
     const nm = document.querySelector('.sb-team.red .sb-name'), want = (lead === player ? '2위 ' : '1위 ') + top.name; if (nm.textContent !== want) nm.textContent = want;
@@ -4501,7 +4503,7 @@ function killcamUpdate(dt) {
   if (KC.t >= KC.end) { endKillcam(); return; }
   while (KC.ev < REC.events.length && REC.events[KC.ev].t <= KC.t) {
     const ev = REC.events[KC.ev++];
-    if (ev.type === 'tr') tracer(V(...ev.a), V(...ev.b));
+    if (ev.type === 'tr') { const a = ev.q ? ev.q.map(v => v / 10) : [...ev.a, ...ev.b]; tracer(V(a[0], a[1], a[2]), V(a[3], a[4], a[5])); }
     else if (ev.type === 'as') { const e = entities[ev.id]; if (e && e.model) { const mz = new THREE.Vector3(); e.model.root.updateMatrixWorld(true); e.model.muzzle.getWorldPosition(mz); if (e !== KC.killer) worldFlash(mz); else { KC.kick = 1; KC.flashT = 0.045; } sfx(ev.s, e === KC.killer ? null : e.pos, e === KC.killer ? 0.9 : 1); } }
     else if (ev.type === 'ps') sfx(ev.s, player.pos);
     else if (ev.type === 'gt') { const ty = ev.ty || 'GRENADE'; const m = thrownMesh(ty); m.position.set(...ev.p); scene.add(m); KC.grens.push({ mesh: m, type: ty, pos: V(...ev.p), vel: V(...ev.v), fuse: WEAPONS[ty].fuse }); }
@@ -4568,8 +4570,24 @@ const NETC = { INTERP: 0.1, EXTRA: 0.12, SNAP: 12, REWIND: 0.3, off: null, fastA
 const nclock = () => performance.now() / 1000;
 function netOff(o, t) { const smp = t - nclock(); if (o.off == null || smp > o.off) o.off = smp; else o.off += (smp - o.off) * 0.02;
   // 도착 흔들림(지터) 추적 → 보간 지연을 자동 조절 (안정적이면 0.08초, 흔들리면 최대 0.3초)
-  const late = Math.max(0, o.off - smp); o.jit = o.jit == null ? late : o.jit + (late - o.jit) * (late > o.jit ? 0.05 : 0.1); o.interp = Math.min(0.25, Math.max(0.07, 0.05 + o.jit * 2.0)); }
+  const late = Math.max(0, o.off - smp); o.jit = o.jit == null ? late : o.jit + (late - o.jit) * (late > o.jit ? 0.05 : 0.1); o.interp = Math.min(0.25, Math.max(0.1, 0.07 + o.jit * 2.0)); }
 // 보내기 대기열이 쌓이면(느린 회선·중계) 이번 위치 갱신은 건너뜀 → 지연이 눈덩이처럼 커지는 것 방지
+// 위치 패킷을 이진으로: 위치 cm 단위 2바이트 · 각도 2바이트 · 자세 1바이트 (숫자 1개 9바이트 → 1~2바이트)
+const NB = {
+  u(ht, list) { const b = new ArrayBuffer(6 + list.length * 16), d = new DataView(b); d.setUint8(0, 1); d.setFloat32(1, ht); d.setUint8(5, list.length);
+    list.forEach((a, k) => { const o = 6 + k * 16; d.setUint8(o, a.id); d.setInt16(o + 1, Math.round(a.x * 100)); d.setInt16(o + 3, Math.round(a.y * 100)); d.setInt16(o + 5, Math.round(a.z * 100));
+      d.setInt16(o + 7, Math.round(angDiff(0, a.yaw) * 10000)); d.setInt16(o + 9, Math.round(clamp(a.pt, -1.6, 1.6) * 10000)); d.setUint8(o + 11, Math.round(clamp(a.c || 0, 0, 1) * 255)); d.setUint8(o + 12, Math.round(clamp(a.pr || 0, 0, 1) * 255));
+      d.setInt8(o + 13, Math.round(clamp(a.ln || 0, -1, 1) * 127)); d.setUint16(o + 14, Math.min(65535, Math.max(0, Math.round((a.age || 0) * 1000)))); }); return b; },
+  st(ct, p) { const b = new ArrayBuffer(21), d = new DataView(b); d.setUint8(0, 2); d.setFloat32(1, ct); d.setUint8(5, (p.alive ? 1 : 0) | (p.lightOn === false ? 0 : 2));
+    d.setInt16(6, Math.round(p.pos.x * 100)); d.setInt16(8, Math.round(p.pos.y * 100)); d.setInt16(10, Math.round(p.pos.z * 100)); d.setInt16(12, Math.round(angDiff(0, camera.rotation.y) * 10000)); d.setInt16(14, Math.round(clamp(camera.rotation.x, -1.6, 1.6) * 10000));
+    d.setUint8(16, Math.round(clamp(p.crouch || 0, 0, 1) * 255)); d.setUint8(17, Math.round(clamp(p.prone || 0, 0, 1) * 255)); d.setInt8(18, Math.round(clamp(p.lean || 0, -1, 1) * 127)); return b; },
+  dec(raw) { const b = raw instanceof ArrayBuffer ? raw : ArrayBuffer.isView(raw) ? raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength) : null; if (!b || b.byteLength < 6) return null; const d = new DataView(b), ty = d.getUint8(0);
+    if (ty === 1) { const ht = d.getFloat32(1), n = d.getUint8(5), e = []; for (let k = 0; k < n && 6 + k * 16 + 16 <= b.byteLength; k++) { const o = 6 + k * 16;
+        e.push({ id: d.getUint8(o), a: [d.getInt16(o + 1) / 100, d.getInt16(o + 3) / 100, d.getInt16(o + 5) / 100, d.getInt16(o + 7) / 10000, d.getInt16(o + 9) / 10000, d.getUint8(o + 11) / 255, d.getUint8(o + 12) / 255, d.getInt8(o + 13) / 127], age: d.getUint16(o + 14) / 1000 }); }
+      return { t: 'ub', ht, e }; }
+    if (ty === 2 && b.byteLength >= 19) { const fl = d.getUint8(5); return { t: 'st', ct: d.getFloat32(1), al: fl & 1, lt: fl & 2 ? 1 : 0, p: [d.getInt16(6) / 100, d.getInt16(8) / 100, d.getInt16(10) / 100], y: d.getInt16(12) / 10000, pt: d.getInt16(14) / 10000, c: d.getUint8(16) / 255, pr: d.getUint8(17) / 255, ln: d.getInt8(18) / 127 }; }
+    return null; }
+};
 const chBuf = c => { try { return (c && c.dataChannel && c.dataChannel.bufferedAmount) || 0; } catch (err) { return 0; } };
 // 받은 위치를 시간표와 함께 쌓아둠 (늦게 온/중복 패킷은 버림, 크게 튀면 버퍼 초기화 → 그 자리로 이동)
 function netPush(e, t, a) {
@@ -4684,7 +4702,7 @@ function mpCreate() {
     showRoom(); broadcastRoom(); mpStatus('');
   });
   peer.on('connection', conn => {
-    if (conn.label === 'fast') { conn.on('open', () => MP.fconns.set(conn.peer, conn)); conn.on('data', m => { if (m && m.t === 'st') hostOnData(conn, m); }); conn.on('close', () => { if (MP.fconns.get(conn.peer) === conn) MP.fconns.delete(conn.peer); }); return; }
+    if (conn.label === 'fast') { conn.on('open', () => MP.fconns.set(conn.peer, conn)); conn.on('data', m => { const b = NB.dec(m); if (b) return hostOnData(conn, b); if (m && (m.t === 'st' || m.t === 'po' || m.t === 'hit')) hostOnData(conn, m); }); conn.on('close', () => { if (MP.fconns.get(conn.peer) === conn) MP.fconns.delete(conn.peer); }); return; }
     conn.on('open', () => setTimeout(async () => { conn._route = await connRoute(conn); }, 2000)); conn.on('data', m => hostOnData(conn, m)); conn.on('close', () => hostDrop(conn.peer)); conn.on('error', () => hostDrop(conn.peer)); });
   let hostTries = 0;
   peer.on('error', err => {
@@ -4720,7 +4738,7 @@ function mpJoin(attempt) {
     conn.on('open', () => { if (done) return; done = true; clearTimeout(to); clearInterval(iceWatch); MP._joining = false;
       Object.assign(MP, { on: true, host: false, peer, hostConn: conn, code, myPeer: id, started: false, evQ: [], cevQ: [] }); conn.send({ t: 'hello', name: myName(), lo: { ...selLoadout } }); mpStatus('입장 대기 중...');
       setTimeout(async () => { const r = await connRoute(conn); MP.route = r; if (r && MP.on) { try { addChat('', '연결 방식: ' + r, true); } catch (err) {} } }, 1500);
-      try { const fc = peer.connect(MP_PREFIX + code, { reliable: false, label: 'fast' }); fc.on('open', () => { MP.fastConn = fc; }); fc.on('data', m => { if (m && m.t === 'u') clientOnData(m); }); fc.on('close', () => { if (MP.fastConn === fc) MP.fastConn = null; }); } catch (err) {} });
+      try { const fc = peer.connect(MP_PREFIX + code, { reliable: false, label: 'fast' }); fc.on('open', () => { MP.fastConn = fc; }); fc.on('data', m => { NET.inn += m && m.byteLength || 40; const b = NB.dec(m); if (b) return clientOnData(b); if (m && (m.t === 'u' || m.t === 'pi')) clientOnData(m); }); fc.on('close', () => { if (MP.fastConn === fc) MP.fastConn = null; }); } catch (err) {} });
     conn.on('data', m => clientOnData(m));
     conn.on('close', () => { if (done && MP.on) clientLost(); }); conn.on('error', () => { if (!done) retry('ice'); else clientLost(); });
   });
@@ -4880,7 +4898,9 @@ function hostOnData(conn, m) {
     case 'nm': { const nm = String(m.name || '').trim().slice(0, 10); if (nm && !MP.started) { MP.slots[si].name = nm; broadcastRoom(); } break; }
     case 'st': if (MP.started && e.alive && m.al) { if (m.ct != null) { if (!e.noff) e.noff = { off: null }; netOff(e.noff, m.ct); MP.stN = (MP.stN || 0) + 1; netPush(e, m.ct, [m.p[0], m.p[1], m.p[2], m.y, m.pt, m.c, m.pr, m.ln]); e.lastRaw = [m.p[0], m.p[1], m.p[2], m.y, m.pt, m.c, m.pr, m.ln]; } else { e.crouch = m.c; e.prone = m.pr; e.lean = m.ln; } e.netT = m.p; e.netYaw = m.y; e.ai.pitch = m.pt; e.lightOn = m.lt !== 0; } break;
     case 'ev': if (MP.started) for (const ev of m.e) hostClientEvent(e, ev); break;
-    case 'hit': if (MP.started && e.alive) { const v = entities[m.v]; if (v && v.alive && v !== e && hitPlausible(v, m)) { const r = applyDamage(v, clamp(+m.d || 0, 0, 260), e, String(m.w || ''), !!m.h, e.pos); if (r) { bloodFx(v.pos.clone().add(V(0, m.h ? headY(v) : 1.1, 0))); if (v.model) { v.flashT = 0.12; v.flashCol = m.h ? 0xffd23f : 0xffffff; } } } } break;
+    case 'hit': if (m.q != null) { e._hq = e._hq || new Set(); if (e._hq.has(m.q)) break; e._hq.add(m.q); if (e._hq.size > 200) e._hq = new Set([...e._hq].slice(-100)); }
+      if (MP.started && e.alive) { const v = entities[m.v]; if (v && v.alive && v !== e && !hitPlausible(v, m) && m.q != null) { try { (MP.conns.get(conn.peer) || conn).send({ t: 'hx', q: m.q }); } catch (err) {} }
+      if (v && v.alive && v !== e && hitPlausible(v, m)) { const r = applyDamage(v, clamp(+m.d || 0, 0, 260), e, String(m.w || ''), !!m.h, e.pos); if (r) { bloodFx(v.pos.clone().add(V(0, m.h ? headY(v) : 1.1, 0))); if (v.model) { v.flashT = 0.12; v.flashCol = m.h ? 0xffd23f : 0xffffff; } } } } break;
     case 'throw': if (MP.started && e.alive) spawnGrenade(e, V(...m.p), V(...m.v), THROWS.includes(m.ty) ? m.ty : 'GRENADE'); break;
     case 'pe': if (e.packGun) { e.packGun = null; const K = WEAPONS[e.loadout.melee] || WEAPONS.KNIFE; e.modelKey = K.key; if (e.model) soldierGun(e.model, K.key); } break;
     case 'po': MP.ping = MP.ping || []; MP.ping[si] = Math.round((nclock() - (+m.s || 0)) * 1000); break;
@@ -4890,7 +4910,7 @@ function hostOnData(conn, m) {
 }
 function hostClientEvent(e, ev) {
   netSrc = e.id;
-  if (ev.type === 'tr') tracer(V(...ev.a), V(...ev.b));
+  if (ev.type === 'tr') { const a = ev.q ? ev.q.map(v => v / 10) : [...ev.a, ...ev.b]; tracer(V(a[0], a[1], a[2]), V(a[3], a[4], a[5])); }
   else if (ev.type === 'as') { e.protectT = 0; const mz = new THREE.Vector3(); e.model.root.updateMatrixWorld(true); e.model.muzzle.getWorldPosition(mz); worldFlash(mz); sfx(ev.s, e.pos); hearShot(e); recEvent({ type: 'as', id: e.id, s: ev.s }); }
   netSrc = undefined;
 }
@@ -4915,8 +4935,10 @@ function clientOnData(m) {
     case 'room': MP.slots = m.slots.map(s => ({ ...s, lo: null })); MP.mode = m.mode; const pwm = settings.wmode; Object.assign(settings, m.set); if (pwm !== settings.wmode) { curMapId = null; fixLoadoutForMode(); } if (MP.started) syncSlotsMid(); if (!MP.started && state !== 'playing') { loadMap(settings.map, MP.mode === 'pvp'); showMapPreview(); } if ($('mpRoom').classList.contains('hidden') || state !== 'menu') { if (!MP.started) showRoom(); } else renderRoom(); break;
     case 'start': clientStart(m); break;
     case 's': if (MP.started && state === 'playing') applySnap(m); break;
+    case 'v': if (MP.started && m.ev && m.ev.length) { netIn = true; for (const ev of m.ev) clientEvent(ev); netIn = false; } break;
+    case 'ub': if (MP.started && state === 'playing') { netOff(NETC, m.ht); NETC.fastAt = nclock(); NETC.uN = (NETC.uN || 0) + 1; for (const it of m.e) { const e = entities[it.id]; if (e && e !== player) netPush(e, m.ht - it.age, it.a); } } break;
     case 'u': if (MP.started && state === 'playing' && Array.isArray(m.e)) { netOff(NETC, m.ht); NETC.fastAt = nclock(); NETC.uN = (NETC.uN || 0) + 1; m.e.forEach((a, i) => { const e = entities[i]; if (e && e !== player) netPush(e, a[8] != null ? a[8] : m.ht, a); }); } break;
-    case 'pi': try { MP.hostConn.send({ t: 'po', s: m.s }); } catch (err) {} break;
+    case 'pi': try { (MP.fastConn && MP.fastConn.open ? MP.fastConn : MP.hostConn).send({ t: 'po', s: m.s }); } catch (err) {} break;
     case 'chat': addChat(m.n, m.m, m.sys, m.tm); break;
     case 'spawn': clientSpawn(m); break;
     case 'hurt':
@@ -4926,7 +4948,9 @@ function clientOnData(m) {
       } break;
     case 'pf': flashT = Math.max(flashT, m.d); sfx('ring'); recEvent({ type: 'pf', d: m.d }); break;
     case 'healed': showCenterMsg('✚ +50 HP 회복', '#5dff8a'); hurt = 0; break;
-    case 'dpk': dropLocalFx(); break;
+    case 'hx': { const P = MP.predHit && MP.predHit.get(m.q); if (P) { const v = entities[P.v]; if (v && v.alive) v.hp = Math.min(100, v.hp + P.d); MP.predHit.delete(m.q); MP.rejN = (MP.rejN || 0) + 1;
+      if (now - (MP.rejT || -9) > 3) { MP.rejT = now; showCenterMsg('⚠ 연결 지연으로 명중 일부가 인정되지 않았어요', '#ffb84d'); } } break; }
+    case 'dpk': player.hp = Math.min(100, player.hp + HEAL_AMT); dropLocalFx(); break;
     case 'pk': if (player.alive && WEAPONS[m.k]) givePackGun(player, m.k); break;
     case 'end': if (MP.started) { score.blue = m.sc[0]; score.red = m.sc[1]; matchTime = m.tm; MP.started = false; AW.list = Array.isArray(m.aw) ? m.aw.slice(0, 6) : []; AW.shown = false; endMatch(); } break;
     case 'toRoom': MP.started = false; if (KC.on) endKillcam(true); showRoom(); break;
@@ -4947,8 +4971,10 @@ function syncSlotsMid() {
 function applySnap(m) {
   matchTime = m.tm; score.blue = m.sc[0]; score.red = m.sc[1];
   const myBit = player.team === 'blue' ? 1 : 2;
-  m.e.forEach((a, i) => {
-    const e = entities[i];
+  const rows = m.e ? m.e.map((a, i) => [i, a]) : Object.entries(m.p || {}).map(([i, a]) => [+i, a]);
+  rows.forEach(([i, a]) => {
+    const e = entities[i]; if (!a || !e) return;
+    if (m.q) { a = a.slice(); for (const k of [0, 1, 2, 3, 4, 7, 8, 9, 16]) a[k] = a[k] / 100; }
     e.kills = a[10]; e.deaths = a[11]; e.assists = a[12]; e.dmgDealt = a[13]; e.hsKills = a[17];
     if (a[15] & (isFFA() ? 3 : myBit)) e.spotT[player.team] = now;
     if (e === player) { if (player.alive) { player.hp = a[5]; if (!a[14]) player.protectT = Math.min(player.protectT, 0); } return; }
@@ -4966,7 +4992,7 @@ function removeVisGrenadeNear(pos) { for (let i = grenades.length - 1; i >= 0; i
 function clientEvent(ev) {
   if (ev.src !== undefined && ev.src === player.id) return;
   switch (ev.type) {
-    case 'tr': tracer(V(...ev.a), V(...ev.b)); break;
+    case 'tr': { const a = ev.q ? ev.q.map(v => v / 10) : [...ev.a, ...ev.b]; tracer(V(a[0], a[1], a[2]), V(a[3], a[4], a[5])); break; }
     case 'as': { const e = entities[ev.id]; if (e && e !== player && e.model) { const mz = new THREE.Vector3(); e.model.root.updateMatrixWorld(true); e.model.muzzle.getWorldPosition(mz); worldFlash(mz); sfx(ev.s, e.pos); } recEvent(ev); break; }
     case 'gt': { const ty = ev.ty || 'GRENADE'; const m = thrownMesh(ty); m.position.set(...ev.p); scene.add(m); grenades.push({ vis: true, owner: null, type: ty, pos: V(...ev.p), vel: V(...ev.v), fuse: WEAPONS[ty].fuse + 0.6, mesh: m }); recEvent(ev); break; }
     case 'bx': { const pos = V(...ev.p); removeVisGrenadeNear(pos); explosionFx(pos); sfx('explosion', pos, 1.3); shake = Math.max(shake, clamp(1 - pos.distanceTo(camera.position) / 35, 0, 1) * 0.9); recEvent(ev); break; }
@@ -4998,29 +5024,42 @@ function clientSpawn(m) {
 }
 // ----- 주기적 전송 -----
 function netFast(dt) {
-  MP.fastT = (MP.fastT || 0) - dt; if (MP.fastT > 0) return; MP.fastT = 1 / 30;
+  MP.fastT = (MP.fastT || 0) - dt; if (MP.fastT > 0) return; MP.fastT = 1 / 20;
   if (MP.host) {
-    const hn = nclock(); const msg = { t: 'u', ht: +hn.toFixed(3), e: entities.map(x => {
+    const hn = nclock(); MP.uTick = (MP.uTick || 0) + 1; const list = [];
+    for (const x of entities) { if (!x.alive || x.off) continue;
       const L = x.remote && x.nb && x.nb.length && x.noff && x.noff.off != null ? x.nb[x.nb.length - 1] : null;
-      if (L) return [r2(L.x), r2(L.y), r2(L.z), r2(L.yaw), r2(L.pt), r2(L.c || 0), r2(L.pr || 0), r2(L.ln || 0), +(L.t - x.noff.off).toFixed(3)]; // 방장 보간 거치지 않은 원본
-      return [r2(x.pos.x), r2(x.pos.y), r2(x.pos.z), r2(x.yaw), r2(x.isPlayer ? camera.rotation.x : x.ai.pitch), r2(x.crouch || 0), r2(x.prone || 0), r2(x.lean || 0)]; }) };
-    for (const [pid, c] of MP.conns) { const f = MP.fconns.get(pid); const ch = f && f.open ? f : c; if (ch && ch.open && chBuf(ch) < 16000) { try { ch.send(msg); } catch (err) {} } }
+      if (L) list.push({ id: x.id, x: L.x, y: L.y, z: L.z, yaw: L.yaw, pt: L.pt, c: L.c, pr: L.pr, ln: L.ln, age: hn - (L.t - x.noff.off), pid: MP.slots[x.id] && MP.slots[x.id].peer }); // 방장 보간 거치지 않은 원본
+      else list.push({ id: x.id, x: x.pos.x, y: x.pos.y, z: x.pos.z, yaw: x.yaw, pt: x.isPlayer ? camera.rotation.x : x.ai.pitch, c: x.crouch, pr: x.prone, ln: x.lean, age: 0 }); }
+    for (const [pid, c] of MP.conns) { const f = MP.fconns.get(pid); const ch = f && f.open ? f : c; if (!ch || !ch.open) continue; const bf = chBuf(ch);
+      if (bf > 16000 || (bf > 4000 && MP.uTick % 2)) continue; // 회선이 밀리면 자동으로 10회/초로 낮춤
+      try { ch.send(NB.u(hn, list.filter(a => a.pid !== pid))); NET.out += 6 + list.length * 16; } catch (err) {} }
   } else if (MP.hostConn && MP.hostConn.open) {
     const p = player, ch = MP.fastConn && MP.fastConn.open ? MP.fastConn : MP.hostConn; if (chBuf(ch) > 16000) return;
+    if (MP.fastConn && MP.fastConn.open) { try { ch.send(NB.st(+nclock().toFixed(3), p)); NET.out += 21; } catch (err) {} return; }
     try { ch.send({ t: 'st', ct: +nclock().toFixed(3), al: p.alive ? 1 : 0, p: [r2(p.pos.x), r2(p.pos.y), r2(p.pos.z)], y: r2(camera.rotation.y), pt: r2(camera.rotation.x), c: r2(p.crouch), pr: r2(p.prone), ln: r2(p.lean), lt: p.lightOn === false ? 0 : 1 }); } catch (err) {}
   }
 }
 function netTick(dt) {
   netFast(dt); if (MP.host) netHist();
-  MP.pingT = (MP.pingT || 0) - dt; if (MP.host && MP.pingT <= 0) { MP.pingT = 1; sendAll({ t: 'pi', s: +nclock().toFixed(3) }); }
+  MP.pingT = (MP.pingT || 0) - dt; if (MP.host && MP.pingT <= 0) { MP.pingT = 1; const pm = { t: 'pi', s: +nclock().toFixed(3) }; for (const [pid, c] of MP.conns) { const f = MP.fconns.get(pid), ch = f && f.open ? f : c; if (ch && ch.open) try { ch.send(pm); } catch (err) {} } }
   MP.sendT -= dt; if (MP.sendT > 0) return; MP.sendT = 0.05;
   if (MP.host) {
-    const e = entities.map(x => [r2(x.pos.x), r2(x.pos.y), r2(x.pos.z), r2(x.yaw), r2(x.isPlayer ? camera.rotation.x : x.ai.pitch), Math.max(0, Math.round(x.hp)), x.alive ? 1 : 0, r2(x.crouch), r2(x.prone), r2(x.lean),
-      x.kills, x.deaths, x.assists, Math.round(x.dmgDealt), x.protectT > 0 ? 1 : 0, (now - x.spotT.blue < 1.2 ? 1 : 0) | (now - x.spotT.red < 1.2 ? 2 : 0), x.respawnT > 0 ? r2(x.respawnT) : 0, x.hsKills, x.loadout ? WKEYS.indexOf(x.modelKey || x.loadout.primary) : -1, x.lightOn === false ? 0 : 1]);
-    const msg = { t: 's', tm: r2(matchTime), sc: [score.blue, score.red], e, hp: healPacks.map(h => r2(Math.max(0, h.cd))), ev: MP.evQ, pg: MP.slots.map((sl, i) => sl.kind !== 'human' ? -1 : sl.peer === 'host' ? 0 : ((MP.ping || [])[i] ?? -1)) };
+    // 이벤트(처치·사격음·궤적 등)는 생기면 바로(20회/초), 상태 정보는 5회/초
     const ev = MP.evQ; MP.evQ = [];
-    for (const c of MP.conns.values()) { if (!c.open) continue; const all = c._pend ? c._pend.concat(ev) : ev;
-      if (chBuf(c) > 48000) { c._pend = all; continue; } c._pend = null; try { c.send(all === ev ? msg : Object.assign({}, msg, { ev: all })); } catch (err) {} }
+    for (const c of MP.conns.values()) { if (!c.open) continue; const all = c._pend ? c._pend.concat(ev) : ev; if (!all.length) continue;
+      if (chBuf(c) > 48000) { c._pend = all; continue; } c._pend = null; try { c.send({ t: 'v', ev: all }); } catch (err) {} }
+    MP.sTick = (MP.sTick || 0) + 1; if (MP.sTick % 4) return;
+    const q = v => Math.round(v * 100); // 소수 → 정수 (전송 크기 1/3)
+    const full = entities.map(x => x.off ? 0 : [q(x.pos.x), q(x.pos.y), q(x.pos.z), q(x.yaw), q(x.isPlayer ? camera.rotation.x : x.ai.pitch), Math.max(0, Math.round(x.hp)), x.alive ? 1 : 0, q(x.crouch || 0), q(x.prone || 0), q(x.lean || 0),
+      x.kills, x.deaths, x.assists, Math.round(x.dmgDealt), x.protectT > 0 ? 1 : 0, (now - x.spotT.blue < 1.2 ? 1 : 0) | (now - x.spotT.red < 1.2 ? 2 : 0), x.respawnT > 0 ? q(x.respawnT) : 0, x.hsKills, x.loadout ? WKEYS.indexOf(x.modelKey || x.loadout.primary) : -1, x.lightOn === false ? 0 : 1]);
+    // 위치(0~4, 7~9)는 빠른 통로가 담당 → 비교 시 제외하고 바뀐 캐릭터만 보냄 (2초마다 전체)
+    const sig = full.map(a => a ? a.slice(5, 7).concat(a.slice(10)).join(',') : '0'); const prev = MP.sSig || []; MP.sSig = sig;
+    const isFull = MP.sTick % 40 === 0, part = {}; full.forEach((a, i) => { if (a && sig[i] !== prev[i]) part[i] = a; });
+    const base = { t: 's', q: 1, tm: Math.round(matchTime * 10) / 10, sc: [score.blue, score.red], hp: healPacks.map(h => Math.round(Math.max(0, h.cd))), pg: MP.slots.map((sl, i) => sl.kind !== 'human' ? -1 : sl.peer === 'host' ? 0 : ((MP.ping || [])[i] ?? -1)) };
+    const mFull = Object.assign({ e: full }, base), mPart = Object.assign({ p: part }, base);
+    for (const c of MP.conns.values()) { if (!c.open) continue; if (chBuf(c) > 48000) { c._needFull = true; continue; }
+      const m = isFull || c._needFull ? mFull : mPart; c._needFull = false; try { c.send(m); } catch (err) {} }
   } else if (MP.hostConn && MP.hostConn.open) {
     const p = player;
     try {
@@ -5028,9 +5067,11 @@ function netTick(dt) {
     } catch (err) {}
   }
 }
+const trQ = ev => ({ type: 'tr', q: [...ev.a, ...ev.b].map(v => Math.round(v * 10)) });
 function netOut(ev) {
-  if (MP.host) { if (ev.type === 'pf') return; let o = ev.type === 'ps' ? { type: 'as', id: player.id, s: ev.s } : { ...ev }; const src = ev.src ?? netSrc; if (src !== undefined) o.src = src; MP.evQ.push(o); }
-  else if (ev.type === 'tr') MP.cevQ.push({ type: 'tr', a: ev.a, b: ev.b });
+  if (ev.type === 'tr') { const k = ev.src ?? netSrc ?? -1; MP.trT = MP.trT || {}; if (now - (MP.trT[k] ?? -9) < 0.07) return; MP.trT[k] = now; }
+  if (MP.host) { if (ev.type === 'pf') return; let o = ev.type === 'ps' ? { type: 'as', id: player.id, s: ev.s } : ev.type === 'tr' ? trQ(ev) : { ...ev }; delete o.t; const src = ev.src ?? netSrc; if (src !== undefined) o.src = src; MP.evQ.push(o); }
+  else if (ev.type === 'tr') MP.cevQ.push(trQ(ev));
   else if (ev.type === 'ps') MP.cevQ.push({ type: 'as', s: ev.s });
 }
 function netPuppet(e, dt) {
@@ -5058,8 +5099,9 @@ function dealDamage(v, dmg, att, w, head, from) {
     if (att !== player || !v.alive || v.protectT > 0 || ally(v, att)) return false;
     const ry = NET_RAY; const msg = { t: 'hit', v: v.id, d: Math.round(dmg * 10) / 10, h: head ? 1 : 0, w, rt: NETC.off != null ? +(nclock() + NETC.off - (NETC.interp || NETC.INTERP)).toFixed(3) : 0 };
     if (ry) { msg.o = [r2(ry.o.x), r2(ry.o.y), r2(ry.o.z)]; msg.r = [+ry.d.x.toFixed(3), +ry.d.y.toFixed(3), +ry.d.z.toFixed(3)]; if (ry.mel) msg.mel = 1; }
-    try { MP.hostConn.send(msg); } catch (err) {}
-    const pred = dmg >= v.hp ? 'kill' : 'hit'; v.hp -= dmg; return pred;
+    msg.q = MP.hitSeq = ((MP.hitSeq || 0) + 1) % 100000;
+    if (MP.fastConn && MP.fastConn.open) { const fc = MP.fastConn; try { fc.send(msg); } catch (err) {} setTimeout(() => { try { fc.open && fc.send(msg); } catch (err) {} }, 60); } else try { MP.hostConn.send(msg); } catch (err) {}
+    const pred = dmg >= v.hp ? 'kill' : 'hit'; v.hp -= dmg; (MP.predHit = MP.predHit || new Map()).set(msg.q, { v: v.id, d: dmg }); return pred;
   }
   return applyDamage(v, dmg, att, w, head, from);
 }
@@ -5298,7 +5340,7 @@ showLobby(); applyOpts(); showTitle();
   }
 }
 $('loading').remove();
-window.__game = { DROPS, get BOOTHS() { return BOOTHS; }, get DPOS() { return DPOS; }, canSee, inLight, get LIGHT_SPOTS() { return LIGHT_SPOTS; }, HOLES, SHELLS, POST, renderer, renderCheat, spawnFire, loadMap, CHEAT, MAPS, settings, get MAP() { return MAP; }, coverPoints, buildDebug, ramps, startReload, vmRoot, MP, mpCreate, mpJoin, opts, healPacks, eyeH, KC, headY, bodyTop, camera, setMouseR: v => { mouseR = v; }, opticSel, areas, throwGrenade, get flashT() { return flashT; }, setupWeapons, tick: dt => { now += dt; update(dt); }, killEntity, endMatch, startReplay, findHighlight, REC, RP, WEAPONS, switchSlot, playerAttack: () => playerAttack(), get now() { return now; }, entities, score, get state() { return state; }, set state(v) { state = v; }, resetMatch, update, get player() { return player; }, boxes, aiGoals };
+window.__game = { dealDamage: (...a) => dealDamage(...a), NET, DROPS, get BOOTHS() { return BOOTHS; }, get DPOS() { return DPOS; }, canSee, inLight, get LIGHT_SPOTS() { return LIGHT_SPOTS; }, HOLES, SHELLS, POST, renderer, renderCheat, spawnFire, loadMap, CHEAT, MAPS, settings, get MAP() { return MAP; }, coverPoints, buildDebug, ramps, startReload, vmRoot, MP, mpCreate, mpJoin, opts, healPacks, eyeH, KC, headY, bodyTop, camera, setMouseR: v => { mouseR = v; }, opticSel, areas, throwGrenade, get flashT() { return flashT; }, setupWeapons, tick: dt => { now += dt; update(dt); }, killEntity, endMatch, startReplay, findHighlight, REC, RP, WEAPONS, switchSlot, playerAttack: () => playerAttack(), get now() { return now; }, entities, score, get state() { return state; }, set state(v) { state = v; }, resetMatch, update, get player() { return player; }, boxes, aiGoals };
 requestAnimationFrame(loop);
 </script>
 </body>
