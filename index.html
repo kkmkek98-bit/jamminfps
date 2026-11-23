@@ -4946,7 +4946,12 @@ function changeName() {
 }
 $('roomNameBtn').addEventListener('click', changeName);
 $('roomName').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') changeName(); });
-$('chatIn').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); sendChat(); } });
+// 한글 입력 중(조합 중) Enter도 놓치지 않게: 조합이 끝나는 순간 전송
+let chatPend = false;
+$('chatIn').addEventListener('keydown', e => { e.stopPropagation(); if (e.key !== 'Enter' && e.keyCode !== 13) return; e.preventDefault(); if (e.isComposing || e.keyCode === 229) { chatPend = true; return; } chatPend = false; sendChat(); });
+$('chatIn').addEventListener('compositionend', () => { if (chatPend) { chatPend = false; setTimeout(sendChat, 0); } });
+$('chatIn').addEventListener('keyup', e => { e.stopPropagation(); if ((e.key === 'Enter' || e.keyCode === 13) && chatPend) { chatPend = false; setTimeout(sendChat, 0); } });
+['keypress', 'input'].forEach(ev => $('chatIn').addEventListener(ev, e => e.stopPropagation()));
 $('chatSend').addEventListener('click', sendChat);
 $('copyCode').addEventListener('click', () => copyText(MP.code, '방 코드가 복사되었습니다: ' + MP.code));
 $('copyLink').addEventListener('click', () => copyText(inviteLink(), '초대 링크가 복사되었습니다 — 친구에게 보내면 클릭 한 번으로 바로 입장해요'));
