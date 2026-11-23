@@ -400,6 +400,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
 .rm-name{margin-bottom:12px}.rm-name label{display:block;font-size:11px;letter-spacing:2px;color:#ffd23f;font-weight:800;margin-bottom:4px}.rm-name div{display:flex;gap:6px}.rm-name input{flex:1;min-width:0;padding:6px 8px;font-size:13px}.rm-name .btn.sm{margin:0}
 #mpRoom>.rm-bottom{display:flex;gap:14px;justify-content:center;align-items:stretch;flex:0 0 auto}.rm-bottom .rm-chat-bottom{width:min(980px,70%);margin-top:0;flex:0 1 auto;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);padding:8px 12px}.rm-bottom #chatLog{height:104px;min-height:104px;max-height:104px;font-size:13px}.rm-bottom .rm-chat-in input{font-size:13px}.rm-bottom .rm-foot{width:240px;flex:none;display:flex;flex-direction:column;justify-content:flex-end;margin:0}
 .rm-chat{margin-top:10px;display:flex;flex-direction:column;min-height:0;flex:1 1 140px}.rm-chat-h{font-size:12px;font-weight:700;opacity:.8;margin-bottom:4px}
+#diag{position:fixed;top:150px;right:12px;z-index:30;background:rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.15);padding:7px 10px;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8e6f0;white-space:pre;pointer-events:none}#diag.hidden{display:none}#diag b{color:#ffd23f}
 #chatLog{flex:1;min-height:90px;max-height:240px;overflow-y:auto;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);padding:6px 8px;font-size:12px;line-height:1.5;word-break:break-all}
 #chatLog .cm b{color:#ffd23f;font-weight:700;margin-right:4px}#chatLog .cm.blue b{color:#7fb4ff}#chatLog .cm.red b{color:#ff9a8a}#chatLog .cm.sys{color:#9a9a9a;font-style:italic}
 .rm-chat-in{display:flex;gap:6px;margin-top:6px}.rm-chat-in .txt{flex:1;min-width:0;padding:6px 8px;font-size:12px}.rm-chat-in .btn{margin:0}
@@ -419,6 +420,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
 <div id="game"></div>
 
 <div id="cheatHud" class="hidden"></div>
+<div id="diag" class="hidden"></div>
 <div id="hud" class="hidden">
   <canvas id="minimap" width="180" height="192"></canvas>
   <div id="teamList"></div>
@@ -759,13 +761,32 @@ void main(){ vec2 px = 1.0 / res;
   vec2 q = vUv - 0.5; col *= 1.0 - dot(q, q) * 0.42 * grade;
   gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0); }` });
 postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
+// F3 진단 표시: FPS · 핑 · 연결 방식 · 보간 지연 · 수신 빈도 · 흔들림 · 예측 중인 캐릭터 수
+const DIAG = { on: false, t: 0, n: 0, fr: 0 };
+function diagTick(dt) {
+  if (!DIAG.on) return; const nw = performance.now() / 1000; if (!DIAG.t0) DIAG.t0 = nw; DIAG.fr++; if (nw - DIAG.t0 < 0.5) return;
+  const T = nw - DIAG.t0, fps = DIAG.fr / T; DIAG.t0 = nw; DIAG.fr = 0; const L = [`<b>FPS</b> ${fps.toFixed(0)}  해상도 ${Math.round(POST.scale * 100)}%`];
+  if (MP.on) {
+    const rem = entities.filter(e => e !== player && (isClient() || e.remote));
+    if (MP.host) { const rs = entities.filter(e => e.remote && e.noff); const ip = rs.length ? rs.reduce((a, e) => a + (e.noff.interp || NETC.INTERP), 0) / rs.length : 0; const jt = rs.length ? Math.max(...rs.map(e => e.noff.jit || 0)) : 0;
+      const pg = MP.slots.map((sl, i) => sl.kind === 'human' && sl.peer !== 'host' ? `${sl.name.slice(0, 6)} ${MP.ping[i] ?? '-'}ms${((MP.conns.get(sl.peer) || {})._route || '').includes('중계') ? ' 중계' : ''}` : null).filter(Boolean);
+      const r = ((MP.stN || 0) - (DIAG.n || 0)) / T; DIAG.n = MP.stN || 0;
+      L.push('<b>방장</b> 참가자 ' + rs.length + '명', ...pg.map(p => '  ' + p), `보간 평균 ${(ip * 1000).toFixed(0)}ms  흔들림 최대 ${(jt * 1000).toFixed(0)}ms`, `수신 ${r.toFixed(0)}/s`);
+    } else { const r = ((NETC.uN || 0) - (DIAG.n || 0)) / T; DIAG.n = NETC.uN || 0;
+      L.push(`<b>핑</b> ${NETC.ping[player.id] ?? '-'}ms  ${MP.route || ''}`, `보간 ${((NETC.interp || NETC.INTERP) * 1000).toFixed(0)}ms  흔들림 ${((NETC.jit || 0) * 1000).toFixed(0)}ms`, `수신 ${r.toFixed(0)}/s (정상 30)`); }
+    L.push(`예측 중 ${rem.filter(e => e._ex).length}명`);
+  } else L.push('싱글 플레이');
+  $('diag').innerHTML = L.join('\n');
+}
+addEventListener('keydown', e => { if (e.code === 'F3') { e.preventDefault(); DIAG.on = !DIAG.on; $('diag').classList.toggle('hidden', !DIAG.on); DIAG.t0 = 0; DIAG.fr = 0; DIAG.n = MP.host ? (MP.stN || 0) : (NETC.uN || 0); } });
 function postBegin(dt) {
+  diagTick(dt);
   // 자동 해상도: 프레임이 떨어지면 렌더 해상도를 낮추고, 여유가 생기면 다시 올림 (60~100%)
   if (dt > 0 && dt < 0.5) POST.fpsE += (1 / dt - POST.fpsE) * Math.min(1, dt * 3);
   POST.adjT -= dt;
-  if (state === 'playing' && POST.adjT <= 0 && !POST.lock) { POST.adjT = 0.5;
-    if (POST.fpsE < 48 && POST.scale > 0.6) { POST.scale = Math.max(0.6, POST.scale - 0.1); POST.upT = 0; }
-    else if (POST.fpsE > 57) { POST.upT += 0.5; if (POST.upT >= 2 && POST.scale < 1) { POST.scale = Math.min(1, POST.scale + 0.05); POST.upT = 0; } } else POST.upT = 0; }
+  if (state === 'playing' && POST.adjT <= 0 && !POST.lock) { POST.adjT = 1;
+    if (POST.fpsE < 45 && POST.scale > 0.6) { POST.scale = Math.max(0.6, POST.scale - 0.05); POST.upT = 0; }
+    else if (POST.fpsE > 58) { POST.upT += 1; if (POST.upT >= 5 && POST.scale < 1) { POST.scale = Math.min(1, POST.scale + 0.05); POST.upT = 0; } } else POST.upT = 0; }
   renderer.getDrawingBufferSize(POST.sz); const w = Math.max(2, Math.round(POST.sz.x * POST.scale)), h = Math.max(2, Math.round(POST.sz.y * POST.scale));
   if (POST.rt.width !== w || POST.rt.height !== h) { POST.rt.setSize(w, h); postMat.uniforms.res.value.set(w, h); }
   renderer.setRenderTarget(POST.rt);
@@ -1194,7 +1215,7 @@ function wallX(a0, a1, z, t, yb, h, ops, mat) {
   ops = ops.slice().sort((p, q) => p.a - q.a); let cur = a0;
   const plinth = (p, q) => { if (yb === 0 && q - p > 0.2) deco((p + q) / 2, 0.11, z, q - p, 0.22, t + 0.05, MAT.trimDark); };
   for (const o of ops) frameX(o, z, t, yb, h);
-  if (MAP.night) for (const o of ops) if (o.y0 > 0.5 && o.y1 - o.y0 < 2 && Math.random() < 0.3) { const g = new THREE.PlaneGeometry(o.b - o.a, o.y1 - o.y0); const m = batchAdd(g, WIN_GLOW, false, true); m.position.set((o.a + o.b) / 2, yb + (o.y0 + o.y1) / 2, z); }
+  if (MAP.night) for (const o of ops) if (o.y0 > 0.5 && o.y1 - o.y0 < 2 && winLit(o.a, z, yb)) { const g = new THREE.PlaneGeometry(o.b - o.a, o.y1 - o.y0); const m = batchAdd(g, WIN_GLOW, false, true); m.position.set((o.a + o.b) / 2, yb + (o.y0 + o.y1) / 2, z); winSpill((o.a + o.b) / 2, yb, z, o.b - o.a); }
   for (const o of ops) {
     if (o.a > cur) { addBox((cur + o.a) / 2, yb, z, o.a - cur, h, t, mat); plinth(cur, o.a); }
     if (o.y0 > 0) addBox((o.a + o.b) / 2, yb, z, o.b - o.a, o.y0, t, mat);
@@ -1207,7 +1228,7 @@ function wallZ(a0, a1, x, t, yb, h, ops, mat) {
   ops = ops.slice().sort((p, q) => p.a - q.a); let cur = a0;
   const plinth = (p, q) => { if (yb === 0 && q - p > 0.2) deco(x, 0.11, (p + q) / 2, t + 0.05, 0.22, q - p, MAT.trimDark); };
   for (const o of ops) frameZ(o, x, t, yb, h);
-  if (MAP.night) for (const o of ops) if (o.y0 > 0.5 && o.y1 - o.y0 < 2 && Math.random() < 0.3) { const g = new THREE.PlaneGeometry(o.b - o.a, o.y1 - o.y0); g.rotateY(Math.PI / 2); const m = batchAdd(g, WIN_GLOW, false, true); m.position.set(x, yb + (o.y0 + o.y1) / 2, (o.a + o.b) / 2); }
+  if (MAP.night) for (const o of ops) if (o.y0 > 0.5 && o.y1 - o.y0 < 2 && winLit(o.a, x, yb)) { const g = new THREE.PlaneGeometry(o.b - o.a, o.y1 - o.y0); g.rotateY(Math.PI / 2); const m = batchAdd(g, WIN_GLOW, false, true); m.position.set(x, yb + (o.y0 + o.y1) / 2, (o.a + o.b) / 2); const sg = new THREE.PlaneGeometry(2.6, o.b - o.a + 1.6); sg.rotateX(-Math.PI / 2); batchAdd(sg, POOL_MAT, false, true).position.set(x, yb + 0.04, (o.a + o.b) / 2); }
   for (const o of ops) {
     if (o.a > cur) { addBox(x, yb, (cur + o.a) / 2, t, h, o.a - cur, mat); plinth(cur, o.a); }
     if (o.y0 > 0) addBox(x, yb, (o.a + o.b) / 2, t, o.y0, o.b - o.a, mat);
@@ -1737,12 +1758,20 @@ const DECAL_MAT = new THREE.MeshStandardMaterial({ map: DECAL_TEX, transparent: 
 const PUDDLE_MAT = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, 256, 256);
   for (let k = 0; k < 7; k++) { const x = 128 + (Math.random() - 0.5) * 90, y = 128 + (Math.random() - 0.5) * 60, r = 35 + Math.random() * 45, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, '#fff'); gr.addColorStop(0.7, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 6.28); g.fill(); }
   const t = new THREE.CanvasTexture(c); return new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.04, metalness: 0.55, alphaMap: t, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }); })();
-const WIN_GLOW = new THREE.MeshBasicMaterial({ color: 0xffc27a, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+const WIN_GLOW = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 36, 4, 32, 34, 40); gr.addColorStop(0, 'rgba(255,214,150,1)'); gr.addColorStop(0.55, 'rgba(255,190,110,.75)'); gr.addColorStop(1, 'rgba(255,170,90,.12)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), color: 0xffffff, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }); })();
+const winLit = (a, b, c) => { const v = Math.sin(a * 12.9898 + b * 78.233 + c * 37.719) * 43758.5453; return v - Math.floor(v) < 0.3; };
+function winSpill(x, y, z, w) { const g = new THREE.PlaneGeometry(w + 1.6, 2.6); g.rotateX(-Math.PI / 2); const o = batchAdd(g, POOL_MAT, false, true); o.position.set(x, y + 0.04, z); }
 DECAL_MAT.userData.noWP = PUDDLE_MAT.userData.noWP = true;
 function decalGeo(cell, w, h, flip) { const g = new THREE.PlaneGeometry(w, h), uv = g.attributes.uv, cx = cell % 4, cy = cell / 4 | 0;
   for (let i = 0; i < uv.count; i++) { const u = flip ? 1 - uv.getX(i) : uv.getX(i); uv.setXY(i, (cx + u) / 4, 1 - (cy + 1) / 2 + uv.getY(i) / 2); } return g; }
 let DPOS = [];
 function decals() {
+  const keep = Math.random; let sd = 0; for (const ch of MAP.id + (MAP.night ? 'n' : 'd')) sd = (sd * 31 + ch.charCodeAt(0)) >>> 0;
+  Math.random = () => { sd = (sd + 0x6D2B79F5) >>> 0; let t = sd; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  try { return decalsBody(); } finally { Math.random = keep; }
+}
+function decalsBody() {
   DPOS = [];
   const inBox = (x, y, z, m = 0) => boxes.some(b => x > b.min[0] - m && x < b.max[0] + m && z > b.min[2] - m && z < b.max[2] + m && y > b.min[1] - m && y < b.max[1] + m);
   const faces = [];
@@ -1765,7 +1794,7 @@ function decals() {
   let nG = 0, nP = 0;
   for (let k = 0; k < 260 && (nG < 46 || nP < 12); k++) { const x = rand(-ARENA.x * 0.95, ARENA.x * 0.95), z = rand(-ARENA.z * 0.95, ARENA.z * 0.95);
     if (outsideArena(x, z) || inBox(x, 0.3, z, 0.6) || (MAP.id === 'harbor' && x < -51)) continue;
-    if (nP < 12 && Math.random() < 0.3) { const g = new THREE.PlaneGeometry(rand(1.6, 3.4), rand(1.2, 2.4)); g.rotateX(-Math.PI / 2); g.rotateY(Math.random() * 6.28); const o = batchAdd(g, PUDDLE_MAT, false, true); o.position.set(x, 0.055, z); nP++; continue; }
+    if (nP < 12 && Math.random() < 0.3 && !boxes.some(b => b.min[1] > 1.5 && x > b.min[0] && x < b.max[0] && z > b.min[2] && z < b.max[2])) { const g = new THREE.PlaneGeometry(rand(1.6, 3.4), rand(1.2, 2.4)); g.rotateX(-Math.PI / 2); g.rotateY(Math.random() * 6.28); const o = batchAdd(g, PUDDLE_MAT, false, true); o.position.set(x, 0.055, z); nP++; continue; }
     if (nG >= 46) continue; const r = Math.random(), cell = r < 0.4 ? 5 : r < 0.85 ? 6 : 7, s = cell === 7 ? 1.0 : rand(1.0, 2.4);
     const g = decalGeo(cell, s, s); g.rotateX(-Math.PI / 2); g.rotateY(Math.random() * 6.28); const o = batchAdd(g, DECAL_MAT, false, true, true); o.position.set(x, 0.05, z); nG++; }
   return [nW, nG, nP];
@@ -2217,11 +2246,11 @@ const CAMO = (() => { const mk = pal => { const n = 512, c = document.createElem
       for (const ox of [-n, 0, n]) for (const oy of [-n, 0, n]) { g.beginPath(); rs.forEach((rr, a) => { const t = a / 12 * 6.283; g.lineTo(cx + ox + Math.cos(t) * rr * 1.5, cy + oy + Math.sin(t) * rr); }); g.closePath(); g.fill(); } }
     noise(g, n, 6000, () => 'rgba(0,0,0,1)', 0.05, 2);
     const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
-  return { blue: mk(['#5d6b4a', '#3f4b30', '#6e5a3e', '#23261c']), red: mk(['#b49b74', '#8c7352', '#6e5a40', '#d1bd96']) }; })();
+  return { blue: mk(['#58634a', '#46523a', '#5f5541', '#363b2d']), red: mk(['#9c876a', '#857257', '#73624a', '#ad9a7c']) }; })();
 function makeSoldier(team, name, gunKey) {
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   const blue = team === 'blue';
-  const mU = triPatch(SM(0xffffff, { map: CAMO[blue ? 'blue' : 'red'], roughness: 0.92 }), { scale: 2.2, bump: 0.6, wear: 0, camo: 1 }), mV = SM(blue ? 0x2d6cdf : 0xd8402f, { roughness: 0.6 }), mS = SM(0xd9a77f), mH = SM(blue ? 0x1e3f7a : 0x7a1e1e, { roughness: 0.5, metalness: 0.3 }), mB = SM(0x222222), mG = SM(0x1c1d1f, { roughness: 0.4, metalness: 0.6 }), mW = SM(0x7a4a22);
+  const mU = triPatch(SM(0xffffff, { map: CAMO[blue ? 'blue' : 'red'], roughness: 0.92 }), { scale: 3.4, bump: 0.5, wear: 0, camo: 1 }), mV = SM(blue ? 0x2d6cdf : 0xd8402f, { roughness: 0.6 }), mS = SM(0xd9a77f), mH = SM(blue ? 0x1e3f7a : 0x7a1e1e, { roughness: 0.5, metalness: 0.3 }), mB = SM(0x222222), mG = SM(0x1c1d1f, { roughness: 0.4, metalness: 0.6 }), mW = SM(0x7a4a22);
   const mP = SM(blue ? 0x3a4430 : 0x4a3c2c, { roughness: 0.9 }), mGl = SM(0x111316, { roughness: 0.2, metalness: 0.4 });
   const add = (geo, m, x, y, z, p = body) => { const k = new THREE.Mesh(geo, m); k.position.set(x, y, z); k.castShadow = true; p.add(k); return k; };
   const rb = (w, h, d, m, x, y, z, p = body, r = 0.25) => add(new RoundedBoxGeometry(w, h, d, 1, Math.min(w, h, d) * r), m, x, y, z, p);
@@ -2262,7 +2291,7 @@ function makeSoldier(team, name, gunKey) {
   // 35m 밖에서 쓰는 단순 모델: 상자 몇 개를 색상째 합쳐 한 번에 그림
   const lp = [], col = (g, c) => { const n = g.attributes.position.count, a = new Float32Array(n * 3), cc = new THREE.Color(c); for (let i = 0; i < n; i++) { a[i * 3] = cc.r; a[i * 3 + 1] = cc.g; a[i * 3 + 2] = cc.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; };
   const lb = (w, h, d, x, y, z, c) => { const g = new THREE.BoxGeometry(w, h, d).toNonIndexed(); g.deleteAttribute('uv'); g.translate(x, y, z); lp.push(col(g, c)); };
-  const uC = blue ? 0x58633f : 0xa08a64; // 위장무늬 평균색
+  const uC = blue ? 0x4e5940 : 0x8c785c; // 위장무늬 평균색
   // 35m 밖 모델: 가까이서 보는 몸체(다리·몸통·팔·헬멧) 형태를 그대로 한 덩어리로 합침 → 멀리서도 같은 생김새, 그리기 1번
   root.updateMatrixWorld(true); const inv = root.matrixWorld.clone().invert(), M4 = new THREE.Matrix4();
   body.traverse(o => { if (!o.isMesh || !o.visible) return; let p = o; while (p && p !== body) { if (p === gun || p === beam) return; p = p.parent; }
@@ -2326,7 +2355,7 @@ function gunTex(kind) {
   g.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 // 물체 좌표 기준 삼면 투영: 작은 부품·큰 부품 모두 같은 밀도로 질감이 보임. 둥근 모서리(법선이 축과 어긋난 곳)는 칠이 벗겨진 금속색
-const TRI_GLSL = `varying vec3 vOP; varying vec3 vON;
+const TRI_GLSL = `varying vec3 vOP; varying vec3 vON; varying float vWearM;
 vec4 triTex(sampler2D s, vec3 p, vec3 n){ vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y + w.z);
   return texture2D(s, p.zy) * w.x + texture2D(s, p.xz) * w.y + texture2D(s, p.xy) * w.z; }`;
 const WEAR = new Map();
@@ -2334,7 +2363,7 @@ function triPatch(m, o) {
   m.userData.tri = o; m.customProgramCacheKey = () => 'tri' + (o.wear > 0 ? 'W' : '') + (o.camo ? 'C' : '');
   m.onBeforeCompile = sh => {
     sh.uniforms.triScale = { value: o.scale }; sh.uniforms.triBump = { value: o.bump || 0 }; sh.uniforms.triWear = { value: o.wear || 0 };
-    sh.vertexShader = 'varying vec3 vOP; varying vec3 vON;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vOP = position; vON = normal;');
+    sh.vertexShader = 'attribute float wearM; varying vec3 vOP; varying vec3 vON; varying float vWearM;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vOP = position; vON = normal; vWearM = wearM;');
     sh.fragmentShader = 'uniform float triScale; uniform float triBump; uniform float triWear;\n' + TRI_GLSL + '\n' + sh.fragmentShader
       .replace('#include <map_fragment>', `
         vec3 triN = normalize(vON); vec4 triC = vec4(1.0);
@@ -2342,7 +2371,7 @@ function triPatch(m, o) {
           triC = triTex(map, vOP * triScale, triN); diffuseColor *= triC;
         #endif
         float triEdge = 1.0 - max(max(abs(triN.x), abs(triN.y)), abs(triN.z));
-        float triW = smoothstep(0.05, 0.22, triEdge) * triWear * (0.6 + 0.8 * triC.r - 0.4);
+        float triW = smoothstep(0.05, 0.22, triEdge) * triWear * vWearM * (0.6 + 0.8 * triC.r - 0.4);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.42, 0.41) * (0.7 + 0.5 * triC.r), clamp(triW, 0.0, 0.85));`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.32, clamp(triW, 0.0, 0.85));')
       .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n metalnessFactor = mix(metalnessFactor, 0.85, clamp(triW, 0.0, 0.85));')
@@ -2357,13 +2386,14 @@ for (const [m, w] of [[K.tan, 1], [K.olive, 1], [K.green, 0.9], [K.black, 0.7], 
 { const M = gunTex('metal'), P = gunTex('poly'), F = gunTex('fabric');
   const pm = pbrize(M, 2.5, 0.42, 0.9), pp = pbrize(P, 5, 0.8, 0.5), pf = pbrize(F, 4, 0.95, 0.3);
   for (const [m, t, pb, sc] of [[K.black, M, pm, 0.6], [K.dark, M, pm, 0.6], [K.silver, M, pm, 0.4], [K.blade, M, pm, 0.3], [K.tan, P, pp, 0.9], [K.olive, P, pp, 0.9], [K.green, P, pp, 0.8], [K.glove, F, pf, 1], [K.sleeve, F, pf, 1]]) {
-    m.map = t; m.normalMap = null; triPatch(m, { scale: 7, bump: sc * 0.9, wear: WEAR.get(m) || 0 }); } }
+    m.map = t; m.normalMap = null; triPatch(m, { scale: 7, bump: sc * (t === M ? 0.9 : 0.4), wear: WEAR.get(m) || 0 }); }
+  K.gren = triPatch(VMM(0x4a6332, { metalness: 0.15, roughness: 0.55, map: P }), { scale: 24, bump: 0.25, wear: 0 }); }
 // 근접무기 공통 손: 손바닥 + 손가락 4개가 손잡이를 감싸 쥠 + 엄지 + 소매
 function meleeHand(g) {
   vb(g, 0.056, 0.07, 0.094, K.glove, 0.012, -0.004, 0.004); vb(g, 0.024, 0.062, 0.088, K.glove, -0.016, 0.0, 0.0); vb(g, 0.026, 0.024, 0.05, K.glove, -0.006, 0.034, -0.02);
   limb(g, V(0.022, -0.01, 0.05), V(0.13, -0.3, 0.34), 0.075, K.sleeve);
 }
-function vb(p, w, h, d, m, x, y, z, rx = 0, ry = 0, rz = 0) { const mn = Math.min(w, h, d); const k = new THREE.Mesh(mn > 0.012 ? new RoundedBoxGeometry(w, h, d, 2, mn * 0.22) : new THREE.BoxGeometry(w, h, d), m); k.position.set(x, y, z); k.rotation.set(rx, ry, rz); p.add(k); return k; }
+function vb(p, w, h, d, m, x, y, z, rx = 0, ry = 0, rz = 0) { const mn = Math.min(w, h, d); const gg = mn > 0.012 ? new RoundedBoxGeometry(w, h, d, 2, mn * 0.22) : new THREE.BoxGeometry(w, h, d); gg.setAttribute('wearM', new THREE.BufferAttribute(new Float32Array(gg.attributes.position.count).fill(1), 1)); const k = new THREE.Mesh(gg, m); k.position.set(x, y, z); k.rotation.set(rx, ry, rz); p.add(k); return k; }
 function vc(p, r, len, m, x, y, z) { const k = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 20), m); k.rotation.x = Math.PI / 2; k.position.set(x, y, z); p.add(k); return k; }
 function limb(p, from, to, th, m) { const cg = new THREE.CapsuleGeometry(th * 0.55, Math.max(0.01, from.distanceTo(to) - th), 4, 12); cg.rotateX(Math.PI / 2); const k = new THREE.Mesh(cg, m); k.position.copy(from).add(to).multiplyScalar(0.5); p.add(k); k.lookAt(to); return k; }
 // 총기 디테일: 레일 톱니, 방아쇠/울, 배출구, 장전손잡이 등
@@ -2620,7 +2650,8 @@ function makeGunModel(key, arms = true) {
     limb(g, V(0.01, -0.04, 0.04), V(0.12, -0.32, 0.34), 0.075, K.sleeve);
     sightY = 0;
   } else {
-    const s = new THREE.Mesh(new THREE.SphereGeometry(0.042, 14, 10), K.green); s.scale.y = 1.15; g.add(s);
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.042, 28, 20), K.gren); s.scale.y = 1.15; g.add(s);
+    for (const yy of [-0.018, 0, 0.018]) { const bd = new THREE.Mesh(new THREE.TorusGeometry(Math.sqrt(0.042 ** 2 - (yy / 1.15) ** 2) + 0.0004, 0.0012, 4, 28), K.dark); bd.rotation.x = Math.PI / 2; bd.position.y = yy; g.add(bd); }
     vc(g, 0.017, 0.03, K.dark, 0, 0.05, 0).rotation.x = 0;
     vb(g, 0.012, 0.07, 0.016, K.dark, 0.02, 0.025, 0.0, 0, 0, -0.2);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.0025, 6, 12), K.silver); ring.position.set(-0.02, 0.065, 0); g.add(ring);
@@ -2960,7 +2991,8 @@ function xrayPass() {
 
 // ===================== 수류탄 =====================
 const grenades = [];
-const grenGeo = new THREE.SphereGeometry(0.09, 10, 8);
+const grenGeo = (() => { const a = new THREE.SphereGeometry(0.09, 20, 14); a.scale(1, 1.15, 1); const b = new THREE.CylinderGeometry(0.034, 0.038, 0.06, 12); b.translate(0, 0.12, 0); const c = new THREE.BoxGeometry(0.024, 0.12, 0.03); c.translate(0.05, 0.07, 0); c.rotateZ(-0.15);
+  return mergeGeometries([a.toNonIndexed(), b.toNonIndexed(), c.toNonIndexed()], false); })();
 const grenMat = SM(0x40592c, { roughness: 0.6, metalness: 0.2 });
 const THROWN = {
   GRENADE: [grenGeo, grenMat], FLASH: [new THREE.CylinderGeometry(0.06, 0.06, 0.16, 10), SM(0x9aa0a6, { metalness: 0.7, roughness: 0.3 })],
@@ -3500,7 +3532,7 @@ function updateModel(e, dt) {
     e._fl = k > 0; if (!e._fl) e._glow = -1;
   }
   m.root.position.copy(e.pos); m.root.rotation.y = e.yaw;
-  if (m.lod) { const far = e.alive && !e.prone && !(MAP.night && e.lightOn !== false) && !(state === 'replay' || KC.on) && e.pos.distanceToSquared(camera.position) > 1225; m.lod.visible = far; m.body.visible = !far; }
+  if (m.lod) { const far = e.alive && !e.prone && !(MAP.night && e.lightOn !== false) && !(state === 'replay' || KC.on) && e.pos.distanceToSquared(camera.position) > 2500; m.lod.visible = far; m.body.visible = !far; }
   if (e.alive) {
     const hs = Math.hypot(e.vel.x, e.vel.z);
     e.walkPhase += dt * hs * 2.2; const sw = Math.sin(e.walkPhase) * Math.min(0.7, hs * 0.12);
@@ -4420,11 +4452,11 @@ const MP = { fconns: new Map(), fastConn: null, ping: [], seen: new Map(), on: f
 const MP_PREFIX = 'jamminfps-v18-', MAX_HUMANS = 8;
 let netIn = false, netSrc;
 // ----- 네트코드: 보간 버퍼 · 예측 이동 · 랙 보상 -----
-const NETC = { INTERP: 0.1, EXTRA: 0.25, SNAP: 12, REWIND: 0.3, off: null, fastAt: -9, ping: [] };
+const NETC = { INTERP: 0.1, EXTRA: 0.12, SNAP: 12, REWIND: 0.3, off: null, fastAt: -9, ping: [] };
 const nclock = () => performance.now() / 1000;
 function netOff(o, t) { const smp = t - nclock(); if (o.off == null || smp > o.off) o.off = smp; else o.off += (smp - o.off) * 0.02;
   // 도착 흔들림(지터) 추적 → 보간 지연을 자동 조절 (안정적이면 0.08초, 흔들리면 최대 0.3초)
-  const late = Math.max(0, o.off - smp); o.jit = o.jit == null ? late : o.jit * 0.96 + late * 0.04; o.interp = Math.min(0.3, Math.max(0.08, 0.05 + o.jit * 2.2)); }
+  const late = Math.max(0, o.off - smp); o.jit = o.jit == null ? late : o.jit + (late - o.jit) * (late > o.jit ? 0.05 : 0.1); o.interp = Math.min(0.25, Math.max(0.07, 0.05 + o.jit * 2.0)); }
 // 보내기 대기열이 쌓이면(느린 회선·중계) 이번 위치 갱신은 건너뜀 → 지연이 눈덩이처럼 커지는 것 방지
 const chBuf = c => { try { return (c && c.dataChannel && c.dataChannel.bufferedAmount) || 0; } catch (err) { return 0; } };
 // 받은 위치를 시간표와 함께 쌓아둠 (늦게 온/중복 패킷은 버림, 크게 튀면 버퍼 초기화 → 그 자리로 이동)
@@ -4432,7 +4464,7 @@ function netPush(e, t, a) {
   if (!e.nb) e.nb = []; const L = e.nb[e.nb.length - 1];
   if (L && t <= L.t) return;
   if (L && (a[0] - L.x) ** 2 + (a[2] - L.z) ** 2 + (a[1] - L.y) ** 2 > NETC.SNAP * NETC.SNAP) { e.nb.length = 0; e.netSnap = true; }
-  e.nb.push({ t, x: a[0], y: a[1], z: a[2], yaw: a[3], pt: a[4] });
+  e.nb.push({ t, x: a[0], y: a[1], z: a[2], yaw: a[3], pt: a[4], c: a[5], pr: a[6], ln: a[7] });
   while (e.nb.length > 2 && e.nb[1].t < t - 1) e.nb.shift();
 }
 // 0.1초 과거 시점을 두 패킷 사이 보간 · 패킷이 늦으면 최대 0.25초까지 마지막 속도로 예측 이동
@@ -4442,16 +4474,18 @@ function netSample(e, o) {
   if (rt >= L.t) {
     const P = b[b.length - 2]; let vx = 0, vy = 0, vz = 0;
     if (P && L.t - P.t > 0.001) { const d = L.t - P.t; vx = (L.x - P.x) / d; vy = (L.y - P.y) / d; vz = (L.z - P.z) / d; }
-    const x = Math.min(rt - L.t, NETC.EXTRA); return { x: L.x + vx * x, y: Math.max(L.y + Math.min(vy, 0) * x, L.y - 2), z: L.z + vz * x, yaw: L.yaw, pt: L.pt };
+    const x = Math.min(rt - L.t, NETC.EXTRA); return { x: L.x + vx * x, y: Math.max(L.y + Math.min(vy, 0) * x, L.y - 2), z: L.z + vz * x, yaw: L.yaw, pt: L.pt, c: L.c, pr: L.pr, ln: L.ln, ex: 1 };
   }
   if (rt <= b[0].t) return b[0];
-  for (let i = b.length - 1; i > 0; i--) { const A = b[i - 1], B = b[i]; if (rt >= A.t) { const k = (rt - A.t) / Math.max(1e-4, B.t - A.t); return { x: A.x + (B.x - A.x) * k, y: A.y + (B.y - A.y) * k, z: A.z + (B.z - A.z) * k, yaw: A.yaw + angDiff(A.yaw, B.yaw) * k, pt: A.pt + (B.pt - A.pt) * k }; } }
+  for (let i = b.length - 1; i > 0; i--) { const A = b[i - 1], B = b[i]; if (rt >= A.t) { const k = (rt - A.t) / Math.max(1e-4, B.t - A.t); const lk = (p, q) => p == null || q == null ? q : p + (q - p) * k; return { x: A.x + (B.x - A.x) * k, y: A.y + (B.y - A.y) * k, z: A.z + (B.z - A.z) * k, yaw: A.yaw + angDiff(A.yaw, B.yaw) * k, pt: A.pt + (B.pt - A.pt) * k, c: lk(A.c, B.c), pr: lk(A.pr, B.pr), ln: lk(A.ln, B.ln) }; } }
   return L;
 }
 // 방장: 모든 캐릭터의 최근 0.6초 위치 기록 (랙 보상 판정용)
 function netHist() {
   const t = nclock();
-  for (const e of entities) { if (!e.hist) e.hist = []; if (!e.alive) { e.hist.length = 0; continue; } e.hist.push({ t, x: e.pos.x, y: e.pos.y, z: e.pos.z, c: e.crouch || 0, pr: e.prone || 0 }); while (e.hist.length && e.hist[0].t < t - 0.6) e.hist.shift(); }
+  for (const e of entities) { if (!e.hist) e.hist = []; if (!e.alive) { e.hist.length = 0; continue; }
+    const S = e.remote && e.noff && e.noff.off != null ? netSample(e, { off: e.noff.off, interp: 0.0001 }) : null;
+    e.hist.push(S ? { t, x: S.x, y: S.y, z: S.z, c: S.c ?? e.crouch ?? 0, pr: S.pr ?? e.prone ?? 0 } : { t, x: e.pos.x, y: e.pos.y, z: e.pos.z, c: e.crouch || 0, pr: e.prone || 0 }); while (e.hist.length && e.hist[0].t < t - 0.6) e.hist.shift(); }
 }
 function histAt(e, t) {
   const h = e.hist; if (!h || !h.length) return null; if (t <= h[0].t) return h[0]; if (t >= h[h.length - 1].t) return h[h.length - 1];
@@ -4726,7 +4760,7 @@ function hostOnData(conn, m) {
     case 'team': moveTeam(id); break;
     case 'lo': MP.slots[si].lo = sanitizeLo(m.lo); break;
     case 'nm': { const nm = String(m.name || '').trim().slice(0, 10); if (nm && !MP.started) { MP.slots[si].name = nm; broadcastRoom(); } break; }
-    case 'st': if (MP.started && e.alive && m.al) { if (m.ct != null) { if (!e.noff) e.noff = { off: null }; netOff(e.noff, m.ct); netPush(e, m.ct, [m.p[0], m.p[1], m.p[2], m.y, m.pt]); } e.netT = m.p; e.netYaw = m.y; e.ai.pitch = m.pt; e.crouch = m.c; e.prone = m.pr; e.lean = m.ln; e.lightOn = m.lt !== 0; } break;
+    case 'st': if (MP.started && e.alive && m.al) { if (m.ct != null) { if (!e.noff) e.noff = { off: null }; netOff(e.noff, m.ct); MP.stN = (MP.stN || 0) + 1; netPush(e, m.ct, [m.p[0], m.p[1], m.p[2], m.y, m.pt, m.c, m.pr, m.ln]); e.lastRaw = [m.p[0], m.p[1], m.p[2], m.y, m.pt, m.c, m.pr, m.ln]; } else { e.crouch = m.c; e.prone = m.pr; e.lean = m.ln; } e.netT = m.p; e.netYaw = m.y; e.ai.pitch = m.pt; e.lightOn = m.lt !== 0; } break;
     case 'ev': if (MP.started) for (const ev of m.e) hostClientEvent(e, ev); break;
     case 'hit': if (MP.started && e.alive) { const v = entities[m.v]; if (v && v.alive && v !== e && hitPlausible(v, m)) { const r = applyDamage(v, clamp(+m.d || 0, 0, 260), e, String(m.w || ''), !!m.h, e.pos); if (r) { bloodFx(v.pos.clone().add(V(0, m.h ? headY(v) : 1.1, 0))); if (v.model) { v.flashT = 0.12; v.flashCol = m.h ? 0xffd23f : 0xffffff; } } } } break;
     case 'throw': if (MP.started && e.alive) spawnGrenade(e, V(...m.p), V(...m.v), THROWS.includes(m.ty) ? m.ty : 'GRENADE'); break;
@@ -4763,7 +4797,7 @@ function clientOnData(m) {
     case 'room': MP.slots = m.slots.map(s => ({ ...s, lo: null })); MP.mode = m.mode; const pwm = settings.wmode; Object.assign(settings, m.set); if (pwm !== settings.wmode) { curMapId = null; fixLoadoutForMode(); } if (MP.started) syncSlotsMid(); if (!MP.started && state !== 'playing') { loadMap(settings.map, MP.mode === 'pvp'); showMapPreview(); } if ($('mpRoom').classList.contains('hidden') || state !== 'menu') { if (!MP.started) showRoom(); } else renderRoom(); break;
     case 'start': clientStart(m); break;
     case 's': if (MP.started && state === 'playing') applySnap(m); break;
-    case 'u': if (MP.started && state === 'playing' && Array.isArray(m.e)) { netOff(NETC, m.ht); NETC.fastAt = nclock(); m.e.forEach((a, i) => { const e = entities[i]; if (e && e !== player) netPush(e, m.ht, a); }); } break;
+    case 'u': if (MP.started && state === 'playing' && Array.isArray(m.e)) { netOff(NETC, m.ht); NETC.fastAt = nclock(); NETC.uN = (NETC.uN || 0) + 1; m.e.forEach((a, i) => { const e = entities[i]; if (e && e !== player) netPush(e, a[8] != null ? a[8] : m.ht, a); }); } break;
     case 'pi': try { MP.hostConn.send({ t: 'po', s: m.s }); } catch (err) {} break;
     case 'chat': addChat(m.n, m.m, m.sys, m.tm); break;
     case 'spawn': clientSpawn(m); break;
@@ -4801,7 +4835,7 @@ function applySnap(m) {
     if (e === player) { if (player.alive) { player.hp = a[5]; if (!a[14]) player.protectT = Math.min(player.protectT, 0); } return; }
     e.protectT = a[14] ? 1 : 0; if (a[19] !== undefined) e.lightOn = a[19] !== 0;
     if (a[18] >= 0 && WKEYS[a[18]] && e.modelKey !== WKEYS[a[18]]) { e.modelKey = WKEYS[a[18]]; if (e.model) soldierGun(e.model, e.modelKey); }
-    if (nclock() - NETC.fastAt > 1) { e.netT = [a[0], a[1], a[2]]; e.netYaw = a[3]; e.ai.pitch = a[4]; } e.hp = a[5]; e.crouch = a[7]; e.prone = a[8]; e.lean = a[9]; e.respawnT = a[16];
+    if (nclock() - NETC.fastAt > 1) { e.netT = [a[0], a[1], a[2]]; e.netYaw = a[3]; e.ai.pitch = a[4]; } e.hp = a[5]; if (nclock() - NETC.fastAt > 1) { e.crouch = a[7]; e.prone = a[8]; e.lean = a[9]; } e.respawnT = a[16];
     const al = !!a[6];
     if (!al && e.alive) { e.alive = false; e.deadT = 0; }
     else if (al && !e.alive) { e.alive = true; e.nb = []; e.netSnap = true; e.pos.set(a[0], a[1], a[2]); e.yaw = a[3]; if (e.model) { e.model.root.visible = true; e.model.body.rotation.set(0, 0, 0); e.model.body.position.set(0, 0, 0); e.model.helmet.visible = true; } }
@@ -4845,7 +4879,10 @@ function clientSpawn(m) {
 function netFast(dt) {
   MP.fastT = (MP.fastT || 0) - dt; if (MP.fastT > 0) return; MP.fastT = 1 / 30;
   if (MP.host) {
-    const msg = { t: 'u', ht: +nclock().toFixed(3), e: entities.map(x => [r2(x.pos.x), r2(x.pos.y), r2(x.pos.z), r2(x.yaw), r2(x.isPlayer ? camera.rotation.x : x.ai.pitch)]) };
+    const hn = nclock(); const msg = { t: 'u', ht: +hn.toFixed(3), e: entities.map(x => {
+      const L = x.remote && x.nb && x.nb.length && x.noff && x.noff.off != null ? x.nb[x.nb.length - 1] : null;
+      if (L) return [r2(L.x), r2(L.y), r2(L.z), r2(L.yaw), r2(L.pt), r2(L.c || 0), r2(L.pr || 0), r2(L.ln || 0), +(L.t - x.noff.off).toFixed(3)]; // 방장 보간 거치지 않은 원본
+      return [r2(x.pos.x), r2(x.pos.y), r2(x.pos.z), r2(x.yaw), r2(x.isPlayer ? camera.rotation.x : x.ai.pitch), r2(x.crouch || 0), r2(x.prone || 0), r2(x.lean || 0)]; }) };
     for (const [pid, c] of MP.conns) { const f = MP.fconns.get(pid); const ch = f && f.open ? f : c; if (ch && ch.open && chBuf(ch) < 16000) { try { ch.send(msg); } catch (err) {} } }
   } else if (MP.hostConn && MP.hostConn.open) {
     const p = player, ch = MP.fastConn && MP.fastConn.open ? MP.fastConn : MP.hostConn; if (chBuf(ch) > 16000) return;
@@ -4878,11 +4915,13 @@ function netOut(ev) {
 function netPuppet(e, dt) {
   if (MP.host && e.protectT > 0) e.protectT -= dt;
   if (!e.alive) { e.vel.set(0, 0, 0); return; }
-  const S = netSample(e, MP.host ? e.noff : NETC);
+  const S = netSample(e, MP.host ? e.noff : NETC); e._ex = !!(S && S.ex);
   if (S) {
     const dx = S.x - e.pos.x, dy = S.y - e.pos.y, dz = S.z - e.pos.z;
     if (e.netSnap || dx * dx + dy * dy + dz * dz > NETC.SNAP * NETC.SNAP) { e.pos.set(S.x, S.y, S.z); e.vel.set(0, 0, 0); e.netSnap = false; }
-    else { const k = 1 - Math.exp(-dt * 30); e.vel.set(dx * k / dt, 0, dz * k / dt); e.pos.x += dx * k; e.pos.y += dy * k; e.pos.z += dz * k; }
+    else { let k = 1 - Math.exp(-dt * (S.ex ? 12 : 30)); const sv = 1 - Math.exp(-dt * 8), dh = Math.hypot(dx, dz), mx = (dh > 3 ? 40 : SPRINT * 1.3) * dt; if (dh * k > mx) k = mx / dh; // 따라잡는 속도 상한 → 핑이 튄 뒤에도 순간 가속·되감김 없음
+      e.vel.x += (dx * k / dt - e.vel.x) * sv; e.vel.z += (dz * k / dt - e.vel.z) * sv; e.vel.y = 0; e.pos.x += dx * k; e.pos.y += dy * (1 - Math.exp(-dt * 30)); e.pos.z += dz * k; }
+    if (S.c != null) { const ks = 1 - Math.exp(-dt * 20); e.crouch = (e.crouch || 0) + (S.c - (e.crouch || 0)) * ks; e.prone = (e.prone || 0) + ((S.pr || 0) - (e.prone || 0)) * ks; e.lean = (e.lean || 0) + ((S.ln || 0) - (e.lean || 0)) * ks; }
     e.yaw += angDiff(e.yaw, S.yaw) * (1 - Math.exp(-dt * 25)); if (!MP.host && e.ai) e.ai.pitch = S.pt;
     return;
   }
