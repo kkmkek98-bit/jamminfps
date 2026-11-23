@@ -1177,7 +1177,7 @@ function flushBatch() {
     for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k);
     if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
     it.mat = canonMat(it.mat); if (it.mat.isMeshStandardMaterial && !it.mat.userData.wp && !it.mat.userData.noWP) worldPatch(it.mat, false);
-    const CH = 45, key = it.mat.uuid + (it.cast ? 'c' : 'n') + (it.detail ? 'D' : '') + '|' + Math.floor(it.o.position.x / CH) + ',' + Math.floor(it.o.position.z / CH); let gr = groups.get(key); if (!gr) groups.set(key, gr = { mat: it.mat, cast: it.cast, detail: it.detail, list: [] }); gr.list.push(g);
+    if (MAP.indoor && it.detail) it.cast = false; const CH = MAP.indoor ? 999 : 45, key = it.mat.uuid + (it.cast ? 'c' : 'n') + (it.detail ? 'D' : '') + '|' + Math.floor(it.o.position.x / CH) + ',' + Math.floor(it.o.position.z / CH); let gr = groups.get(key); if (!gr) groups.set(key, gr = { mat: it.mat, cast: it.cast, detail: it.detail, list: [] }); gr.list.push(g);
     if (it.own) it.geo.dispose();
   }
   for (const gr of groups.values()) { const mg = mergeGeometries(gr.list, false); gr.list.forEach(g => g.dispose()); if (!mg) continue; const m = new THREE.Mesh(mg, gr.mat); m.castShadow = gr.cast; m.receiveShadow = true; mapRoot.add(m); if (gr.detail) { mg.computeBoundingSphere(); DETAIL.push(m); } }
@@ -4018,15 +4018,60 @@ function buildMinimapBase() {
   g.fillStyle = 'rgba(255,74,61,.25)'; g.fillRect(mmX(S.x0 - 3), mmY(-S.z1 - 2), sw, sh);
   for (const h of MAP.hazards || []) { g.fillStyle = 'rgba(255,120,30,.22)'; g.beginPath(); g.arc(mmX(h.x), mmY(h.z), h.r * MS, 0, Math.PI * 2); g.fill(); }
   for (const b of boxes) { const h = b.max[1]; g.fillStyle = h > 5 ? 'rgba(220,220,220,.85)' : h > 2 ? 'rgba(190,190,180,.8)' : 'rgba(150,150,140,.7)'; g.fillRect(mmX(b.min[0]), mmY(b.min[2]), Math.max(1, (b.max[0] - b.min[0]) * MS), Math.max(1, (b.max[2] - b.min[2]) * MS)); }
-  g.fillStyle = 'rgba(170,170,160,.7)'; for (const r of ramps) g.fillRect(mmX(r.x0), mmY(r.z0), (r.x1 - r.x0) * MS, (r.z1 - r.z0) * MS);
+  STAIRS = findStairs(); drawRamps(g);
+  // 층 구분 맵: 층마다 따로 그린 바탕(그 층 높이대에 걸친 벽만 진하게)
+  MM_LV = []; const fh = MAP.floorH || 0; if (fh) for (let lv = 0; lv < 2; lv++) {
+    const c = document.createElement('canvas'); c.width = 180; c.height = 192; const q = c.getContext('2d'); const y0 = lv * fh + 0.3, y1 = y0 + fh - 0.6;
+    q.fillStyle = 'rgba(20,22,18,.6)'; q.fillRect(0, 0, 180, 192); q.fillStyle = lv ? 'rgba(48,56,70,.9)' : 'rgba(60,62,48,.85)'; q.fillRect(mmX(-ARENA.x), mmY(-ARENA.z), ARENA.x * 2 * MS, ARENA.z * 2 * MS);
+    q.fillStyle = 'rgba(61,139,255,.25)'; q.fillRect(mmX(S.x0 - 3), mmY(S.z0 - 2), sw, sh); q.fillStyle = 'rgba(255,74,61,.25)'; q.fillRect(mmX(S.x0 - 3), mmY(-S.z1 - 2), sw, sh);
+    for (const b of boxes) { const on = b.max[1] > y0 && b.min[1] < y1, flr = lv && b.max[1] > fh - 0.5 && b.max[1] < fh + 0.3 && b.min[1] > fh - 0.8;
+      if (flr) q.fillStyle = 'rgba(95,105,120,.75)'; else if (on) q.fillStyle = 'rgba(225,225,215,.9)'; else continue;
+      q.fillRect(mmX(b.min[0]), mmY(b.min[2]), Math.max(1, (b.max[0] - b.min[0]) * MS), Math.max(1, (b.max[2] - b.min[2]) * MS)); }
+    if (lv) for (const b of boxes) if (b.max[1] > y0 && b.min[1] < y1 && !(b.max[1] < fh + 0.3 && b.min[1] > fh - 0.8)) { q.fillStyle = 'rgba(225,225,215,.9)'; q.fillRect(mmX(b.min[0]), mmY(b.min[2]), Math.max(1, (b.max[0] - b.min[0]) * MS), Math.max(1, (b.max[2] - b.min[2]) * MS)); }
+    drawRamps(q); MM_LV.push(c); }
 }
+let MM_LV = [], STAIRS = [];
+// 박스로 만든 계단 자동 인식: 얇은 단이 한 줄로 이어지며 높이가 일정하게 증가 → 계단 영역 + 올라가는 방향
+function findStairs() {
+  const G = new Map();
+  for (const b of boxes) { const dx = b.max[0] - b.min[0], dz = b.max[2] - b.min[2], h = b.max[1] - b.min[1]; let ax;
+    if (dz <= 0.72 && dx >= 1 && dx <= 2.6) ax = 2; else if (dx <= 0.72 && dz >= 1 && dz <= 2.6) ax = 0; else continue;
+    const cr = ax === 2 ? (b.min[0] + b.max[0]) / 2 : (b.min[2] + b.max[2]) / 2; const k = ax + '|' + cr.toFixed(1) + '|' + b.min[1].toFixed(1);
+    let L = G.get(k); if (!L) G.set(k, L = []); L.push({ b, c: (b.min[ax] + b.max[ax]) / 2, h: b.max[1], ax }); }
+  const out = [];
+  for (const L of G.values()) { L.sort((a, b) => a.c - b.c); let run = [L[0]];
+    const close = () => { if (run.length >= 3) { const d = Math.sign(run[run.length - 1].h - run[0].h); if (d) { const bb = run.map(r => r.b);
+        out.push({ x0: Math.min(...bb.map(b => b.min[0])), x1: Math.max(...bb.map(b => b.max[0])), z0: Math.min(...bb.map(b => b.min[2])), z1: Math.max(...bb.map(b => b.max[2])), ax: run[0].ax, up: d }); } } };
+    for (let i = 1; i < L.length; i++) { const a = run[run.length - 1], c = L[i], dh = c.h - a.h;
+      const ok = c.c - a.c < 0.8 && Math.abs(dh) > 0.2 && Math.abs(dh) < 0.7 && (run.length < 2 || Math.sign(dh) === Math.sign(a.h - run[run.length - 2].h));
+      if (ok) run.push(c); else { close(); run = [c]; } }
+    close(); }
+  return out;
+}
+// 계단/경사로: 노란 테두리 + 단 줄무늬 + 올라가는 방향 화살표
+function drawRamps(g) {
+  for (const s of STAIRS) { const x = mmX(s.x0), y = mmY(s.z0), w = Math.max(2, (s.x1 - s.x0) * MS), h = Math.max(2, (s.z1 - s.z0) * MS);
+    g.fillStyle = 'rgba(255,210,63,.35)'; g.fillRect(x, y, w, h); g.strokeStyle = '#ffd23f'; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    g.strokeStyle = 'rgba(40,30,0,.55)'; const len = s.ax === 2 ? h : w, n = Math.max(3, Math.round(len / 2)); for (let i = 1; i < n; i++) { g.beginPath(); if (s.ax === 2) { const yy = y + h * i / n; g.moveTo(x + 1, yy); g.lineTo(x + w - 1, yy); } else { const xx = x + w * i / n; g.moveTo(xx, y + 1); g.lineTo(xx, y + h - 1); } g.stroke(); }
+    const cx = x + w / 2, cy = y + h / 2, a = Math.max(2.2, Math.min(w, h) * 0.36), L2 = (s.ax === 2 ? h : w) * 0.32; g.fillStyle = '#fff3b0'; g.beginPath();
+    if (s.ax === 2) { const t = cy + s.up * L2; g.moveTo(cx, t); g.lineTo(cx - a, t - s.up * a * 1.3); g.lineTo(cx + a, t - s.up * a * 1.3); } else { const t = cx + s.up * L2; g.moveTo(t, cy); g.lineTo(t - s.up * a * 1.3, cy - a); g.lineTo(t - s.up * a * 1.3, cy + a); }
+    g.closePath(); g.fill(); }
+  for (const r of ramps) { const x = mmX(r.x0), y = mmY(r.z0), w = (r.x1 - r.x0) * MS, h = (r.z1 - r.z0) * MS;
+    g.fillStyle = 'rgba(255,210,63,.28)'; g.fillRect(x, y, w, h); g.strokeStyle = '#ffd23f'; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    g.strokeStyle = 'rgba(255,210,63,.75)'; const n = Math.max(3, Math.round(h / 2.2)); for (let i = 1; i < n; i++) { const yy = y + h * i / n; g.beginPath(); g.moveTo(x + 1, yy); g.lineTo(x + w - 1, yy); g.stroke(); }
+    const cx = x + w / 2, up = r.highAtMinZ ? -1 : 1, a = Math.min(w, h) * 0.32, tip = y + h / 2 + up * h * 0.32;
+    g.fillStyle = '#ffd23f'; g.beginPath(); g.moveTo(cx, tip); g.lineTo(cx - a, tip - up * a); g.lineTo(cx + a, tip - up * a); g.closePath(); g.fill(); }
+}
+function floorOf(y) { const fh = MAP.floorH || 3.6, b = MAP.floorH ? fh * 0.5 : 2.4; return y < b ? 0 : 1 + Math.floor((y - b) / fh); }
 function drawMinimap() {
-  mctx.clearRect(0, 0, 180, 192); mctx.drawImage(mmBase, 0, 0);
+  mctx.clearRect(0, 0, 180, 192); const myLv = floorOf(player.pos.y); mctx.drawImage(MM_LV.length ? MM_LV[Math.min(myLv, MM_LV.length - 1)] : mmBase, 0, 0);
   for (const e of entities) {
-    if (!e.alive || e === player) continue;
+    if (!e.alive || e === player) continue; const dl = floorOf(e.pos.y) - myLv;
     if (ally(e, player)) mctx.fillStyle = e.remote || (MP.on && MP.slots[e.id] && MP.slots[e.id].kind === 'human') ? '#9fe0ff' : '#5aa0ff';
     else { if (now - (isFFA() ? Math.max(e.spotT.blue ?? -99, e.spotT.red ?? -99) : e.spotT[player.team]) > 1.2) continue; mctx.fillStyle = '#ff4a3d'; }
-    mctx.beginPath(); mctx.arc(mmX(e.pos.x), mmY(e.pos.z), 3, 0, Math.PI * 2); mctx.fill();
+    const ex = mmX(e.pos.x), ey = mmY(e.pos.z);
+    if (dl === 0) { mctx.beginPath(); mctx.arc(ex, ey, 3, 0, Math.PI * 2); mctx.fill(); }
+    else { mctx.globalAlpha = 0.75; mctx.beginPath(); if (dl > 0) { mctx.moveTo(ex, ey - 4); mctx.lineTo(ex + 3.5, ey + 2.5); mctx.lineTo(ex - 3.5, ey + 2.5); } else { mctx.moveTo(ex, ey + 4); mctx.lineTo(ex + 3.5, ey - 2.5); mctx.lineTo(ex - 3.5, ey - 2.5); } mctx.closePath(); mctx.fill(); mctx.globalAlpha = 1; }
   }
   for (const d of DROPS) { const x = mmX(d.pos.x), y = mmY(d.pos.z); mctx.fillStyle = '#3dff7a'; mctx.fillRect(x - 3, y - 1, 6, 2); mctx.fillRect(x - 1, y - 3, 2, 6); }
   for (const hp of healPacks) { const x = mmX(hp.pos.x), y = mmY(hp.pos.z); mctx.fillStyle = hp.cd > 0 ? '#777' : '#3dff7a'; mctx.fillRect(x - 4, y - 1.5, 8, 3); mctx.fillRect(x - 1.5, y - 4, 3, 8); }
@@ -4036,6 +4081,11 @@ function drawMinimap() {
     mctx.save(); mctx.translate(mmX(player.pos.x), mmY(player.pos.z)); mctx.rotate(-player.yaw);
     mctx.fillStyle = '#ffd23f'; mctx.beginPath(); mctx.moveTo(0, -6); mctx.lineTo(4.5, 5); mctx.lineTo(0, 2.5); mctx.lineTo(-4.5, 5); mctx.closePath(); mctx.fill(); mctx.restore();
   }
+  // 현재 층 표시
+  const multi = MAP.floorH || ramps.length || myLv > 0;
+  if (multi) { const t = (myLv + 1) + '층'; mctx.font = 'bold 12px sans-serif'; const tw = mctx.measureText(t).width + 12;
+    mctx.fillStyle = myLv ? 'rgba(70,130,255,.9)' : 'rgba(0,0,0,.65)'; mctx.fillRect(180 - tw - 4, 4, tw, 18); mctx.strokeStyle = '#ffd23f'; mctx.lineWidth = 1; mctx.strokeRect(180 - tw - 3.5, 4.5, tw - 1, 17);
+    mctx.fillStyle = '#fff'; mctx.textBaseline = 'middle'; mctx.fillText(t, 180 - tw + 2, 13.5); }
 }
 let scoreboardOpen = false;
 function pingTag(e) {
