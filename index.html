@@ -4311,7 +4311,7 @@ function chatSys(m) { if (!MP.host) return; addChat('', m, true); sendAll({ t: '
 function sendAll(msg) { for (const c of MP.conns.values()) if (c.open) { try { c.send(msg); } catch (err) {} } }
 function netSendTo(e, msg) { if (!MP.host) return; const s = MP.slots[e.id]; const c = s && MP.conns.get(s.peer); if (c && c.open) { try { c.send(msg); } catch (err) {} } }
 // 일부 네트워크(모바일 핫스폿·회사/학교 와이파이)는 TURN 서버 없이는 연결이 안 될 수 있음 → 아래 배열에 TURN 정보를 넣으면 사용
-const TURN_SERVERS = [];
+const TURN_SERVERS = [{ urls: ['turn:free.expressturn.com:3478?transport=udp', 'turn:free.expressturn.com:3478?transport=tcp'], username: '000000002110835464', credential: 'dG5G7lRhOclY/dt0TJoIFTxJy3M=' }];
 const STUN_SERVERS = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }];
 function peerOpts() { const o = { debug: 0, config: { iceServers: [...STUN_SERVERS, ...TURN_SERVERS], iceCandidatePoolSize: 4 } }; return Object.assign(o, window.__PEER_OPTS || {}); }
 // 연결 경로 진단: direct(같은망)/p2p(인터넷 직접)/relay(TURN 중계)
