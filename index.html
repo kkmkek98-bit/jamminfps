@@ -1620,7 +1620,10 @@ function contactShadows() {
       const g = new THREE.PlaneGeometry(len, W); g.rotateX(-Math.PI / 2); g.rotateY(th); const o = batchAdd(g, AO_MAT, false, true); o.position.set(px, y, pz); }
   }
 }
+let LIGHT_SPOTS = [];
+const inLight = e => { for (const L of LIGHT_SPOTS) { const d = Math.hypot(e.pos.x - L.x, e.pos.z - L.z); if (d < L.r) return 1 - d / L.r; } return 0; };
 function lightPool(x, z, size, h, r, zc = z, xc = x) {
+  LIGHT_SPOTS.push({ x, z, r: size * 0.36 });
   const pg = new THREE.PlaneGeometry(size, size); pg.rotateX(-Math.PI / 2); const o = batchAdd(pg, POOL_MAT, false, true); o.position.set(x, 0.06, z);
   if (h) { const cg = new THREE.ConeGeometry(r, h, 10, 1, true); const c = batchAdd(cg, SHAFT_MAT, false, true); c.position.set(xc, h / 2, zc); }
 }
@@ -1732,7 +1735,7 @@ function loadMap(id, small = false) {
   const night = settings.tod === 'night'; const key = id + (small ? ':small' : '') + (night ? ':night' : '') + ':' + settings.wmode;
   if (curMapId === key) return;
   scene.remove(mapRoot); mapRoot.traverse(o => { if (o.geometry && o.geometry !== wheelGeo && o.geometry !== crownGeo) o.geometry.dispose(); });
-  mapRoot = new THREE.Group(); scene.add(mapRoot); DETAIL = []; clearMarks();
+  mapRoot = new THREE.Group(); scene.add(mapRoot); DETAIL = []; LIGHT_SPOTS = []; clearMarks();
   for (const a of [boxes, ramps, rampMeshes, coverBoxes, aiGoals, highGoals, coverPoints, flags, healPacks]) a.length = 0;
   cIdx = 0; curMapId = key; MAP = Object.assign({ id }, MAPS[id], small ? MAPS[id].small : {}); MAP.night = night; setEnv(night); if (small) MAP.name = MAPS[id].name + ' (축소)'; if (night) MAP.name = '🌙 ' + MAP.name + ' · 밤'; ARENA.x = MAP.ax; ARENA.z = MAP.az;
   MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (night && id !== 'harbor') nightLamps(); contactShadows(); flushBatch(); tuneEnv(scene); shadowAt = ''; MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase();
@@ -2081,8 +2084,8 @@ function makeSoldier(team, name, gunKey) {
   const gun = new THREE.Group(); gun.position.set(0.12, -0.05, -0.45); arms.add(gun);
   const muzzle = new THREE.Object3D(); gun.add(muzzle);
   const beam = new THREE.Group(); beam.position.set(0, 0.03, -0.62); gun.add(beam); beam.visible = false;
-  const cone = new THREE.Mesh(BEAM_GEO, BEAM_MAT); cone.rotation.x = Math.PI / 2; cone.position.z = -6.5; beam.add(cone);
-  const lens = new THREE.Sprite(LENS_MAT); lens.scale.setScalar(0.5); beam.add(lens);
+  const cone = new THREE.Mesh(BEAM_GEO, BEAM_MAT.clone()); cone.rotation.x = Math.PI / 2; cone.position.z = -6.5; beam.add(cone);
+  const lens = new THREE.Sprite(LENS_MAT.clone()); lens.scale.setScalar(0.5); beam.add(lens); beam.userData = { cone, lens };
   const mdl = { gun, muzzle, mG, mW, beam, gunKey: null }; soldierGun(mdl, gunKey);
   let tag = null;
   tag = makeTag(name, blue ? '#7fb4ff' : '#ff9a8a'); tag.position.set(0, 2.25, 0); root.add(tag);
@@ -3081,7 +3084,7 @@ function playerSpot() {
   }
 }
 function hearShot(src) {
-  src.lastFired = now;
+  src.lastFired = now; if (MAP.night && src.spotT) { const ot = otherTeam(src.team); src.spotT[ot] = Math.max(src.spotT[ot] || -99, now + 0.8); } // 밤엔 총구 섬광으로 2초간 미니맵 노출
   for (const e of entities) {
     if (!e.ai || !e.alive || e.team === src.team || e.ai.seen) continue;
     if (e.pos.distanceTo(src.pos) < 55) { e.ai.alertPos.copy(src.pos); e.ai.alertT = 3.5; }
@@ -3093,7 +3096,11 @@ const _to = new THREE.Vector3();
 function eyeOf(e) { return V(e.pos.x, e.pos.y + 1.55, e.pos.z); }
 function canSee(e, t, fovCheck) {
   _to.set(t.pos.x - e.pos.x, 0, t.pos.z - e.pos.z); const d = _to.length();
-  if (d > (MAP.night && t.lightOn === false && now - (t.lastFired ?? -9) > 0.8 ? 28 : 95)) return false;
+  let range = 95;
+  if (MAP.night && t.lightOn === false && now - (t.lastFired ?? -9) > 2.5) { // 라이트 끈 상대: 기본 28m
+    range = inLight(t) > 0 ? 60 : 28;                                         // 가로등·투광등 아래면 60m
+    if (e.lightOn !== false && d < 40 && d > 0.1) { const fx = -Math.sin(e.yaw), fz = -Math.cos(e.yaw); if ((_to.x * fx + _to.z * fz) / d > 0.91) range = Math.max(range, 40); } } // 내 손전등에 비치면 40m
+  if (d > range) return false;
   if (fovCheck && d > 4) { const fx = -Math.sin(e.yaw), fz = -Math.cos(e.yaw); if ((_to.x * fx + _to.z * fz) / d < Math.cos(1.15)) return false; }
   const eye = eyeOf(e);
   if (smokeBlocks(eye, V(t.pos.x, t.pos.y + 1.3, t.pos.z))) return false;
@@ -3287,7 +3294,7 @@ function updateModel(e, dt) {
   if (e.flashT > 0 || e._fl) {
     e.flashT = (e.flashT || 0) - dt; const k = Math.max(0, e.flashT / 0.12);
     for (const mt of m.mats) { mt.emissive.setHex(e.flashCol || 0xffffff); mt.emissiveIntensity = k * 1.3; }
-    e._fl = k > 0;
+    e._fl = k > 0; if (!e._fl) e._glow = -1;
   }
   m.root.position.copy(e.pos); m.root.rotation.y = e.yaw;
   if (m.lod) { const far = e.alive && !e.prone && !(MAP.night && e.lightOn !== false) && !(state === 'replay' || KC.on) && e.pos.distanceToSquared(camera.position) > 1225; m.lod.visible = far; m.body.visible = !far; }
@@ -3297,7 +3304,11 @@ function updateModel(e, dt) {
     m.legs[0].rotation.x = sw; m.legs[1].rotation.x = -sw;
     m.arms.rotation.x = clamp(e.ai ? e.ai.pitch : 0, -0.8, 0.8);
     if (m.tag) m.tag.visible = e.team === player.team && !e.isPlayer;
-    if (m.beam) m.beam.visible = !!MAP.night && e.lightOn !== false && e.pos.distanceToSquared(camera.position) < 8100;
+    if (m.beam) { m.beam.visible = !!MAP.night && e.lightOn !== false && e.pos.distanceToSquared(camera.position) < 8100;
+      if (m.beam.visible) { const dx = camera.position.x - e.pos.x, dz = camera.position.z - e.pos.z, dl = Math.hypot(dx, dz) || 1; const f = clamp((((-Math.sin(e.yaw)) * dx + (-Math.cos(e.yaw)) * dz) / dl - 0.55) / 0.45, 0, 1); // 나를 향할수록 밝게
+        const u = m.beam.userData; u.lens.material.opacity = 0.12 + 0.88 * f * f; u.lens.scale.setScalar(0.3 + 0.35 * f); u.cone.material.opacity = 0.075 * (0.35 + 0.65 * f); } }
+    // 가로등 아래 캐릭터는 실제로 밝게 (진짜 조명 없이 발광만 살짝)
+    { const g = MAP.night ? inLight(e) : 0; if (!(e.flashT > 0) && Math.abs(g - (e._glow || 0)) > 0.02) { e._glow = g; for (const mt of m.mats) { mt.emissive.setHex(0xffcf8a); mt.emissiveIntensity = g * 0.55; } if (m.lod) { m.lod.material.emissive.setHex(0xffcf8a); m.lod.material.emissiveIntensity = g * 0.55; } } }
   } else {
     e.deadT += dt;
     const sg = e.deathSign || -1;
@@ -4879,7 +4890,7 @@ showLobby(); applyOpts(); showTitle();
   }
 }
 $('loading').remove();
-window.__game = { HOLES, SHELLS, POST, renderer, renderCheat, spawnFire, loadMap, CHEAT, MAPS, settings, get MAP() { return MAP; }, coverPoints, buildDebug, ramps, startReload, vmRoot, MP, mpCreate, mpJoin, opts, healPacks, eyeH, KC, headY, bodyTop, camera, setMouseR: v => { mouseR = v; }, opticSel, areas, throwGrenade, get flashT() { return flashT; }, setupWeapons, tick: dt => { now += dt; update(dt); }, killEntity, endMatch, startReplay, findHighlight, REC, RP, WEAPONS, switchSlot, playerAttack: () => playerAttack(), get now() { return now; }, entities, score, get state() { return state; }, set state(v) { state = v; }, resetMatch, update, get player() { return player; }, boxes, aiGoals };
+window.__game = { canSee, inLight, get LIGHT_SPOTS() { return LIGHT_SPOTS; }, HOLES, SHELLS, POST, renderer, renderCheat, spawnFire, loadMap, CHEAT, MAPS, settings, get MAP() { return MAP; }, coverPoints, buildDebug, ramps, startReload, vmRoot, MP, mpCreate, mpJoin, opts, healPacks, eyeH, KC, headY, bodyTop, camera, setMouseR: v => { mouseR = v; }, opticSel, areas, throwGrenade, get flashT() { return flashT; }, setupWeapons, tick: dt => { now += dt; update(dt); }, killEntity, endMatch, startReplay, findHighlight, REC, RP, WEAPONS, switchSlot, playerAttack: () => playerAttack(), get now() { return now; }, entities, score, get state() { return state; }, set state(v) { state = v; }, resetMatch, update, get player() { return player; }, boxes, aiGoals };
 requestAnimationFrame(loop);
 </script>
 </body>
