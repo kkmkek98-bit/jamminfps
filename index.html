@@ -894,7 +894,7 @@ const wRim = new THREE.DirectionalLight(0xbfd8ff, 1.1); wRim.position.set(-1.5, 
 let shadowTick = 0;
 const muzzleLight = new THREE.PointLight(0xffb84d, 0, 12, 2); scene.add(muzzleLight);
 const lightRoot = new THREE.Group(); scene.add(lightRoot);
-const LPOOL = [0, 1, 2, 3].map(() => { const l = new THREE.PointLight(0xffffff, 0, 20, 2); l.userData.t = 0; lightRoot.add(l); return l; });
+const LPOOL = [0, 1].map(() => { const l = new THREE.PointLight(0xffffff, 0, 20, 2); l.userData.t = 0; lightRoot.add(l); return l; });
 function poolLight(col, I, dist, pos) {
   let b = LPOOL.find(l => l.intensity <= 0.01 && !l.userData.busy); if (!b) b = LPOOL.reduce((a, l) => l.userData.t < a.userData.t ? l : a);
   b.userData.busy = false; b.userData.t = performance.now(); b.color.setHex(col); b.distance = dist; b.intensity = I; if (pos) b.position.copy(pos); return b;
@@ -1184,7 +1184,8 @@ setAniso();
 function prewarm() { try { const seen = new Set(); mapRoot.traverse(o => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) for (const k of ['map', 'normalMap', 'roughnessMap', 'emissiveMap', 'aoMap']) { const t = m[k]; if (t && !seen.has(t)) { seen.add(t); renderer.initTexture(t); } } }); renderer.compile(scene, camera);
   // 숨겨진 것(캐릭터·원거리 모델·소품)까지 잠깐 켜서 셰이더를 미리 만들어 둠 → 처음 보일 때 멈칫하지 않게
   const hid = []; scene.traverse(o => { if (!o.visible && (o.isMesh || o.isGroup || o.isSprite)) { hid.push(o); o.visible = true; } }); renderer.compile(scene, camera); hid.forEach(o => o.visible = false);
-  if (typeof wScene !== 'undefined') renderer.compile(wScene, wCam); } catch (err) {} }
+  if (typeof wScene !== 'undefined') renderer.compile(wScene, wCam);
+  if (typeof explosionFx === 'function' && !prewarm.fx) { prewarm.fx = true; const p = V(0, -60, 0); explosionFx(p); tracer(p, V(0, -60, -30)); worldFlash(p); renderer.compile(scene, camera); for (const f of fxList) f.life = Math.min(f.life, 0.001); } } catch (err) {} }
 // ===================== 맵 / 충돌 =====================
 let mapRoot = new THREE.Group(); scene.add(mapRoot);
 const boxes = [];      // {min:[x,y,z], max:[x,y,z]}
@@ -2160,7 +2161,7 @@ function loadMap(id, small = false) {
   for (const a of [boxes, ramps, rampMeshes, coverBoxes, aiGoals, highGoals, coverPoints, flags, healPacks]) a.length = 0;
   cIdx = 0; curMapId = key; MAP = Object.assign({ id }, MAPS[id], small ? MAPS[id].small : {}); MAP.night = night; setEnv(night); if (small) MAP.name = MAPS[id].name + ' (축소)'; if (night) MAP.name = '🌙 ' + MAP.name + ' · 밤'; ARENA.x = MAP.ax; ARENA.z = MAP.az;
   { const lite = !!MAPS[id].indoor; if (lite !== WP_LITE) { WP_LITE = lite; for (const m of WP_MATS) m.needsUpdate = true; } }
-  if (MAPS[id].indoor) { scene.fog.color.setHex(night ? 0x040507 : 0x14171b); scene.fog.near = 28; scene.fog.far = 58; camera.far = 62; } else camera.far = 600; camera.updateProjectionMatrix(); // 실내: 먼 곳은 어둡게 사라지고 안 그림
+  if (MAPS[id].indoor) { scene.fog.color.setHex(night ? 0x040507 : 0x14171b); scene.fog.near = 28; scene.fog.far = 58; camera.far = 62; } camera.updateProjectionMatrix(); // 실내: 먼 곳은 어둡게 사라지고 안 그림
   WPU.floorH.value = MAPS[id].floorH || 0; MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (night && id !== 'harbor' && !MAPS[id].indoor) nightLamps(); if (ffaMap) buildBooths(); else buildShelters(); contactShadows(); MAP.decals = decals(); flushBatch(); mergeDeep(mapRoot, [], o => o.parent === mapRoot && o.material.transparent && o.material.blending === THREE.NormalBlending && o.material.side !== THREE.DoubleSide && !flags.includes(o) && !rampMeshes.includes(o) && !DETAIL.includes(o)); tuneEnv(scene); shadowAt = ''; MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase(); prewarm();
   { const lm = $('lobbyMap').getContext('2d'); lm.clearRect(0, 0, 180, 192); lm.drawImage(mmBase, 0, 0); }
   $('lbMapInfo').innerHTML = `<b>${MAP.name}</b>${settings.wmode !== 'normal' ? ' · ' + WMODES[settings.wmode] : ''}<br>${MAP.info}${night ? '<br>🔦 야간전 · 모두 라이트가 켜진 채로 싸웁니다' : ''}<br><span class="bdot"></span>BLUE 스폰 (남)<br><span class="rdot"></span>RED 스폰 (북)`;
@@ -2239,14 +2240,25 @@ const headY = e => lerp(lerp(1.66, 1.1, e.crouch || 0), 0.45, e.prone || 0), bod
 const eyeH = e => lerp(lerp(EYE, CROUCH_EYE, e.crouch || 0), PRONE_EYE, e.prone || 0);
 const leanOff = e => { const l = e.lean || 0; if (!l) return [0, 0]; const yw = e.isPlayer ? camera.rotation.y : e.yaw; return [Math.cos(yw) * LEAN_DIST * l, -Math.sin(yw) * LEAN_DIST * l]; };
 const stanceMul = (e, c, pr) => lerp(lerp(1, c, e.crouch || 0), pr, e.prone || 0);
+// 판정 가속: 맵 상자를 6m 격자에 등록 → 총알이 지나가는 칸의 상자만 검사 (결과 동일)
+const RG = { C: 6, n: -1, cells: new Map(), stamp: new Uint32Array(1), sid: 1 };
+function rgBuild() { RG.cells.clear(); RG.n = boxes.length; RG.stamp = new Uint32Array(boxes.length + 1); const C = RG.C;
+  for (let i = 0; i < boxes.length; i++) { const b = boxes[i]; for (let x = Math.floor(b.min[0] / C); x <= Math.floor(b.max[0] / C); x++) for (let z = Math.floor(b.min[2] / C); z <= Math.floor(b.max[2] / C); z++) { const k = x * 4096 + z; let L = RG.cells.get(k); if (!L) RG.cells.set(k, L = []); L.push(i); } } }
+// 광선이 지나는 칸을 순서대로 방문 (visit(list, tEnter) → 그 칸 이후 볼 필요 없으면 true)
+function rgWalk(o, d, maxT, visit) {
+  if (RG.n !== boxes.length) rgBuild(); const C = RG.C; RG.sid++; if (RG.sid > 4e9) { RG.sid = 1; RG.stamp.fill(0); }
+  let ix = Math.floor(o[0] / C), iz = Math.floor(o[2] / C); const sx = d[0] > 0 ? 1 : -1, sz = d[2] > 0 ? 1 : -1;
+  const ax = Math.abs(d[0]) > 1e-9, az = Math.abs(d[2]) > 1e-9;
+  let tx = ax ? ((ix + (sx > 0 ? 1 : 0)) * C - o[0]) / d[0] : Infinity, tz = az ? ((iz + (sz > 0 ? 1 : 0)) * C - o[2]) / d[2] : Infinity;
+  const dx = ax ? C / Math.abs(d[0]) : Infinity, dz = az ? C / Math.abs(d[2]) : Infinity; let t = 0;
+  for (let n = 0; n < 600; n++) { const L = RG.cells.get(ix * 4096 + iz); if (L && visit(L, t)) return; t = Math.min(tx, tz); if (t > maxT()) return; if (tx < tz) { tx += dx; ix += sx; } else { tz += dz; iz += sz; } }
+}
 function raycast(origin, dir, maxDist, ignore) {
   const o = [origin.x, origin.y, origin.z], d = [dir.x, dir.y, dir.z];
   let best = maxDist, kind = 0, ent = null, head = false; const normal = new THREE.Vector3(0, 1, 0);
   if (d[1] < 0) { const t = -o[1] / d[1]; if (t < best) { best = t; kind = 1; normal.set(0, 1, 0); } }
-  for (let i = 0; i < boxes.length; i++) {
-    const t = slab(o, d, boxes[i].min, boxes[i].max, best);
-    if (t >= 0 && t < best) { best = t; kind = 1; normal.set(0, 0, 0).setComponent(_ax, _sg); }
-  }
+  rgWalk(o, d, () => best, L => { for (const i of L) { if (RG.stamp[i] === RG.sid) continue; RG.stamp[i] = RG.sid;
+    const t = slab(o, d, boxes[i].min, boxes[i].max, best); if (t >= 0 && t < best) { best = t; kind = 1; normal.set(0, 0, 0).setComponent(_ax, _sg); } } return false; });
   _rc.set(origin, dir); _rc.far = best;
   const rh = _rc.intersectObjects(rampMeshes, false);
   if (rh.length && rh[0].distance < best) { best = rh[0].distance; kind = 1; normal.copy(rh[0].face.normal).transformDirection(rh[0].object.matrixWorld); if (normal.dot(dir) > 0) normal.negate(); }
@@ -2264,8 +2276,8 @@ function los(a, b) {
   const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, L = Math.hypot(dx, dy, dz);
   if (L < 0.01) return true;
   const o = [a.x, a.y, a.z], d = [dx / L, dy / L, dz / L];
-  for (let i = 0; i < boxes.length; i++) if (slab(o, d, boxes[i].min, boxes[i].max, L) >= 0) return false;
-  return true;
+  let hit = false; rgWalk(o, d, () => L, B => { for (const i of B) { if (RG.stamp[i] === RG.sid) continue; RG.stamp[i] = RG.sid; if (slab(o, d, boxes[i].min, boxes[i].max, L) >= 0) { hit = true; return true; } } return false; });
+  return !hit;
 }
 const _bx = new THREE.Vector3(), _by = new THREE.Vector3();
 function spreadDir(dir, ang) {
@@ -2284,6 +2296,19 @@ function initAudio() {
   master = AC.createGain(); master.gain.value = (opts.vol / 100) * 0.65; master.connect(AC.destination);
   noiseBuf = AC.createBuffer(1, AC.sampleRate * 1.5, AC.sampleRate);
   const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  prerenderShots();
+}
+// 총소리 미리 굽기: 총 종류별로 한 번만 합성해 버퍼로 저장 → 발사 때는 재생(노드 3개)만
+const SHOTBUF = {}, SND = { act: [] };
+function prerenderShots() {
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext; if (!OAC) return;
+  for (const [k, s] of Object.entries(SHOT)) { try {
+    const sr = AC.sampleRate, len = Math.ceil((Math.max(s.d, 0.14) + 0.12) * sr), oc = new OAC(1, len, sr);
+    const nb = oc.createBuffer(1, len, sr), nd = nb.getChannelData(0); for (let i = 0; i < len; i++) nd[i] = Math.random() * 2 - 1;
+    const src = oc.createBufferSource(); src.buffer = nb; const f = oc.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 0.8; f.frequency.setValueAtTime(s.f0, 0); f.frequency.exponentialRampToValueAtTime(Math.max(20, s.f1), s.d);
+    const g = oc.createGain(); g.gain.setValueAtTime(s.v, 0); g.gain.exponentialRampToValueAtTime(0.0001, s.d); src.connect(f).connect(g).connect(oc.destination); src.start(0);
+    const o = oc.createOscillator(); o.frequency.setValueAtTime(s.th, 0); o.frequency.exponentialRampToValueAtTime(40, 0.14); const g2 = oc.createGain(); g2.gain.setValueAtTime(Math.max(0.0001, s.tv), 0); g2.gain.exponentialRampToValueAtTime(0.0001, 0.14); o.connect(g2).connect(oc.destination); o.start(0); o.stop(0.19);
+    oc.startRendering().then(b => { SHOTBUF[k] = b; }).catch(() => {}); } catch (e) {} }
 }
 const SHOT = {
   m416: { f0: 4200, f1: 300, d: 0.16, v: 0.55, th: 140, tv: 0.5 },
@@ -2326,7 +2351,11 @@ function sfx(name, pos, extra = 1) {
   if (!AC) return;
   const t = AC.currentTime; const { vol: sv, pan } = spatial(pos); const vol = sv * extra;
   if (vol < 0.01) return;
-  if (SHOT[name]) { const s = SHOT[name]; noiseHit(t, { f0: s.f0, f1: s.f1, d: s.d, vol: s.v * vol, pan }); tone(t, { f0: s.th, f1: 40, d: 0.14, vol: s.tv * vol, pan }); return; }
+  if (SHOT[name]) { const s = SHOT[name];
+    // 동시 총소리 상한 12개: 가까운(큰) 소리 우선, 작은 먼 소리는 생략
+    const A = SND.act; while (A.length && A[0] < t) A.shift(); if (vol < 0.03 || (A.length >= 12 && vol < 0.5)) return;
+    A.push(t + s.d); A.sort((a, b) => a - b);
+    const B = SHOTBUF[name]; if (B) { const src = AC.createBufferSource(); src.buffer = B; src.playbackRate.value = 0.96 + Math.random() * 0.08; const g = AC.createGain(); g.gain.value = vol; const p = AC.createStereoPanner(); p.pan.value = pan; src.connect(g).connect(p).connect(master); src.start(t); return; } noiseHit(t, { f0: s.f0, f1: s.f1, d: s.d, vol: s.v * vol, pan }); tone(t, { f0: s.th, f1: 40, d: 0.14, vol: s.tv * vol, pan }); return; }
   switch (name) {
     case 'explosion': noiseHit(t, { f0: 1200, f1: 50, d: 1.4, vol: 1.2 * vol, pan, off: 0 }); tone(t, { f0: 80, f1: 25, d: 0.8, vol: 1.2 * vol, pan }); break;
     case 'hit': tone(t, { f0: 1500, f1: 1200, d: 0.05, vol: 0.25, type: 'square' }); break;
@@ -2374,18 +2403,23 @@ const flashMat = new THREE.SpriteMaterial({ map: flashTex, blending: THREE.Addit
 const tracerGeo = new THREE.BoxGeometry(0.02, 0.02, 1); tracerGeo.translate(0, 0, 0.5);
 const tracerMat = new THREE.MeshBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false });
 
+// 효과 물체 재사용(풀): 만들었다 버리지 않고 돌려씀 → 생성·메모리 정리로 인한 끊김 제거
+const FXPOOL = {};
+function poolGet(kind, make) { const L = FXPOOL[kind] || (FXPOOL[kind] = []); const o = L.pop() || make(); o.userData.pool = kind; o.visible = true; return o; }
+function poolPut(o) { const L = FXPOOL[o.userData.pool]; if (L && L.length < 200) L.push(o); }
 function addFx(obj, life, opt = {}) { if (!opt.light) scene.add(obj); fxList.push(Object.assign({ obj, life, max: life, vel: null, gravity: 0, size: obj.scale.x, grow: 0, fade: false, shrink: true }, opt)); }
 function particle(pos, vel, mat, life, size, gravity = G * 0.5) {
-  const m = new THREE.Mesh(partGeo, mat); m.position.copy(pos); m.scale.setScalar(size); m.rotation.set(Math.random() * 3, Math.random() * 3, 0);
+  const m = poolGet('p' + mat.id, () => new THREE.Mesh(partGeo, mat)); m.position.copy(pos); m.scale.setScalar(size); m.rotation.set(Math.random() * 3, Math.random() * 3, 0);
   addFx(m, life, { vel: vel.clone(), gravity, size });
 }
 function tracer(from, to) {
   recEvent({ type: 'tr', a: [from.x, from.y, from.z], b: [to.x, to.y, to.z] });
   const len = from.distanceTo(to); if (len < 1) return;
-  const m = new THREE.Mesh(tracerGeo, tracerMat); m.position.copy(from); m.lookAt(to); m.scale.set(1, 1, len);
+  if (len > 25 && from.distanceToSquared(camera.position) > 6400 && to.distanceToSquared(camera.position) > 6400) return; // 아주 먼 사격 예광탄 생략
+  const m = poolGet('tr', () => new THREE.Mesh(tracerGeo, tracerMat)); m.position.copy(from); m.lookAt(to); m.scale.set(1, 1, len);
   addFx(m, 0.05, { shrink: false });
 }
-function worldFlash(pos) { const s = new THREE.Sprite(flashMat); s.position.copy(pos); s.scale.setScalar(0.5); addFx(s, 0.05, { shrink: false }); }
+function worldFlash(pos) { if (pos.distanceToSquared(camera.position) > 8100) return; const s = poolGet('wf', () => new THREE.Sprite(flashMat)); s.position.copy(pos); s.scale.setScalar(0.5); addFx(s, 0.05, { shrink: false }); }
 // 총알 자국: 인스턴스 1개로 최대 96개 (오래된 것부터 교체)
 const HOLE_MAT = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
   let gr = g.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, 'rgba(20,18,16,.95)'); gr.addColorStop(0.22, 'rgba(25,22,20,.9)'); gr.addColorStop(0.3, 'rgba(70,64,58,.55)'); gr.addColorStop(1, 'rgba(60,55,50,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
@@ -2426,21 +2460,22 @@ function impact(point, normal) {
   for (let i = 0; i < 5; i++) particle(p, normal.clone().multiplyScalar(rand(1, 3)).add(V(rand(-1.5, 1.5), rand(0, 2), rand(-1.5, 1.5))), i < 2 ? PMAT.spark : PMAT.dust, rand(0.25, 0.5), rand(0.04, 0.08));
 }
 function bloodFx(point) { for (let i = 0; i < 7; i++) particle(point, V(rand(-2, 2), rand(0, 3), rand(-2, 2)), PMAT.blood, rand(0.3, 0.6), rand(0.05, 0.1)); }
+const SCORCH_GEO = new THREE.CircleGeometry(2.4, 20);
 function explosionFx(pos) {
   const fl = poolLight(0xffa040, 60, 30, pos.clone().add(V(0, 1, 0))); addFx(fl, 0.25, { shrink: false, light: true });
   for (let i = 0; i < 14; i++) {
-    const m = new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: i < 7 ? 0xffb030 : 0xff6a10, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const m = poolGet('fb' + (i < 7 ? 'a' : 'b'), () => new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: i < 7 ? 0xffb030 : 0xff6a10, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })));
     m.position.copy(pos).add(V(rand(-1, 1), rand(0.2, 1.5), rand(-1, 1))); m.scale.setScalar(rand(0.6, 1.2));
     addFx(m, rand(0.3, 0.55), { vel: V(rand(-3, 3), rand(1, 5), rand(-3, 3)), grow: 2.5, fade: true, own: true, shrink: false });
   }
-  for (let i = 0; i < 12; i++) {
-    const m = new THREE.Mesh(sphereGeo, new THREE.MeshStandardMaterial({ color: 0x555555, transparent: true, opacity: 0.7, depthWrite: false }));
-    m.position.copy(pos).add(V(rand(-1.5, 1.5), rand(0.5, 2), rand(-1.5, 1.5))); m.scale.setScalar(rand(0.8, 1.5));
+  for (let i = 0; i < 7; i++) {  // 폭발 연기: 빛 계산 없는 재질 · 7개
+    const m = poolGet('sm', () => new THREE.Mesh(sphereGeo, new THREE.MeshBasicMaterial({ color: ENV_NIGHT_FLAG ? 0x26282b : 0x5c5c5c, transparent: true, opacity: 0.7, depthWrite: false })));
+    m.material.color.setHex(ENV_NIGHT_FLAG ? 0x26282b : 0x5c5c5c); m.position.copy(pos).add(V(rand(-1.5, 1.5), rand(0.5, 2), rand(-1.5, 1.5))); m.scale.setScalar(rand(1.0, 1.8));
     addFx(m, rand(1.4, 2.4), { vel: V(rand(-1, 1), rand(1, 2.5), rand(-1, 1)), grow: 2, fade: true, own: true, shrink: false, baseOp: 0.7 });
   }
   for (let i = 0; i < 18; i++) particle(pos.clone().add(V(0, 0.4, 0)), V(rand(-9, 9), rand(3, 11), rand(-9, 9)), i % 3 ? PMAT.debris : PMAT.spark, rand(0.6, 1.2), rand(0.06, 0.14), G);
   // 그을음 자국
-  const scorch = new THREE.Mesh(new THREE.CircleGeometry(2.4, 20), new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.55, depthWrite: false }));
+  const scorch = poolGet('sc', () => new THREE.Mesh(SCORCH_GEO, new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.55, depthWrite: false })));
   scorch.rotation.x = -Math.PI / 2; scorch.position.set(pos.x, groundAt(pos.x, pos.z, pos.y) + 0.04, pos.z);
   addFx(scorch, 12, { shrink: false, fade: true, own: true, baseOp: 0.55 });
 }
@@ -2454,7 +2489,7 @@ function updateFx(dt) {
     else if (f.shrink) f.obj.scale.setScalar(f.size * k);
     if (f.fade) f.obj.material.opacity = (f.baseOp ?? 1) * k;
     if (f.light) f.obj.intensity = 60 * k;
-    if (f.life <= 0) { if (f.light) freeLight(f.obj); else scene.remove(f.obj); if (f.own) f.obj.material.dispose(); fxList.splice(i, 1); }
+    if (f.life <= 0) { if (f.light) freeLight(f.obj); else scene.remove(f.obj); if (f.obj.userData.pool) poolPut(f.obj); else if (f.own) f.obj.material.dispose(); fxList.splice(i, 1); }
   }
 }
 
