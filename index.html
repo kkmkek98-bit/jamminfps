@@ -800,6 +800,21 @@ function postBegin(dt) {
   if (POST.rt.width !== w || POST.rt.height !== h) { POST.rt.setSize(w, h); postMat.uniforms.res.value.set(w, h); postMat.uniforms.up.value = POST.sz.x / w; }
   renderer.setRenderTarget(POST.rt);
 }
+// 1인칭 총 전용 패스: 멀티샘플 타깃에 그린 뒤 화면에 합성 → 테두리 계단·깜빡임 제거
+const VM = { rt: new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 }), sz: new THREE.Vector2(), cc: new THREE.Color() };
+const vmComp = new THREE.ShaderMaterial({ uniforms: { t: { value: VM.rt.texture } }, depthTest: false, depthWrite: false, transparent: true, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+  fragmentShader: `uniform sampler2D t; varying vec2 vUv; void main(){ vec4 c = texture2D(t, vUv); if (c.a < 0.002) discard; vec3 rgb = c.rgb / c.a;
+  #ifdef TONE_MAPPING
+    rgb = toneMapping(rgb);
+  #endif
+    gl_FragColor = vec4(linearToOutputTexel(vec4(rgb, 1.0)).rgb * c.a, c.a); }` });
+const vmCompScene = new THREE.Scene(); vmCompScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), vmComp));
+function vmPass() {
+  renderer.getDrawingBufferSize(VM.sz); if (VM.rt.width !== VM.sz.x || VM.rt.height !== VM.sz.y) VM.rt.setSize(VM.sz.x, VM.sz.y);
+  renderer.getClearColor(VM.cc); const ca = renderer.getClearAlpha(); renderer.setRenderTarget(VM.rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(wScene, wCam);
+  renderer.setRenderTarget(null); renderer.setClearColor(VM.cc, ca); renderer.render(vmCompScene, postCam);
+}
 function postEnd() { renderer.setRenderTarget(null); renderer.render(postScene, postCam); }
 
 const scene = new THREE.Scene();
@@ -2601,8 +2616,8 @@ function gunTex(kind) {
   const n = 1024, c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d'); const f = fbmField(n, 5);
   const im = g.createImageData(n, n), d = im.data;
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x; let v;
-    if (kind === 'metal') v = 0.86 + (f[i] - 0.5) * 0.12 + Math.sin(y * 1.7 + f[i] * 6) * 0.025 + (Math.random() < 0.004 ? 0.12 : 0);
-    else if (kind === 'poly') v = 0.88 + (Math.random() - 0.5) * 0.16 + (f[i] - 0.5) * 0.1;
+    if (kind === 'metal') v = 0.86 + (f[i] - 0.5) * 0.12;   // 연마 줄무늬·반짝 점 제거 (1인칭에서 지글거림 원인)
+    else if (kind === 'poly') v = 0.88 + (f[i] - 0.5) * 0.12;
     else v = 0.84 + ((x + (y >> 2)) % 6 < 3 ? 0.06 : -0.04) + ((y + (x >> 2)) % 6 < 3 ? 0.04 : -0.02) + (f[i] - 0.5) * 0.1;
     v = Math.max(0, Math.min(1, v)) * 255; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; }
   g.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
@@ -2629,7 +2644,7 @@ function triPatch(m, o) {
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.32, clamp(triW, 0.0, 0.85));')
       .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n metalnessFactor = mix(metalnessFactor, 0.85, clamp(triW, 0.0, 0.85));')
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-        { float hh = dot(triC.rgb, vec3(0.333)); vec3 dpx = dFdx(-vViewPosition), dpy = dFdy(-vViewPosition); float hx = dFdx(hh), hy = dFdy(hh);
+        if (triBump > 0.0) { float hh = dot(triC.rgb, vec3(0.333)); vec3 dpx = dFdx(-vViewPosition), dpy = dFdy(-vViewPosition); float hx = dFdx(hh), hy = dFdy(hh);
           vec3 r1 = cross(dpy, normal), r2 = cross(normal, dpx); float det = dot(dpx, r1); vec3 gr = sign(det) * (hx * r1 + hy * r2);
           normal = normalize(abs(det) * normal - gr * triBump * 0.02); }
         { vec3 sdx = dFdx(normal), sdy = dFdy(normal); float sv = 0.5 * (dot(sdx, sdx) + dot(sdy, sdy));   // 스페큘러 AA: 화면상 법선 변화가 크면 반사를 넓게 퍼뜨려 깜빡임 제거
@@ -2641,11 +2656,11 @@ for (const [m, w] of [[K.tan, 1], [K.olive, 1], [K.green, 0.9], [K.black, 0.7], 
 { const M = gunTex('metal'), P = gunTex('poly'), F = gunTex('fabric');
   const pm = pbrize(M, 2.5, 0.42, 0.9), pp = pbrize(P, 5, 0.8, 0.5), pf = pbrize(F, 4, 0.95, 0.3);
   for (const [m, t, pb, sc] of [[K.black, M, pm, 0.6], [K.dark, M, pm, 0.6], [K.silver, M, pm, 0.4], [K.blade, M, pm, 0.3], [K.tan, P, pp, 0.9], [K.olive, P, pp, 0.9], [K.green, P, pp, 0.8], [K.glove, F, pf, 1], [K.sleeve, F, pf, 1]]) {
-    m.map = t; m.normalMap = null; triPatch(m, { scale: 7, bump: sc * (t === M ? 0.9 : 0.4), wear: WEAR.get(m) || 0 }); }
-  K.pBlack = triPatch(VMM(0x1e1f21, { metalness: 0.5, roughness: 0.52, map: M }), { scale: 7, bump: 0.22, wear: 0.45 });
-  K.pSilver = triPatch(VMM(0xb9bdc3, { metalness: 0.82, roughness: 0.4, map: M }), { scale: 7, bump: 0.12, wear: 0 });
-  K.pPoly = triPatch(VMM(0x232426, { metalness: 0.08, roughness: 0.74, map: P }), { scale: 9, bump: 0.18, wear: 0.2 });
-  K.pGrip = triPatch(VMM(0x2b2620, { metalness: 0.02, roughness: 0.85, map: F }), { scale: 16, bump: 0.3, wear: 0 });
+    m.map = t; m.normalMap = null; m.roughnessMap = null; triPatch(m, { scale: t === F ? 7 : 2.6, bump: 0, wear: WEAR.get(m) || 0 }); }
+  K.pBlack = triPatch(VMM(0x1e1f21, { metalness: 0.5, roughness: 0.52, map: M }), { scale: 2.6, bump: 0, wear: 0.45 });
+  K.pSilver = triPatch(VMM(0xb9bdc3, { metalness: 0.82, roughness: 0.4, map: M }), { scale: 2.6, bump: 0, wear: 0 });
+  K.pPoly = triPatch(VMM(0x232426, { metalness: 0.08, roughness: 0.74, map: P }), { scale: 3, bump: 0, wear: 0.2 });
+  K.pGrip = triPatch(VMM(0x2b2620, { metalness: 0.02, roughness: 0.85, map: F }), { scale: 10, bump: 0, wear: 0 });
   K.pDot = new THREE.MeshBasicMaterial({ color: 0xf2f2e6 });
   K.gren = triPatch(VMM(0x4a6332, { metalness: 0.15, roughness: 0.55, map: P }), { scale: 24, bump: 0.25, wear: 0 }); }
 // 근접무기 공통 손: 손바닥 + 손가락 4개가 손잡이를 감싸 쥠 + 엄지 + 소매
@@ -5697,7 +5712,7 @@ function loop(t) {
   if (xrayT > 0) { xrayT -= dt; if (state === 'playing' && player.alive && !KC.on) xrayPass(); }
   $('xrayOv').classList.toggle('on', xrayT > 0 && state === 'playing' && player.alive && !KC.on);
   postEnd();
-  if ((state === 'playing' && player.alive && !KC.on) || (state === 'replay' && RP.vmOn) || (KC.on && KC.vmOn)) { renderer.clearDepth(); renderer.render(wScene, wCam); } // 1인칭 총은 화면 원래 해상도로 (흐려지거나 깨지지 않게) DIAG.ms = (DIAG.ms || 0) * 0.9 + (performance.now() - _f0) * 0.1; DIAG.msMax = Math.max((DIAG.msMax || 0) * 0.995, performance.now() - _f0);
+  if ((state === 'playing' && player.alive && !KC.on) || (state === 'replay' && RP.vmOn) || (KC.on && KC.vmOn)) vmPass(); // 1인칭 총: 원래 해상도 + 4x MSAA DIAG.ms = (DIAG.ms || 0) * 0.9 + (performance.now() - _f0) * 0.1; DIAG.msMax = Math.max((DIAG.msMax || 0) * 0.995, performance.now() - _f0);
   if (DIAG.on) { DIAG.calls = renderer.info.render.calls; DIAG.tris = renderer.info.render.triangles; }
 }
 
