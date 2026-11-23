@@ -462,7 +462,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
     <section class="lb-col">
       <h2>매치 설정</h2>
       <div class="opt"><label>전장</label><div class="seg" data-opt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">고속도로 휴게소</button><button data-v="apt">아파트 단지</button><button data-v="harbor">항구</button><button data-v="bunker">지하 벙커</button></div></div>
-      <div class="opt"><label>시간대</label><div class="seg" data-opt="tod"><button data-v="day" class="on">☀️ 낮</button><button data-v="night">🌙 밤 (F: 라이트)</button></div></div>
+      <div class="opt"><label>시간대</label><div class="seg" data-opt="tod"><button data-v="day" class="on">☀️ 낮</button><button data-v="night">🌙 밤</button></div></div>
       <div class="opt"><label>총기 모드</label><div class="seg" data-opt="wmode"><button data-v="normal" class="on">자유</button><button data-v="sniper">🎯 저격전</button><button data-v="shotgun">💥 샷건전</button><button data-v="knife">🔪 칼전</button></div><div class="wmnote" id="wmNote"></div></div>
       <div class="opt"><label>목표 킬 (선취 승리)</label><div class="seg" data-opt="kills"><button data-v="20">20</button><button data-v="30">30</button><button data-v="50" class="on">50</button><button data-v="80">80</button><button data-v="100">100</button></div></div>
       <div class="opt"><label>제한 시간</label><div class="seg" data-opt="time"><button data-v="180">3분</button><button data-v="300">5분</button><button data-v="600" class="on">10분</button><button data-v="900">15분</button></div></div>
@@ -855,7 +855,7 @@ function followShadow() { const c = camera.getWorldPosition(new THREE.Vector3())
 // 손전등 (내 화면 · 실제 조명)
 const playerLight = new THREE.SpotLight(0xfff1d0, 0, 75, 0.36, 0.55, 1.3); playerLight.position.set(0.18, -0.12, 0);
 const playerLightTgt = new THREE.Object3D(); playerLightTgt.position.set(0.04, -0.04, -10); camera.add(playerLight); camera.add(playerLightTgt); playerLight.target = playerLightTgt;
-let playerLightOn = true;
+const playerLightOn = true; // 밤엔 모두 항상 켬
 function setEnv(night) {
   scene.background = night ? NIGHT_BG : null; SKY.visible = !night;
   scene.fog.color.setHex(night ? 0x060a14 : 0xb3c8dc); scene.fog.near = night ? 10 : 55; scene.fog.far = night ? 95 : 300;
@@ -2069,7 +2069,7 @@ const MAPS = {
       tp: [['BLUE 스폰', 0, 0, 47], ['RED 스폰', 0, 0, -47], ['중앙 광장', 0, 0, 3]] } },
   bunker: { name: '지하 벙커', ax: 32, az: 42, wallH: 8.4, indoor: true, spawn: { x0: -10, x1: 10, z0: 33, z1: 40 }, build: buildBunker,
     heal: [{ x: 26, z: 18 }, { x: -26, z: -18 }],
-    info: '64 × 84 m · 실내 근접전 · 2층<br>중앙 격납고(2층 높이·관측창) · 적재장 메자닌<br>실험실 · 창고(힐팩) · 통제실 · 서버실<br>밤: 정전 — 형광등 몇 곳뿐, 손전등 필수',
+    info: '64 × 84 m · 실내 근접전 · 2층<br>중앙 격납고(2층 높이·관측창) · 적재장 메자닌<br>실험실 · 창고(힐팩) · 통제실 · 서버실<br>밤: 정전 — 형광등 몇 곳뿐 (라이트 자동 켜짐)',
     tp: [['BLUE 스폰', 0, 0, 37], ['RED 스폰', 0, 0, -37], ['격납고', 0, 0, 6], ['메자닌', 0, 4.1, 24], ['관측창 복도', 17, 4.1, 6], ['창고', 26, 0, 16], ['계단실', 23, 0, 41]] }
 };
 let MAP = MAPS.yard, curMapId = null, MAP_CULL = false;
@@ -2084,7 +2084,7 @@ function loadMap(id, small = false) {
   cIdx = 0; curMapId = key; MAP = Object.assign({ id }, MAPS[id], small ? MAPS[id].small : {}); MAP.night = night; setEnv(night); if (small) MAP.name = MAPS[id].name + ' (축소)'; if (night) MAP.name = '🌙 ' + MAP.name + ' · 밤'; ARENA.x = MAP.ax; ARENA.z = MAP.az;
   MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (night && id !== 'harbor' && !MAPS[id].indoor) nightLamps(); if (ffaMap) buildBooths(); else buildShelters(); contactShadows(); MAP.decals = decals(); flushBatch(); tuneEnv(scene); shadowAt = ''; MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase(); prewarm();
   { const lm = $('lobbyMap').getContext('2d'); lm.clearRect(0, 0, 180, 192); lm.drawImage(mmBase, 0, 0); }
-  $('lbMapInfo').innerHTML = `<b>${MAP.name}</b>${settings.wmode !== 'normal' ? ' · ' + WMODES[settings.wmode] : ''}<br>${MAP.info}${night ? '<br>🔦 야간전 · F로 라이트 켜기/끄기 · 불빛을 노려 쏘세요' : ''}<br><span class="bdot"></span>BLUE 스폰 (남)<br><span class="rdot"></span>RED 스폰 (북)`;
+  $('lbMapInfo').innerHTML = `<b>${MAP.name}</b>${settings.wmode !== 'normal' ? ' · ' + WMODES[settings.wmode] : ''}<br>${MAP.info}${night ? '<br>🔦 야간전 · 모두 라이트가 켜진 채로 싸웁니다' : ''}<br><span class="bdot"></span>BLUE 스폰 (남)<br><span class="rdot"></span>RED 스폰 (북)`;
   $('lbMapName').textContent = MAP.name;
   document.querySelectorAll('.seg[data-opt="map"] button').forEach(b => b.classList.toggle('on', b.dataset.v === id));
   document.querySelectorAll('.seg[data-opt="tod"] button').forEach(b => b.classList.toggle('on', b.dataset.v === settings.tod));
@@ -2956,7 +2956,7 @@ function spawnEntity(e) {
   e.pos.copy(isFFA() && !isClient() ? ffaSpawn(e) : spawnPoint(e.team)); e.vel.set(0, 0, 0); e.knock.set(0, 0, 0);
   e.dmgBy.clear(); e.streak = 0; e.crouch = 0; e.prone = 0; e.lean = 0; e.stance = 0;
   e.yaw = isFFA() ? Math.atan2(e.pos.x, e.pos.z) : e.team === 'blue' ? 0 : Math.PI; e.pitch = 0; e.hp = 100; e.alive = true; e.onGround = true; e.protectT = PROTECT_MAX;
-  if (e.aw) { e.aw.spawnAt = now; e.aw.lp = null; } setupWeapons(e); if (!e.isPlayer && !e.remote) e.lightOn = true; else if (e.isPlayer) e.lightOn = playerLightOn;
+  if (e.aw) { e.aw.spawnAt = now; e.aw.lp = null; } setupWeapons(e); e.lightOn = true;
   if (e.model && e.loadout) soldierGun(e.model, e.modelKey || e.loadout.primary);
   if (e.model) { e.model.root.visible = !e.isPlayer; e.model.body.rotation.set(0, 0, 0); e.model.body.position.set(0, 0, 0); e.model.helmet.visible = true; e.flashT = 0; }
   if (e.ai) { Object.assign(e.ai, { blindT: 0, target: null, seen: false, path: [], waitT: 0, sideT: 0, alertT: 0, coverPos: null, stuckCount: 0, aimErr: 0.1 }); e.ai.lastPos.copy(e.pos); }
@@ -3083,7 +3083,7 @@ function computeAwards() {
   T('💣', '수류탄 자폭러', top(e => e.aw.selfDmg, 30), v => [Math.round(v), '자기 피해']);
   T('🍗', settings.wmode === 'knife' ? '보급 중독' : '힐팩 중독', top(e => e.aw.packs, 2), v => [v, '개 먹음']);
   if (settings.wmode !== 'knife') T('🔪', '칼잡이', top(e => e.aw.knife, 1), v => [v, '칼 킬']);
-  if (MAP.night) T('🔦', '등대', top(e => e.aw.lightDeaths, 2), v => [v, '번 라이트 켜고 사망']);
+  if (false) T('🔦', '등대', top(e => e.aw.lightDeaths, 2), v => [v, '번 라이트 켜고 사망']);
   T('💀', '즉사', top(e => e.aw.quick < 1e8 ? e.aw.quick : null, 6, true), v => [Math.max(1, Math.round(v)), '초 만에 사망']);
   let bp = null, bc = 2; for (const [k, c] of AW.pair) { const [a, b] = k.split('>').map(Number); if (c > bc && isIn(entities[a])) { bc = c; bp = [a, b]; } }
   if (bp) rival.push({ cat: 'rival', ic: '😈', t: '천적', id: bp[0], vs: bp[1], v: [bc, '번 처치'] });
@@ -4120,7 +4120,7 @@ addEventListener('keydown', e => {
   if (state !== 'playing' || !player.alive) return;
   if (code.startsWith('Digit')) { const n = +code.slice(5) - 1; if (n >= 0 && n <= 3) switchSlot(player, n); }
   if (code === 'KeyR') startReload(player);
-  if (code === 'KeyF' && !e.repeat && MAP.night) { playerLightOn = !playerLightOn; player.lightOn = playerLightOn; sfx('switch'); showCenterMsg(playerLightOn ? '🔦 라이트 ON — 잘 보이지만 적에게도 위치가 보입니다' : '라이트 OFF — 어둠 속에 숨습니다', '#ffd23f'); }
+  // 밤: 라이트는 항상 켜짐 (F 토글 없음)
   if ((code === 'KeyQ' || code === 'KeyE') && !e.repeat) { const d = code === 'KeyE' ? 1 : -1; leanT = leanT === d ? 0 : d; } // 기울이기 토글
   if (code === 'KeyC' && !e.repeat) { player.stance = player.stance === 1 ? 0 : 1; sfx('step', null, 0.8); }
   if (code === 'KeyZ' && !e.repeat) { player.stance = player.stance === 2 ? 0 : 2; sfx('step', null, 1); }
@@ -5013,7 +5013,7 @@ function hostOnData(conn, m) {
     case 'team': moveTeam(id); break;
     case 'lo': MP.slots[si].lo = sanitizeLo(m.lo); break;
     case 'nm': { const nm = String(m.name || '').trim().slice(0, 10); if (nm && !MP.started) { MP.slots[si].name = nm; broadcastRoom(); } break; }
-    case 'st': if (MP.started && e.alive && m.al) { if (m.ct != null) { if (!e.noff) e.noff = { off: null }; netOff(e.noff, m.ct); MP.stN = (MP.stN || 0) + 1; netPush(e, m.ct, [m.p[0], m.p[1], m.p[2], m.y, m.pt, m.c, m.pr, m.ln]); e.lastRaw = [m.p[0], m.p[1], m.p[2], m.y, m.pt, m.c, m.pr, m.ln]; } else { e.crouch = m.c; e.prone = m.pr; e.lean = m.ln; } e.netT = m.p; e.netYaw = m.y; e.ai.pitch = m.pt; e.lightOn = m.lt !== 0; } break;
+    case 'st': if (MP.started && e.alive && m.al) { if (m.ct != null) { if (!e.noff) e.noff = { off: null }; netOff(e.noff, m.ct); MP.stN = (MP.stN || 0) + 1; netPush(e, m.ct, [m.p[0], m.p[1], m.p[2], m.y, m.pt, m.c, m.pr, m.ln]); e.lastRaw = [m.p[0], m.p[1], m.p[2], m.y, m.pt, m.c, m.pr, m.ln]; } else { e.crouch = m.c; e.prone = m.pr; e.lean = m.ln; } e.netT = m.p; e.netYaw = m.y; e.ai.pitch = m.pt; e.lightOn = true; } break;
     case 'ev': if (MP.started) for (const ev of m.e) hostClientEvent(e, ev); break;
     case 'hit': if (m.q != null) { e._hq = e._hq || new Set(); if (e._hq.has(m.q)) break; e._hq.add(m.q); if (e._hq.size > 200) e._hq = new Set([...e._hq].slice(-100)); }
       if (MP.started && e.alive) { const v = entities[m.v]; if (v && v.alive && v !== e && !hitPlausible(v, m) && m.q != null) { try { (MP.conns.get(conn.peer) || conn).send({ t: 'hx', q: m.q }); } catch (err) {} }
@@ -5097,7 +5097,7 @@ function applySnap(m) {
     e.kills = a[10]; e.deaths = a[11]; e.assists = a[12]; e.dmgDealt = a[13]; e.hsKills = a[17];
     if (a[15] & (isFFA() ? 3 : myBit)) e.spotT[player.team] = now;
     if (e === player) { if (player.alive) { player.hp = a[5]; if (!a[14]) player.protectT = Math.min(player.protectT, 0); } return; }
-    e.protectT = a[14] ? 1 : 0; if (a[19] !== undefined) e.lightOn = a[19] !== 0;
+    e.protectT = a[14] ? 1 : 0; e.lightOn = true;
     if (a[18] >= 0 && WKEYS[a[18]] && e.modelKey !== WKEYS[a[18]]) { e.modelKey = WKEYS[a[18]]; if (e.model) soldierGun(e.model, e.modelKey); }
     if (nclock() - NETC.fastAt > 1) { e.netT = [a[0], a[1], a[2]]; e.netYaw = a[3]; e.ai.pitch = a[4]; } e.hp = a[5]; if (nclock() - NETC.fastAt > 1) { e.crouch = a[7]; e.prone = a[8]; e.lean = a[9]; } e.respawnT = a[16];
     const al = !!a[6];
@@ -5290,7 +5290,7 @@ const OPT_KEY = 'jamminfps_opts';
 // ----- 키 설정 -----
 const KEY_ACTIONS = [['fwd', '앞으로', 'KeyW'], ['back', '뒤로', 'KeyS'], ['left', '왼쪽', 'KeyA'], ['right', '오른쪽', 'KeyD'], ['jump', '점프', 'Space'], ['sprint', '달리기', 'ShiftLeft'],
   ['crouch', '앉기', 'KeyC'], ['prone', '엎드리기', 'KeyZ'], ['leanL', '왼쪽 기울이기', 'KeyQ'], ['leanR', '오른쪽 기울이기', 'KeyE'], ['reload', '재장전', 'KeyR'], ['mode', '사격 모드', 'KeyB'],
-  ['optPrev', '조준경 이전', 'BracketLeft'], ['optNext', '조준경 다음', 'BracketRight'], ['w1', '주무기', 'Digit1'], ['w2', '보조무기', 'Digit2'], ['w3', '근접무기', 'Digit3'], ['w4', '투척무기', 'Digit4'], ['score', '점수판', 'Tab'], ['light', '라이트 (야간)', 'KeyF']];
+  ['optPrev', '조준경 이전', 'BracketLeft'], ['optNext', '조준경 다음', 'BracketRight'], ['w1', '주무기', 'Digit1'], ['w2', '보조무기', 'Digit2'], ['w3', '근접무기', 'Digit3'], ['w4', '투척무기', 'Digit4'], ['score', '점수판', 'Tab']];
 const KEY_DEF = Object.fromEntries(KEY_ACTIONS.map(a => [a[0], a[2]]));
 let KEY_REMAP = {};
 function rebuildKeyMap() {
