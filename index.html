@@ -398,6 +398,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
 .rm-right .roster .rs{padding:3px 8px;font-size:12px}.rm-right .roster .rs.me{background:rgba(255,210,63,.12)}
 .rm-right #switchTeam{align-self:flex-start;margin:8px 0 0}
 .rm-name{margin-bottom:12px}.rm-name label{display:block;font-size:11px;letter-spacing:2px;color:#ffd23f;font-weight:800;margin-bottom:4px}.rm-name div{display:flex;gap:6px}.rm-name input{flex:1;min-width:0;padding:6px 8px;font-size:13px}.rm-name .btn.sm{margin:0}
+#mpRoom>.rm-bottom{display:flex;gap:14px;justify-content:center;align-items:stretch;flex:0 0 auto}.rm-bottom .rm-chat-bottom{width:min(980px,70%);margin-top:0;flex:0 1 auto;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);padding:8px 12px}.rm-bottom #chatLog{height:104px;min-height:104px;max-height:104px;font-size:13px}.rm-bottom .rm-chat-in input{font-size:13px}.rm-bottom .rm-foot{width:240px;flex:none;display:flex;flex-direction:column;justify-content:flex-end;margin:0}
 .rm-chat{margin-top:10px;display:flex;flex-direction:column;min-height:0;flex:1 1 140px}.rm-chat-h{font-size:12px;font-weight:700;opacity:.8;margin-bottom:4px}
 #chatLog{flex:1;min-height:90px;max-height:240px;overflow-y:auto;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);padding:6px 8px;font-size:12px;line-height:1.5;word-break:break-all}
 #chatLog .cm b{color:#ffd23f;font-weight:700;margin-right:4px}#chatLog .cm.blue b{color:#7fb4ff}#chatLog .cm.red b{color:#ff9a8a}#chatLog .cm.sys{color:#9a9a9a;font-style:italic}
@@ -588,10 +589,12 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
           <div class="roster-h blue">BLUE<em id="blueCnt"></em></div><div id="roomBlue" class="roster"></div>
           <div class="roster-h red">RED<em id="redCnt"></em></div><div id="roomRed" class="roster"></div>
           <button class="btn ghost sm" id="switchTeam">⇄ 팀 변경</button>
-          <div class="rm-chat"><div class="rm-chat-h">💬 채팅</div><div id="chatLog"></div><div class="rm-chat-in"><input id="chatIn" class="txt" maxlength="80" spellcheck="false" placeholder="메시지 입력 후 Enter" autocomplete="off"><button class="btn sm" id="chatSend">전송</button></div></div>
-          <div class="rm-foot"><div id="roomInfo"></div><button class="btn big" id="roomStart">게임 시작 ▶</button><div id="roomWait">방장이 시작하기를 기다리는 중…</div></div>
         </section>
       </div>
+          <div class="rm-bottom">
+          <div class="rm-chat rm-chat-bottom"><div class="rm-chat-h">💬 채팅</div><div id="chatLog"></div><div class="rm-chat-in"><input id="chatIn" class="txt" maxlength="80" spellcheck="false" placeholder="메시지 입력 후 Enter" autocomplete="off"><button class="btn sm" id="chatSend">전송</button></div></div>
+          <div class="rm-foot"><div id="roomInfo"></div><button class="btn big" id="roomStart">게임 시작 ▶</button><div id="roomWait">방장이 시작하기를 기다리는 중…</div></div>
+          </div>
     </div>
   </div>
 </div>
@@ -1101,7 +1104,7 @@ function setAniso() { const mx = renderer.capabilities.getMaxAnisotropy(), A = (
   A(MAT.crate, 2); }
 setAniso();
 // 텍스처·셰이더 미리 올리기: 처음 보는 곳에서 끊기는 현상 제거
-function prewarm() { try { const seen = new Set(); mapRoot.traverse(o => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) for (const k of ['map', 'normalMap', 'roughnessMap', 'emissiveMap', 'aoMap']) { const t = m[k]; if (t && !seen.has(t)) { seen.add(t); renderer.initTexture(t); } } }); renderer.compile(scene, camera); } catch (err) {} }
+function prewarm() { try { const seen = new Set(); mapRoot.traverse(o => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) for (const k of ['map', 'normalMap', 'roughnessMap', 'emissiveMap', 'aoMap']) { const t = m[k]; if (t && !seen.has(t)) { seen.add(t); renderer.initTexture(t); } } }); if (state !== 'playing') renderer.compile(scene, camera); } catch (err) {} }
 // ===================== 맵 / 충돌 =====================
 let mapRoot = new THREE.Group(); scene.add(mapRoot);
 const boxes = [];      // {min:[x,y,z], max:[x,y,z]}
@@ -2258,10 +2261,15 @@ function makeSoldier(team, name, gunKey) {
   mergeParts(body, [helmet]); for (const L of legs) mergeParts(L); mergeParts(arms);
   // 35m 밖에서 쓰는 단순 모델: 상자 몇 개를 색상째 합쳐 한 번에 그림
   const lp = [], col = (g, c) => { const n = g.attributes.position.count, a = new Float32Array(n * 3), cc = new THREE.Color(c); for (let i = 0; i < n; i++) { a[i * 3] = cc.r; a[i * 3 + 1] = cc.g; a[i * 3 + 2] = cc.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; };
-  const lb = (w, h, d, x, y, z, c) => { const g = new THREE.BoxGeometry(w, h, d).toNonIndexed(); g.translate(x, y, z); lp.push(col(g, c)); };
-  const uC = blue ? 0x4f5a3e : 0x9c8562; lb(0.36, 0.86, 0.22, 0, 0.45, 0, uC); lb(0.2, 0.12, 0.3, -0.12, 0.05, -0.04, 0x222222); lb(0.2, 0.12, 0.3, 0.12, 0.05, -0.04, 0x222222);
-  lb(0.5, 0.5, 0.34, 0, 1.22, 0, mV.color); lb(0.36, 0.42, 0.18, 0, 1.24, 0.26, mP.color); lb(0.24, 0.26, 0.24, 0, 1.64, 0, mS.color); lb(0.32, 0.14, 0.32, 0, 1.79, 0.01, mH.color);
-  lb(0.6, 0.12, 0.14, 0, 1.38, -0.2, uC); lb(0.07, 0.1, 0.6, 0.12, 1.36, -0.5, 0x1c1d1f);
+  const lb = (w, h, d, x, y, z, c) => { const g = new THREE.BoxGeometry(w, h, d).toNonIndexed(); g.deleteAttribute('uv'); g.translate(x, y, z); lp.push(col(g, c)); };
+  const uC = blue ? 0x58633f : 0xa08a64; // 위장무늬 평균색
+  // 35m 밖 모델: 가까이서 보는 몸체(다리·몸통·팔·헬멧) 형태를 그대로 한 덩어리로 합침 → 멀리서도 같은 생김새, 그리기 1번
+  root.updateMatrixWorld(true); const inv = root.matrixWorld.clone().invert(), M4 = new THREE.Matrix4();
+  body.traverse(o => { if (!o.isMesh || !o.visible) return; let p = o; while (p && p !== body) { if (p === gun || p === beam) return; p = p.parent; }
+    const mt = Array.isArray(o.material) ? o.material[0] : o.material; if (!mt || !mt.isMeshStandardMaterial || mt.transparent) return;
+    const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k);
+    g.applyMatrix4(M4.multiplyMatrices(inv, o.matrixWorld)); lp.push(col(g, mt === mU ? uC : mt.color)); });
+  lb(0.07, 0.1, 0.6, 0.12, 1.36, -0.5, 0x1c1d1f); // 총 (무기 교체와 무관하게 단순 형태)
   const lod = new THREE.Mesh(mergeGeometries(lp, false), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05 })); lp.forEach(g => g.dispose());
   lod.castShadow = true; lod.visible = false; root.add(lod);
   root.traverse(o => { if (o.isMesh) o.receiveShadow = false; });
@@ -3636,7 +3644,8 @@ function pingTag(e) {
   if (!MP.on) return ''; const sl = MP.slots[e.id]; if (!sl || sl.kind !== 'human') return '';
   const v = MP.host ? (sl.peer === 'host' ? 0 : (MP.ping[e.id] ?? -1)) : (NETC.ping[e.id] ?? -1);
   if (sl.peer === 'host') return ' <span class="png" style="color:#9fd0ff">방장</span>'; if (v < 0) return '';
-  return ` <span class="png" style="color:${v < 80 ? '#5dff8a' : v < 160 ? '#ffd23f' : '#ff6b5a'}">${v}ms</span>`;
+  const rt = MP.host ? (MP.conns.get(sl.peer) || {})._route : (e === player ? MP.route : ''); const rl = rt && rt.includes('중계') ? ' 중계' : '';
+  return ` <span class="png" style="color:${v < 80 ? '#5dff8a' : v < 160 ? '#ffd23f' : '#ff6b5a'}">${v}ms${rl}</span>`;
 }
 function renderScoreboard(el, forEnd = false) {
   const col = team => {
@@ -4413,7 +4422,11 @@ let netIn = false, netSrc;
 // ----- 네트코드: 보간 버퍼 · 예측 이동 · 랙 보상 -----
 const NETC = { INTERP: 0.1, EXTRA: 0.25, SNAP: 12, REWIND: 0.3, off: null, fastAt: -9, ping: [] };
 const nclock = () => performance.now() / 1000;
-function netOff(o, t) { const smp = t - nclock(); if (o.off == null || smp > o.off) o.off = smp; else o.off += (smp - o.off) * 0.02; }
+function netOff(o, t) { const smp = t - nclock(); if (o.off == null || smp > o.off) o.off = smp; else o.off += (smp - o.off) * 0.02;
+  // 도착 흔들림(지터) 추적 → 보간 지연을 자동 조절 (안정적이면 0.08초, 흔들리면 최대 0.3초)
+  const late = Math.max(0, o.off - smp); o.jit = o.jit == null ? late : o.jit * 0.96 + late * 0.04; o.interp = Math.min(0.3, Math.max(0.08, 0.05 + o.jit * 2.2)); }
+// 보내기 대기열이 쌓이면(느린 회선·중계) 이번 위치 갱신은 건너뜀 → 지연이 눈덩이처럼 커지는 것 방지
+const chBuf = c => { try { return (c && c.dataChannel && c.dataChannel.bufferedAmount) || 0; } catch (err) { return 0; } };
 // 받은 위치를 시간표와 함께 쌓아둠 (늦게 온/중복 패킷은 버림, 크게 튀면 버퍼 초기화 → 그 자리로 이동)
 function netPush(e, t, a) {
   if (!e.nb) e.nb = []; const L = e.nb[e.nb.length - 1];
@@ -4423,9 +4436,9 @@ function netPush(e, t, a) {
   while (e.nb.length > 2 && e.nb[1].t < t - 1) e.nb.shift();
 }
 // 0.1초 과거 시점을 두 패킷 사이 보간 · 패킷이 늦으면 최대 0.25초까지 마지막 속도로 예측 이동
-function netSample(e, off) {
-  const b = e.nb; if (!b || !b.length || off == null) return null;
-  const rt = nclock() + off - NETC.INTERP; const L = b[b.length - 1];
+function netSample(e, o) {
+  const off = o && o.off; const b = e.nb; if (!b || !b.length || off == null) return null;
+  const rt = nclock() + off - (o.interp || NETC.INTERP); const L = b[b.length - 1];
   if (rt >= L.t) {
     const P = b[b.length - 2]; let vx = 0, vy = 0, vz = 0;
     if (P && L.t - P.t > 0.001) { const d = L.t - P.t; vx = (L.x - P.x) / d; vy = (L.y - P.y) / d; vz = (L.z - P.z) / d; }
@@ -4526,7 +4539,7 @@ function mpCreate() {
   });
   peer.on('connection', conn => {
     if (conn.label === 'fast') { conn.on('open', () => MP.fconns.set(conn.peer, conn)); conn.on('data', m => { if (m && m.t === 'st') hostOnData(conn, m); }); conn.on('close', () => { if (MP.fconns.get(conn.peer) === conn) MP.fconns.delete(conn.peer); }); return; }
-    conn.on('data', m => hostOnData(conn, m)); conn.on('close', () => hostDrop(conn.peer)); conn.on('error', () => hostDrop(conn.peer)); });
+    conn.on('open', () => setTimeout(async () => { conn._route = await connRoute(conn); }, 2000)); conn.on('data', m => hostOnData(conn, m)); conn.on('close', () => hostDrop(conn.peer)); conn.on('error', () => hostDrop(conn.peer)); });
   let hostTries = 0;
   peer.on('error', err => {
     if (err.type === 'unavailable-id') { peer.destroy(); mpCreate(); return; }
@@ -4833,9 +4846,9 @@ function netFast(dt) {
   MP.fastT = (MP.fastT || 0) - dt; if (MP.fastT > 0) return; MP.fastT = 1 / 30;
   if (MP.host) {
     const msg = { t: 'u', ht: +nclock().toFixed(3), e: entities.map(x => [r2(x.pos.x), r2(x.pos.y), r2(x.pos.z), r2(x.yaw), r2(x.isPlayer ? camera.rotation.x : x.ai.pitch)]) };
-    for (const [pid, c] of MP.conns) { const f = MP.fconns.get(pid); const ch = f && f.open ? f : c; if (ch && ch.open) { try { ch.send(msg); } catch (err) {} } }
+    for (const [pid, c] of MP.conns) { const f = MP.fconns.get(pid); const ch = f && f.open ? f : c; if (ch && ch.open && chBuf(ch) < 16000) { try { ch.send(msg); } catch (err) {} } }
   } else if (MP.hostConn && MP.hostConn.open) {
-    const p = player, ch = MP.fastConn && MP.fastConn.open ? MP.fastConn : MP.hostConn;
+    const p = player, ch = MP.fastConn && MP.fastConn.open ? MP.fastConn : MP.hostConn; if (chBuf(ch) > 16000) return;
     try { ch.send({ t: 'st', ct: +nclock().toFixed(3), al: p.alive ? 1 : 0, p: [r2(p.pos.x), r2(p.pos.y), r2(p.pos.z)], y: r2(camera.rotation.y), pt: r2(camera.rotation.x), c: r2(p.crouch), pr: r2(p.prone), ln: r2(p.lean), lt: p.lightOn === false ? 0 : 1 }); } catch (err) {}
   }
 }
@@ -4847,7 +4860,9 @@ function netTick(dt) {
     const e = entities.map(x => [r2(x.pos.x), r2(x.pos.y), r2(x.pos.z), r2(x.yaw), r2(x.isPlayer ? camera.rotation.x : x.ai.pitch), Math.max(0, Math.round(x.hp)), x.alive ? 1 : 0, r2(x.crouch), r2(x.prone), r2(x.lean),
       x.kills, x.deaths, x.assists, Math.round(x.dmgDealt), x.protectT > 0 ? 1 : 0, (now - x.spotT.blue < 1.2 ? 1 : 0) | (now - x.spotT.red < 1.2 ? 2 : 0), x.respawnT > 0 ? r2(x.respawnT) : 0, x.hsKills, x.loadout ? WKEYS.indexOf(x.modelKey || x.loadout.primary) : -1, x.lightOn === false ? 0 : 1]);
     const msg = { t: 's', tm: r2(matchTime), sc: [score.blue, score.red], e, hp: healPacks.map(h => r2(Math.max(0, h.cd))), ev: MP.evQ, pg: MP.slots.map((sl, i) => sl.kind !== 'human' ? -1 : sl.peer === 'host' ? 0 : ((MP.ping || [])[i] ?? -1)) };
-    MP.evQ = []; sendAll(msg);
+    const ev = MP.evQ; MP.evQ = [];
+    for (const c of MP.conns.values()) { if (!c.open) continue; const all = c._pend ? c._pend.concat(ev) : ev;
+      if (chBuf(c) > 48000) { c._pend = all; continue; } c._pend = null; try { c.send(all === ev ? msg : Object.assign({}, msg, { ev: all })); } catch (err) {} }
   } else if (MP.hostConn && MP.hostConn.open) {
     const p = player;
     try {
@@ -4863,7 +4878,7 @@ function netOut(ev) {
 function netPuppet(e, dt) {
   if (MP.host && e.protectT > 0) e.protectT -= dt;
   if (!e.alive) { e.vel.set(0, 0, 0); return; }
-  const S = netSample(e, MP.host ? (e.noff && e.noff.off) : NETC.off);
+  const S = netSample(e, MP.host ? e.noff : NETC);
   if (S) {
     const dx = S.x - e.pos.x, dy = S.y - e.pos.y, dz = S.z - e.pos.z;
     if (e.netSnap || dx * dx + dy * dy + dz * dz > NETC.SNAP * NETC.SNAP) { e.pos.set(S.x, S.y, S.z); e.vel.set(0, 0, 0); e.netSnap = false; }
@@ -4880,7 +4895,7 @@ function netPuppet(e, dt) {
 function dealDamage(v, dmg, att, w, head, from) {
   if (isClient()) {
     if (att !== player || !v.alive || v.protectT > 0 || v.team === att.team) return false;
-    const ry = NET_RAY; const msg = { t: 'hit', v: v.id, d: Math.round(dmg * 10) / 10, h: head ? 1 : 0, w, rt: NETC.off != null ? +(nclock() + NETC.off - NETC.INTERP).toFixed(3) : 0 };
+    const ry = NET_RAY; const msg = { t: 'hit', v: v.id, d: Math.round(dmg * 10) / 10, h: head ? 1 : 0, w, rt: NETC.off != null ? +(nclock() + NETC.off - (NETC.interp || NETC.INTERP)).toFixed(3) : 0 };
     if (ry) { msg.o = [r2(ry.o.x), r2(ry.o.y), r2(ry.o.z)]; msg.r = [+ry.d.x.toFixed(3), +ry.d.y.toFixed(3), +ry.d.z.toFixed(3)]; if (ry.mel) msg.mel = 1; }
     try { MP.hostConn.send(msg); } catch (err) {}
     const pred = dmg >= v.hp ? 'kill' : 'hit'; v.hp -= dmg; return pred;
