@@ -1179,7 +1179,7 @@ function flushBatch() {
     for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv') g.deleteAttribute(k);
     if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
     it.mat = canonMat(it.mat); if (it.mat.isMeshStandardMaterial && !it.mat.userData.wp && !it.mat.userData.noWP) worldPatch(it.mat, false);
-    if (MAP.indoor && it.detail) it.cast = false; const CH = MAP.indoor ? 999 : 45, key = it.mat.uuid + (it.cast ? 'c' : 'n') + (it.detail ? 'D' : '') + '|' + Math.floor(it.o.position.x / CH) + ',' + Math.floor(it.o.position.z / CH); let gr = groups.get(key); if (!gr) groups.set(key, gr = { mat: it.mat, cast: it.cast, detail: it.detail, list: [] }); gr.list.push(g);
+    if (it.detail) it.cast = false; const CH = MAP.indoor ? 999 : 45, key = it.mat.uuid + (it.cast ? 'c' : 'n') + (it.detail ? 'D' : '') + '|' + Math.floor(it.o.position.x / CH) + ',' + Math.floor(it.o.position.z / CH); let gr = groups.get(key); if (!gr) groups.set(key, gr = { mat: it.mat, cast: it.cast, detail: it.detail, list: [] }); gr.list.push(g);
     if (it.own) it.geo.dispose();
   }
   for (const gr of groups.values()) { const mg = mergeGeometries(gr.list, false); gr.list.forEach(g => g.dispose()); if (!mg) continue; const m = new THREE.Mesh(mg, gr.mat); m.castShadow = gr.cast; m.receiveShadow = true; mapRoot.add(m); if (gr.detail) { mg.computeBoundingSphere(); DETAIL.push(m); } }
@@ -2131,7 +2131,7 @@ function loadMap(id, small = false) {
   mapRoot = new THREE.Group(); scene.add(mapRoot); DETAIL = []; LIGHT_SPOTS = []; clearMarks();
   for (const a of [boxes, ramps, rampMeshes, coverBoxes, aiGoals, highGoals, coverPoints, flags, healPacks]) a.length = 0;
   cIdx = 0; curMapId = key; MAP = Object.assign({ id }, MAPS[id], small ? MAPS[id].small : {}); MAP.night = night; setEnv(night); if (small) MAP.name = MAPS[id].name + ' (축소)'; if (night) MAP.name = '🌙 ' + MAP.name + ' · 밤'; ARENA.x = MAP.ax; ARENA.z = MAP.az;
-  WPU.floorH.value = MAPS[id].floorH || 0; MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (night && id !== 'harbor' && !MAPS[id].indoor) nightLamps(); if (ffaMap) buildBooths(); else buildShelters(); contactShadows(); MAP.decals = decals(); flushBatch(); tuneEnv(scene); shadowAt = ''; MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase(); prewarm();
+  WPU.floorH.value = MAPS[id].floorH || 0; MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (night && id !== 'harbor' && !MAPS[id].indoor) nightLamps(); if (ffaMap) buildBooths(); else buildShelters(); contactShadows(); MAP.decals = decals(); flushBatch(); mergeDeep(mapRoot, [], o => o.parent === mapRoot && o.material.transparent && o.material.blending === THREE.NormalBlending && o.material.side !== THREE.DoubleSide && !flags.includes(o) && !rampMeshes.includes(o) && !DETAIL.includes(o)); tuneEnv(scene); shadowAt = ''; MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase(); prewarm();
   { const lm = $('lobbyMap').getContext('2d'); lm.clearRect(0, 0, 180, 192); lm.drawImage(mmBase, 0, 0); }
   $('lbMapInfo').innerHTML = `<b>${MAP.name}</b>${settings.wmode !== 'normal' ? ' · ' + WMODES[settings.wmode] : ''}<br>${MAP.info}${night ? '<br>🔦 야간전 · 모두 라이트가 켜진 채로 싸웁니다' : ''}<br><span class="bdot"></span>BLUE 스폰 (남)<br><span class="rdot"></span>RED 스폰 (북)`;
   $('lbMapName').textContent = MAP.name;
@@ -2522,6 +2522,24 @@ function occluded(e) {
   const h = headY(e), sx = Math.cos(e.yaw) * 0.55, sz = -Math.sin(e.yaw) * 0.55;
   for (const [ox, oy, oz] of [[0, h, 0], [0, h * 0.55, 0], [0, 0.25, 0], [sx, h * 0.6, sz], [-sx, h * 0.6, sz * -1]]) { _oc.set(e.pos.x + ox, e.pos.y + oy, e.pos.z + oz); if (los(c, _oc)) { e._seenAt = now; return false; } }
   return now - (e._seenAt ?? -9) > 0.4;
+}
+// 깊은 병합: root 아래 정적 메쉬를 재질(+속성 구성)별로 한 덩어리로. skip 하위·스프라이트·애니메이션 부품은 제외
+function mergeDeep(root, skip = [], filter = null) {
+  root.updateMatrixWorld(true); const inv = root.matrixWorld.clone().invert(), M = new THREE.Matrix4(), by = new Map(), rm = [];
+  root.traverse(o => { if (!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh || Array.isArray(o.material) || o.children.length || !o.visible || o.onBeforeRender !== THREE.Object3D.prototype.onBeforeRender) return;
+    for (let p = o; p && p !== root; p = p.parent) if (skip.includes(p) || !p.visible) return;
+    if (filter && !filter(o)) return; const g0 = o.geometry; if (g0.morphAttributes && Object.keys(g0.morphAttributes).length) return;
+    const g = g0.index ? g0.toNonIndexed() : g0.clone(); g.applyMatrix4(M.multiplyMatrices(inv, o.matrixWorld));
+    const keep = ['position', 'normal', 'uv', 'wearM', 'color']; for (const k of Object.keys(g.attributes)) if (!keep.includes(k)) g.deleteAttribute(k);
+    const n = g.attributes.position.count; if (!g.attributes.normal) g.computeVertexNormals(); if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(n * 2), 2)); if (!g.attributes.wearM) g.setAttribute('wearM', new THREE.BufferAttribute(new Float32Array(n), 1));
+    g.clearGroups(); const key = o.material.uuid + (g.attributes.color ? 'C' : '') + '|' + o.renderOrder + (o.castShadow ? 's' : '') + (o.receiveShadow ? 'r' : '');
+    let L = by.get(key); if (!L) by.set(key, L = { m: o.material, ro: o.renderOrder, cs: o.castShadow, rs: o.receiveShadow, list: [] }); L.list.push(g); rm.push(o); });
+  let saved = 0;
+  for (const L of by.values()) { if (L.list.length < 2) { L.list.forEach(g => g.dispose()); continue; }
+    const mg = mergeGeometries(L.list, false); L.list.forEach(g => g.dispose()); if (!mg) continue;
+    const k = new THREE.Mesh(mg, L.m); k.renderOrder = L.ro; k.castShadow = L.cs; k.receiveShadow = L.rs; root.add(k); k.userData.merged = true; saved += L.list.length - 1;
+    for (const o of rm) if (o.material === L.m && o.parent && !o.userData._gone && o.renderOrder === L.ro && o.castShadow === L.cs && o.receiveShadow === L.rs) { o.userData._gone = true; o.parent.remove(o); } }
+  return saved;
 }
 function mergeParts(grp, skip) {
   const by = new Map();
@@ -3036,7 +3054,7 @@ function buildViewModel(key, opt) {
   const id = key + '|' + (cap ? opt : '');
   if (vmKey === id && vmModel) return;
   if (vmModel) vmRoot.remove(vmModel);
-  vmModel = makeGunModel(key); if (cap) attachOptic(vmModel, opt); vmKey = id; vmRoot.add(vmModel); tuneEnv(vmModel);
+  vmModel = makeGunModel(key); if (cap) attachOptic(vmModel, opt); mergeDeep(vmModel, [vmModel.userData.blade].filter(Boolean)); vmKey = id; vmRoot.add(vmModel); tuneEnv(vmModel);
 }
 
 // ===================== 엔티티 =====================
