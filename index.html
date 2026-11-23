@@ -975,7 +975,8 @@ function pbrize(tex, bump, rough0, roughVar, metal) {
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x, L = h[y * n + (x + n - 1) % n], Rr = h[y * n + (x + 1) % n], U = h[((y + n - 1) % n) * n + x], D = h[((y + 1) % n) * n + x];
     let nx = (L - Rr) * bump, ny = (D - U) * bump, nz = 1; const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
     ni.data[i * 4] = (nx * 0.5 + 0.5) * 255; ni.data[i * 4 + 1] = (ny * 0.5 + 0.5) * 255; ni.data[i * 4 + 2] = (nz * 0.5 + 0.5) * 255; ni.data[i * 4 + 3] = 255;
-    const r = Math.min(1, Math.max(0.05, rough0 - (h[i] - avg) * roughVar)); ri.data[i * 4] = ri.data[i * 4 + 1] = ri.data[i * 4 + 2] = r * 255; ri.data[i * 4 + 3] = 255; }
+    const r = Math.min(1, Math.max(0.05, rough0 - (h[i] - avg) * roughVar)), ao = Math.min(1, Math.max(0.45, 1 + (h[i] - avg) * 1.6)), mt = Math.min(1, Math.max(0.6, 0.9 + (h[i] - avg) * 0.8));
+    ri.data[i * 4] = ao * 255; ri.data[i * 4 + 1] = r * 255; ri.data[i * 4 + 2] = mt * 255; ri.data[i * 4 + 3] = 255; }
   nc.getContext('2d').putImageData(ni, 0, 0); rc.getContext('2d').putImageData(ri, 0, 0);
   const mk = cv => { const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.copy(tex.repeat); t.anisotropy = Math.min(4, tex.anisotropy); return t; };
   const out = { normal: mk(nc), rough: mk(rc), metal }; PBR.set(tex, out); return out;
@@ -1012,7 +1013,7 @@ const MAT = {
 
 { const P = new Map([[groundTex, [3, 0.95, 0.5]], [concreteTex, [3.5, 0.9, 0.6]], [wallTex, [2, 0.88, 0.4]], [asphaltTex, [4, 0.95, 0.4]], [dirtTex, [3.5, 0.98, 0.3]], [brickTex, [5, 0.9, 0.8]], [containerTex, [4.5, 0.6, 0.8]], [crateTex, [3, 0.85, 0.4]], [woodFloorTex, [2.5, 0.6, 0.6]], [tileTex, [3, 0.35, 0.9]], [linoTex, [1.5, 0.55, 0.4]]]);
   const all = [...Object.values(MAT).filter(m => m && m.isMeshStandardMaterial), ...MAT.containers];
-  for (const m of all) { const cfg = m.map && P.get(m.map); if (!cfg) continue; const pb = pbrize(m.map, cfg[0], cfg[1], cfg[2]); m.normalMap = pb.normal; m.normalScale.set(0.9, 0.9); m.roughnessMap = pb.rough; m.roughness = 1; m.needsUpdate = true; } }
+  for (const m of all) { const cfg = m.map && P.get(m.map); if (!cfg) continue; const pb = pbrize(m.map, cfg[0], cfg[1], cfg[2]); m.normalMap = pb.normal; m.normalScale.set(0.9, 0.9); m.roughnessMap = m.metalnessMap = m.aoMap = pb.rough; m.aoMapIntensity = 0.8; m.roughness = 1; m.needsUpdate = true; } }
 // ---- 월드 재질 셰이더 보강: 타일 반복 깨기(스토캐스틱) · 넓은 얼룩 · 풍화(벽 밑 흙때·빗물 자국) ----
 const WP_GLSL = `varying vec3 vWP; varying vec3 vWN;
 float wpHash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
@@ -1048,7 +1049,16 @@ function worldPatch(m, anti) {
       float wpStreak = wpVert * smoothstep(0.55, 0.95, wpNoise(vec2((vWP.x + vWP.z) * 2.6, vWP.y * 0.22))) * 0.5;
       float wpG = clamp(wpLow * 0.55 + wpStreak * 0.35, 0.0, 0.6);
       diffuseColor.rgb *= 1.0 - wpG; diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.0, 0.93, 0.82), wpLow * 0.5);`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = min(1.0, roughnessFactor + wpG * 0.25);');
+      .replace('#include <roughnessmap_fragment>', `float roughnessFactor = roughness; vec4 ormS = vec4(1.0);
+        #ifdef USE_ROUGHNESSMAP
+          ormS = texture2D(roughnessMap, vRoughnessMapUv); roughnessFactor *= ormS.g;
+        #endif
+        roughnessFactor = min(1.0, roughnessFactor + wpG * 0.25);`)
+      .replace('#include <metalnessmap_fragment>', `float metalnessFactor = metalness;
+        #ifdef USE_METALNESSMAP
+          metalnessFactor *= ormS.b;
+        #endif`)
+      .replace('#include <aomap_fragment>', THREE.ShaderChunk.aomap_fragment.replace('texture2D( aoMap, vAoMapUv ).r', 'ormS.r'));
   };
   m.needsUpdate = true; return m;
 }
@@ -1066,7 +1076,7 @@ function applyPhoto(mat, canvas, rep, bump, rough0, roughVar, nrmCanvas) {
   const t = new THREE.CanvasTexture(canvas); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep, rep); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   const pb = pbrize(t, bump, rough0, roughVar);
   if (nrmCanvas) { const n = new THREE.CanvasTexture(nrmCanvas); n.wrapS = n.wrapT = THREE.RepeatWrapping; n.repeat.set(rep, rep); n.anisotropy = 4; pb.normal = n; }
-  mat.map = t; mat.normalMap = pb.normal; mat.roughnessMap = pb.rough; mat.roughness = 1; mat.needsUpdate = true; return t;
+  mat.map = t; mat.normalMap = pb.normal; mat.roughnessMap = mat.metalnessMap = mat.aoMap = pb.rough; mat.aoMapIntensity = 0.8; mat.roughness = 1; mat.needsUpdate = true; return t;
 }
 const PHOTO = { ok: 0 };
 photoTex('tex/dirt.jpg', c => { applyPhoto(MAT.ground, c, 180, 4, 0.97, 0.4); MAT.ground.color.setHex(0x9e9b8c); PHOTO.ok++; setAniso(); prewarm(); });
@@ -2197,10 +2207,18 @@ const BEAM_GEO = new THREE.ConeGeometry(1.7, 13, 10, 1, true);
 const BEAM_MAT = new THREE.MeshBasicMaterial({ color: 0xfff0c8, transparent: true, opacity: 0.075, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
 const LENS_MAT = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,250,230,1)'); gr.addColorStop(0.25, 'rgba(255,235,180,.7)'); gr.addColorStop(1, 'rgba(255,220,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
   return new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }); })();
+// 팀 위장무늬: BLUE=우드랜드(녹·갈), RED=사막(모래·갈) — 군복 바지·상의에 삼면 투영
+const CAMO = (() => { const mk = pal => { const n = 512, c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d'); g.fillStyle = pal[0]; g.fillRect(0, 0, n, n);
+    for (let L = 1; L < pal.length; L++) for (let k = 0; k < 26; k++) { g.fillStyle = pal[L]; const cx = Math.random() * n, cy = Math.random() * n, r = (L === pal.length - 1 ? 14 : 30) + Math.random() * 40, rs = [];
+      for (let a = 0; a < 12; a++) rs.push(r * (0.6 + Math.random() * 0.6));
+      for (const ox of [-n, 0, n]) for (const oy of [-n, 0, n]) { g.beginPath(); rs.forEach((rr, a) => { const t = a / 12 * 6.283; g.lineTo(cx + ox + Math.cos(t) * rr * 1.5, cy + oy + Math.sin(t) * rr); }); g.closePath(); g.fill(); } }
+    noise(g, n, 6000, () => 'rgba(0,0,0,1)', 0.05, 2);
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
+  return { blue: mk(['#5d6b4a', '#3f4b30', '#6e5a3e', '#23261c']), red: mk(['#b49b74', '#8c7352', '#6e5a40', '#d1bd96']) }; })();
 function makeSoldier(team, name, gunKey) {
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   const blue = team === 'blue';
-  const mU = SM(blue ? 0x46533f : 0x5a4a3a), mV = SM(blue ? 0x2d6cdf : 0xd8402f, { roughness: 0.6 }), mS = SM(0xd9a77f), mH = SM(blue ? 0x1e3f7a : 0x7a1e1e, { roughness: 0.5, metalness: 0.3 }), mB = SM(0x222222), mG = SM(0x1c1d1f, { roughness: 0.4, metalness: 0.6 }), mW = SM(0x7a4a22);
+  const mU = triPatch(SM(0xffffff, { map: CAMO[blue ? 'blue' : 'red'], roughness: 0.92 }), { scale: 2.2, bump: 0.6, wear: 0, camo: 1 }), mV = SM(blue ? 0x2d6cdf : 0xd8402f, { roughness: 0.6 }), mS = SM(0xd9a77f), mH = SM(blue ? 0x1e3f7a : 0x7a1e1e, { roughness: 0.5, metalness: 0.3 }), mB = SM(0x222222), mG = SM(0x1c1d1f, { roughness: 0.4, metalness: 0.6 }), mW = SM(0x7a4a22);
   const mP = SM(blue ? 0x3a4430 : 0x4a3c2c, { roughness: 0.9 }), mGl = SM(0x111316, { roughness: 0.2, metalness: 0.4 });
   const add = (geo, m, x, y, z, p = body) => { const k = new THREE.Mesh(geo, m); k.position.set(x, y, z); k.castShadow = true; p.add(k); return k; };
   const rb = (w, h, d, m, x, y, z, p = body, r = 0.25) => add(new RoundedBoxGeometry(w, h, d, 1, Math.min(w, h, d) * r), m, x, y, z, p);
@@ -2241,9 +2259,9 @@ function makeSoldier(team, name, gunKey) {
   // 35m 밖에서 쓰는 단순 모델: 상자 몇 개를 색상째 합쳐 한 번에 그림
   const lp = [], col = (g, c) => { const n = g.attributes.position.count, a = new Float32Array(n * 3), cc = new THREE.Color(c); for (let i = 0; i < n; i++) { a[i * 3] = cc.r; a[i * 3 + 1] = cc.g; a[i * 3 + 2] = cc.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; };
   const lb = (w, h, d, x, y, z, c) => { const g = new THREE.BoxGeometry(w, h, d).toNonIndexed(); g.translate(x, y, z); lp.push(col(g, c)); };
-  lb(0.36, 0.86, 0.22, 0, 0.45, 0, mU.color); lb(0.2, 0.12, 0.3, -0.12, 0.05, -0.04, 0x222222); lb(0.2, 0.12, 0.3, 0.12, 0.05, -0.04, 0x222222);
+  const uC = blue ? 0x4f5a3e : 0x9c8562; lb(0.36, 0.86, 0.22, 0, 0.45, 0, uC); lb(0.2, 0.12, 0.3, -0.12, 0.05, -0.04, 0x222222); lb(0.2, 0.12, 0.3, 0.12, 0.05, -0.04, 0x222222);
   lb(0.5, 0.5, 0.34, 0, 1.22, 0, mV.color); lb(0.36, 0.42, 0.18, 0, 1.24, 0.26, mP.color); lb(0.24, 0.26, 0.24, 0, 1.64, 0, mS.color); lb(0.32, 0.14, 0.32, 0, 1.79, 0.01, mH.color);
-  lb(0.6, 0.12, 0.14, 0, 1.38, -0.2, mU.color); lb(0.07, 0.1, 0.6, 0.12, 1.36, -0.5, 0x1c1d1f);
+  lb(0.6, 0.12, 0.14, 0, 1.38, -0.2, uC); lb(0.07, 0.1, 0.6, 0.12, 1.36, -0.5, 0x1c1d1f);
   const lod = new THREE.Mesh(mergeGeometries(lp, false), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05 })); lp.forEach(g => g.dispose());
   lod.castShadow = true; lod.visible = false; root.add(lod);
   root.traverse(o => { if (o.isMesh) o.receiveShadow = false; });
@@ -2290,7 +2308,7 @@ const K = {
   green: VMM(0x40592c, { metalness: 0.2, roughness: 0.6 }), red: new THREE.MeshBasicMaterial({ color: 0xff2a2a }), lens: new THREE.MeshBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.12, depthWrite: false })
 };
 function gunTex(kind) {
-  const n = 256, c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d'); const f = fbmField(n, 5);
+  const n = 1024, c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d'); const f = fbmField(n, 5);
   const im = g.createImageData(n, n), d = im.data;
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) { const i = y * n + x; let v;
     if (kind === 'metal') v = 0.86 + (f[i] - 0.5) * 0.12 + Math.sin(y * 1.7 + f[i] * 6) * 0.025 + (Math.random() < 0.004 ? 0.12 : 0);
@@ -2299,10 +2317,39 @@ function gunTex(kind) {
     v = Math.max(0, Math.min(1, v)) * 255; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; }
   g.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
+// 물체 좌표 기준 삼면 투영: 작은 부품·큰 부품 모두 같은 밀도로 질감이 보임. 둥근 모서리(법선이 축과 어긋난 곳)는 칠이 벗겨진 금속색
+const TRI_GLSL = `varying vec3 vOP; varying vec3 vON;
+vec4 triTex(sampler2D s, vec3 p, vec3 n){ vec3 w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y + w.z);
+  return texture2D(s, p.zy) * w.x + texture2D(s, p.xz) * w.y + texture2D(s, p.xy) * w.z; }`;
+const WEAR = new Map();
+function triPatch(m, o) {
+  m.userData.tri = o; m.customProgramCacheKey = () => 'tri' + (o.wear > 0 ? 'W' : '') + (o.camo ? 'C' : '');
+  m.onBeforeCompile = sh => {
+    sh.uniforms.triScale = { value: o.scale }; sh.uniforms.triBump = { value: o.bump || 0 }; sh.uniforms.triWear = { value: o.wear || 0 };
+    sh.vertexShader = 'varying vec3 vOP; varying vec3 vON;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vOP = position; vON = normal;');
+    sh.fragmentShader = 'uniform float triScale; uniform float triBump; uniform float triWear;\n' + TRI_GLSL + '\n' + sh.fragmentShader
+      .replace('#include <map_fragment>', `
+        vec3 triN = normalize(vON); vec4 triC = vec4(1.0);
+        #ifdef USE_MAP
+          triC = triTex(map, vOP * triScale, triN); diffuseColor *= triC;
+        #endif
+        float triEdge = 1.0 - max(max(abs(triN.x), abs(triN.y)), abs(triN.z));
+        float triW = smoothstep(0.05, 0.22, triEdge) * triWear * (0.6 + 0.8 * triC.r - 0.4);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.42, 0.41) * (0.7 + 0.5 * triC.r), clamp(triW, 0.0, 0.85));`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.32, clamp(triW, 0.0, 0.85));')
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n metalnessFactor = mix(metalnessFactor, 0.85, clamp(triW, 0.0, 0.85));')
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        { float hh = dot(triC.rgb, vec3(0.333)); vec3 dpx = dFdx(-vViewPosition), dpy = dFdy(-vViewPosition); float hx = dFdx(hh), hy = dFdy(hh);
+          vec3 r1 = cross(dpy, normal), r2 = cross(normal, dpx); float det = dot(dpx, r1); vec3 gr = sign(det) * (hx * r1 + hy * r2);
+          normal = normalize(abs(det) * normal - gr * triBump * 0.02); }`);
+  };
+  m.needsUpdate = true; return m;
+}
+for (const [m, w] of [[K.tan, 1], [K.olive, 1], [K.green, 0.9], [K.black, 0.7], [K.dark, 0.5], [K.silver, 0.15], [K.blade, 0]]) WEAR.set(m, w);
 { const M = gunTex('metal'), P = gunTex('poly'), F = gunTex('fabric');
   const pm = pbrize(M, 2.5, 0.42, 0.9), pp = pbrize(P, 5, 0.8, 0.5), pf = pbrize(F, 4, 0.95, 0.3);
   for (const [m, t, pb, sc] of [[K.black, M, pm, 0.6], [K.dark, M, pm, 0.6], [K.silver, M, pm, 0.4], [K.blade, M, pm, 0.3], [K.tan, P, pp, 0.9], [K.olive, P, pp, 0.9], [K.green, P, pp, 0.8], [K.glove, F, pf, 1], [K.sleeve, F, pf, 1]]) {
-    m.map = t; m.normalMap = pb.normal; m.normalScale.set(sc, sc); m.needsUpdate = true; } } // 거칠기맵은 생략(가벼움 우선)
+    m.map = t; m.normalMap = null; triPatch(m, { scale: 7, bump: sc * 0.9, wear: WEAR.get(m) || 0 }); } }
 // 근접무기 공통 손: 손바닥 + 손가락 4개가 손잡이를 감싸 쥠 + 엄지 + 소매
 function meleeHand(g) {
   vb(g, 0.056, 0.07, 0.094, K.glove, 0.012, -0.004, 0.004); vb(g, 0.024, 0.062, 0.088, K.glove, -0.016, 0.0, 0.0); vb(g, 0.026, 0.024, 0.05, K.glove, -0.006, 0.034, -0.02);
