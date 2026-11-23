@@ -400,7 +400,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
 .rm-name{margin-bottom:12px}.rm-name label{display:block;font-size:11px;letter-spacing:2px;color:#ffd23f;font-weight:800;margin-bottom:4px}.rm-name div{display:flex;gap:6px}.rm-name input{flex:1;min-width:0;padding:6px 8px;font-size:13px}.rm-name .btn.sm{margin:0}
 #mpRoom>.rm-bottom{display:flex;gap:14px;justify-content:center;align-items:stretch;flex:0 0 auto}.rm-bottom .rm-chat-bottom{width:min(980px,70%);margin-top:0;flex:0 1 auto;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);padding:8px 12px}.rm-bottom #chatLog{height:104px;min-height:104px;max-height:104px;font-size:13px}.rm-bottom .rm-chat-in input{font-size:13px}.rm-bottom .rm-foot{width:240px;flex:none;display:flex;flex-direction:column;justify-content:flex-end;margin:0}
 .rm-chat{margin-top:10px;display:flex;flex-direction:column;min-height:0;flex:1 1 140px}.rm-chat-h{font-size:12px;font-weight:700;opacity:.8;margin-bottom:4px}
-#diag{position:fixed;top:150px;right:12px;z-index:30;background:rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.15);padding:7px 10px;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8e6f0;white-space:pre;pointer-events:none}#diag.hidden{display:none}#netWarn{position:fixed;top:118px;left:50%;transform:translateX(-50%);z-index:30;background:rgba(120,30,20,.78);border:1px solid #ff9a6a;color:#ffe2d0;font-size:12px;padding:3px 10px;border-radius:3px;pointer-events:none}#netWarn.hidden{display:none}#diag b{color:#ffd23f}
+#diag{position:fixed;top:150px;right:12px;z-index:30;background:rgba(0,0,0,.62);border:1px solid rgba(255,255,255,.15);padding:7px 10px;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8e6f0;white-space:pre;pointer-events:none}#diag.hidden{display:none}#netWarn{position:fixed;top:118px;left:50%;transform:translateX(-50%);z-index:30;background:rgba(120,30,20,.78);border:1px solid #ff9a6a;color:#ffe2d0;font-size:12px;padding:3px 10px;border-radius:3px;pointer-events:none}#netWarn.hidden{display:none}#hostWarn{position:fixed;top:142px;left:50%;transform:translateX(-50%);z-index:30;background:rgba(90,70,10,.8);border:1px solid #ffd23f;color:#fff3c4;font-size:12px;padding:3px 10px;border-radius:3px;pointer-events:none}#hostWarn.hidden{display:none}#diag b{color:#ffd23f}
 #chatLog{flex:1;min-height:90px;max-height:240px;overflow-y:auto;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);padding:6px 8px;font-size:12px;line-height:1.5;word-break:break-all}
 #chatLog .cm b{color:#ffd23f;font-weight:700;margin-right:4px}#chatLog .cm.blue b{color:#7fb4ff}#chatLog .cm.red b{color:#ff9a8a}#chatLog .cm.sys{color:#9a9a9a;font-style:italic}
 .rm-chat-in{display:flex;gap:6px;margin-top:6px}.rm-chat-in .txt{flex:1;min-width:0;padding:6px 8px;font-size:12px}.rm-chat-in .btn{margin:0}
@@ -422,6 +422,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
 <div id="cheatHud" class="hidden"></div>
 <div id="diag" class="hidden"></div>
 <div id="netWarn" class="hidden"></div>
+<div id="hostWarn" class="hidden">⚠ 방장 게임 창이 내려가 있어요 · 움직임이 끊길 수 있어요</div>
 <div id="hud" class="hidden">
   <canvas id="minimap" width="180" height="192"></canvas>
   <div id="teamList"></div>
@@ -3633,7 +3634,7 @@ function updateModel(e, dt) {
     e._fl = k > 0; if (!e._fl) e._glow = -1;
   }
   m.root.position.copy(e.pos); m.root.rotation.y = e.yaw;
-  if (m.lod) { const far = e.alive && !e.prone && !(MAP.night && e.lightOn !== false) && !(state === 'replay' || KC.on) && e.pos.distanceToSquared(camera.position) > 2500; m.lod.visible = far; m.body.visible = !far; }
+  if (m.lod) { const far = e.alive && !e.prone && !(MAP.night && e.lightOn !== false) && !(state === 'replay' || KC.on) && e.pos.distanceToSquared(camera.position) > 2500 && !isFFA(); m.lod.visible = far; m.body.visible = !far; }
   if (e.alive) {
     const hs = Math.hypot(e.vel.x, e.vel.z);
     e.walkPhase += dt * hs * 2.2; const sw = Math.sin(e.walkPhase) * Math.min(0.7, hs * 0.12);
@@ -3702,12 +3703,14 @@ function addKillFeed(k, v, w, head) {
   const kf = $('killfeed'); const d = document.createElement('div'); d.className = 'kf';
   const cls = e => isFFA() ? (e === player ? 'n me' : 'n') : e.team === 'blue' ? 'b' : 'r';
   if (k === player || v === player) d.classList.add('me');
-  d.innerHTML = (k && k !== v ? `<span class="${cls(k)}">${k.name}</span>` : '') + `<span class="w">[${w}]</span>` + (head ? '<span class="hs">⊕</span>' : '') + `<span class="${cls(v)}">${v.name}</span>`;
+  const kc = e => isFFA() ? ` style="color:${ffaColorOf(e.id)}"` : '';
+  d.innerHTML = (k && k !== v ? `<span class="${cls(k)}"${kc(k)}>${k.name}</span>` : '') + `<span class="w">[${w}]</span>` + (head ? '<span class="hs">⊕</span>' : '') + `<span class="${cls(v)}"${kc(v)}>${v.name}</span>`;
   kf.prepend(d); while (kf.children.length > 6) kf.lastChild.remove();
   setTimeout(() => d.style.opacity = 0, 5000); setTimeout(() => d.remove(), 5600);
 }
 function ffaRank() { return entities.filter(e => !e.off).sort((a, b) => b.kills - a.kills || a.deaths - b.deaths); }
 function updateHUD(dt) {
+  { const w = $('hostWarn'), on = MP.on && !MP.host && MP.started && MP.hostHidden; if (w.classList.contains('hidden') === on) w.classList.toggle('hidden', !on); }
   { const pg = MP.on && MP.started && !MP.host ? (NETC.ping[player.id] ?? -1) : -1, bad = pg > 300; const w = $('netWarn'); if (w.classList.contains('hidden') === bad) w.classList.toggle('hidden', !bad); if (bad) { const t = `⚠ 연결 불안정 · 핑 ${pg}ms · 명중 판정이 늦거나 무효될 수 있어요`; if (w.textContent !== t) w.textContent = t; } }
   if (isFFA()) { const rk = ffaRank(), top = rk.find(e => e !== player) || player, lead = rk[0];
     setText('sBlue', String(player.kills)); setText('sRed', String(top.kills));
@@ -3795,7 +3798,7 @@ function renderScoreboard(el, forEnd = false) {
   };
   let html = `<div class="sbcols">${col('blue')}${col('red')}</div>`;
   if (isFFA()) { const list = ffaRank(); html = `<div class="sbcols" style="grid-template-columns:1fr"><div class="rt"><h4>개인전 — ${KILL_TARGET}킬 먼저 달성 시 승리</h4><table class="sbt"><tr><th>#</th><th>이름</th><th>무기</th><th class="num">K</th><th class="num">D</th><th class="num">A</th><th class="num">피해</th><th class="num">HS</th></tr>` +
-      list.map((e, i) => `<tr class="${e.isPlayer ? 'me' : ''}"><td>${i + 1}</td><td>${e.name}${e.alive || forEnd ? '' : ' 💀'}${pingTag(e)}</td><td>${WEAPONS[e.loadout.primary].name}</td><td class="num">${e.kills}</td><td class="num">${e.deaths}</td><td class="num">${e.assists}</td><td class="num">${Math.round(e.dmgDealt)}</td><td class="num">${e.hsKills}</td></tr>`).join('') + '</table></div></div>'; }
+      list.map((e, i) => `<tr class="${e.isPlayer ? 'me' : ''}"><td>${i + 1}</td><td><span style="color:${ffaColorOf(e.id)}">●</span> ${e.name}${e.alive || forEnd ? '' : ' 💀'}${pingTag(e)}</td><td>${WEAPONS[e.loadout.primary].name}</td><td class="num">${e.kills}</td><td class="num">${e.deaths}</td><td class="num">${e.assists}</td><td class="num">${Math.round(e.dmgDealt)}</td><td class="num">${e.hsKills}</td></tr>`).join('') + '</table></div></div>'; }
   if (el._h !== html) { el._h = html; el.innerHTML = html; }
 }
 
@@ -4660,11 +4663,21 @@ function setLocalPlayer(i) {
 function resetAI(e) { if (e.ai) Object.assign(e.ai, { target: null, seen: false, path: [], waitT: 0, healPack: null, coverPos: null, alertT: 0 }); }
 // ----- 로비 채팅 (방에서만) -----
 const CHAT = [];
-function chatTeamOf(i) { return MP.mode === 'coop' ? 'blue' : i < 8 ? 'blue' : 'red'; }
+const FFA_COLORS = ['#ff5a4a', '#ff9f43', '#ffd23f', '#5dff8a', '#3fd8e0', '#5a8cff', '#b77dff', '#ff7ac8'];
+const FFA_NAMES = ['빨강', '주황', '노랑', '초록', '청록', '파랑', '보라', '분홍'];
+function ffaIdx(i) { let k = 0; for (let j = 0; j < i; j++) if (MP.slots[j] && MP.slots[j].kind === 'human') k++; return k % 8; }
+function ffaColorOf(i) { return FFA_COLORS[ffaIdx(i)]; }
+function chatTeamOf(i) { return MP.mode === 'ffa' ? ffaColorOf(i) : MP.mode === 'coop' ? 'blue' : i < 8 ? 'blue' : 'red'; }
+// 개인전: 조끼·헬멧을 각자 색으로 (팀전으로 돌아가면 원래 팀 색)
+function applyFfaColors() {
+  entities.forEach((e, i) => { const m = e.model; if (!m || !m.mats) return; if (!m.orig) m.orig = [m.mats[1].color.getHex(), m.mats[3].color.getHex()];
+    const sl = MP.slots[i];
+    if (MP.on && MP.mode === 'ffa' && sl && sl.kind === 'human') { const c = new THREE.Color(ffaColorOf(i)); m.mats[1].color.copy(c).multiplyScalar(0.85); m.mats[3].color.copy(c).multiplyScalar(0.5); }
+    else { m.mats[1].color.setHex(m.orig[0]); m.mats[3].color.setHex(m.orig[1]); } }); }
 function addChat(n, m, sys, tm) {
   CHAT.push({ n: String(n || ''), m: String(m || '').slice(0, 80), sys: !!sys, tm }); if (CHAT.length > 60) CHAT.shift();
-  const log = $('chatLog'); if (!log) return; const d = document.createElement('div'); d.className = 'cm' + (sys ? ' sys' : tm ? ' ' + tm : '');
-  if (sys) d.textContent = '📢 ' + m; else { const b = document.createElement('b'); b.textContent = n; d.appendChild(b); d.appendChild(document.createTextNode(String(m).slice(0, 80))); }
+  const log = $('chatLog'); if (!log) return; const d = document.createElement('div'); d.className = 'cm' + (sys ? ' sys' : tm && tm[0] !== '#' ? ' ' + tm : '');
+  if (sys) d.textContent = '📢 ' + m; else { const b = document.createElement('b'); b.textContent = n; if (tm && tm[0] === '#') b.style.color = tm; d.appendChild(b); d.appendChild(document.createTextNode(String(m).slice(0, 80))); }
   log.appendChild(d); while (log.children.length > 60) log.firstChild.remove(); log.scrollTop = log.scrollHeight;
   if (!sys && $('mpRoom') && !$('mpRoom').classList.contains('hidden')) sfx('switch');
 }
@@ -4759,7 +4772,8 @@ function mpLeave(silent) {
   for (const e of entities) { e.nb = null; e.noff = null; e.hist = null; }
   setLocalPlayer(0);
 }
-function clientLost() { if (!MP.on || MP.host) return; const was = MP.started; mpLeave(true); showTitle(); showToast(was ? '방장과의 연결이 끊겨 게임이 종료되었습니다' : '방에서 나왔습니다'); }
+function clientLost(noRejoin) { if (!MP.on || MP.host) return; { const me = MP.slots.find(x => x.peer === MP.myPeer); if (me) MP.lastName = me.name; } const was = MP.started, code = MP.code; mpLeave(true); showTitle();
+  if (was && !noRejoin && code) { const nm = MP.lastName || myName(); showToast('연결이 끊겨 같은 방에 자동 재접속하는 중...'); setTimeout(() => { if (MP.on) return; document.querySelector('.tt-btn[data-go=multi]').click(); $('mpCode').value = code; $('mpName').value = nm; mpJoin(); }, 1200); return; } showToast(was ? '방장과의 연결이 끊겨 게임이 종료되었습니다' : '방에서 나왔습니다'); }
 // ----- 방 (로비) -----
 function humanCount() { return MP.slots.filter(s => s.kind === 'human').length; }
 function teamHumans(team) { const b = team === 'blue' ? 0 : 8; return MP.slots.slice(b, b + 8).filter(s => s.kind === 'human').length; }
@@ -4798,7 +4812,7 @@ function renderRoom() {
   const row = s => { const me = s.peer === MP.myPeer; if (s.kind !== 'human') return pvp ? `<div class="rs" style="opacity:.3"><span>— 빈자리</span></div>` : `<div class="rs" style="opacity:.55"><span>🤖 ${s.name}</span><span class="rs-w">AI</span></div>`; return `<div class="rs ${me ? 'me' : ''}"><span>${s.peer === 'host' ? '👑 ' : '👤 '}${s.name}${me ? ' (나)' : ''}</span></div>`; };
   const ffaR = MP.mode === 'ffa'; document.querySelectorAll('#mpRoom .roster-h.red, #roomRed').forEach(el => el.style.display = ffaR ? 'none' : '');
   { const hb = document.querySelector('#mpRoom .roster-h.blue'); if (hb && hb.firstChild) hb.firstChild.textContent = ffaR ? '참가자' : 'BLUE'; if (hb) hb.classList.toggle('ffa', ffaR); }
-  if (ffaR) { const hs = MP.slots.filter(x => x.kind === 'human'); $('roomBlue').innerHTML = hs.map(row).join('') + Array.from({ length: Math.max(0, MAX_HUMANS - hs.length) }, () => `<div class="rs" style="opacity:.3"><span>— 빈자리</span></div>`).join(''); $('roomRed').innerHTML = ''; }
+  if (ffaR) { const hs = MP.slots.filter(x => x.kind === 'human'); $('roomBlue').innerHTML = hs.map((h, k) => row(h).replace('<span>', `<span><b style="color:${FFA_COLORS[k % 8]}">●</b> `)).join('') + Array.from({ length: Math.max(0, MAX_HUMANS - hs.length) }, () => `<div class="rs" style="opacity:.3"><span>— 빈자리</span></div>`).join(''); $('roomRed').innerHTML = ''; }
   else { $('roomBlue').innerHTML = MP.slots.slice(0, 8).map(row).join(''); $('roomRed').innerHTML = MP.slots.slice(8).map(row).join(''); }
   const hc = humanCount();
   $('roomCount').textContent = `사람 ${hc}/${MAX_HUMANS}`;
@@ -4829,6 +4843,7 @@ function applySlots() {
   });
 }
 function enterMatchUI() {
+  applyFfaColors();
   hideAllOverlays(); $('hud').classList.remove('hidden'); setTeamLabels();
   $('hint').style.opacity = 0.8; setTimeout(() => $('hint').style.opacity = 0, 12000);
 }
@@ -4950,15 +4965,17 @@ function clientOnData(m) {
     case 'healed': showCenterMsg('✚ +50 HP 회복', '#5dff8a'); hurt = 0; break;
     case 'hx': { const P = MP.predHit && MP.predHit.get(m.q); if (P) { const v = entities[P.v]; if (v && v.alive) v.hp = Math.min(100, v.hp + P.d); MP.predHit.delete(m.q); MP.rejN = (MP.rejN || 0) + 1;
       if (now - (MP.rejT || -9) > 3) { MP.rejT = now; showCenterMsg('⚠ 연결 지연으로 명중 일부가 인정되지 않았어요', '#ffb84d'); } } break; }
+    case 'hv': MP.hostHidden = !!m.h; break;
     case 'dpk': player.hp = Math.min(100, player.hp + HEAL_AMT); dropLocalFx(); break;
     case 'pk': if (player.alive && WEAPONS[m.k]) givePackGun(player, m.k); break;
     case 'end': if (MP.started) { score.blue = m.sc[0]; score.red = m.sc[1]; matchTime = m.tm; MP.started = false; AW.list = Array.isArray(m.aw) ? m.aw.slice(0, 6) : []; AW.shown = false; endMatch(); } break;
     case 'toRoom': MP.started = false; if (KC.on) endKillcam(true); showRoom(); break;
-    case 'closed': clientLost(); break;
+    case 'closed': clientLost(true); break;
   }
 }
 // 경기 중 난입/퇴장 시 참가자 화면의 이름표·모델 상태를 방장 슬롯 정보에 맞춤
 function syncSlotsMid() {
+  setTimeout(applyFfaColors, 0);
   MP.slots.forEach((sl, i) => {
     const e = entities[i]; if (!e || e === player) return;
     const nm = sl.kind === 'human' ? sl.name : e.aiName; if (e.name !== nm) { e.name = nm; retag(e); }
@@ -5298,8 +5315,13 @@ function updateCamera(dt) {
   if (shake > 0) { camera.position.x += rand(-1, 1) * shake * 0.15 * opts.shake; camera.position.y += rand(-1, 1) * shake * 0.15 * opts.shake; shake = Math.max(0, shake - dt * 1.6); }
 }
 let last = performance.now();
+// 방장 창이 숨겨지면 브라우저가 화면 갱신을 멈춤 → 별도 작업자(Worker) 시계로 게임 계산·전송은 계속 (그리기만 생략)
+let lastRAF = performance.now();
+const BG = (() => { try { const w = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 50);'], { type: 'text/javascript' })));
+  w.onmessage = () => { if (!(MP.on && MP.host && MP.started && state === 'playing')) return; if (performance.now() - lastRAF < 150) return; now += 0.05; update(0.05); }; return w; } catch (err) { return null; } })();
+document.addEventListener('visibilitychange', () => { if (MP.on && MP.host) sendAll({ t: 'hv', h: document.hidden ? 1 : 0 }); });
 function loop(t) {
-  requestAnimationFrame(loop);
+  requestAnimationFrame(loop); lastRAF = performance.now();
   const dt = Math.min(0.05, (t - last) / 1000); last = t;
   const paused = state === 'playing' && player.alive && !controls.isLocked && !MP.on;
   if (state === 'playing' && !paused) { if (hitstopT > 0) hitstopT -= dt; else { now += dt; update(dt); } }
@@ -5311,7 +5333,7 @@ function loop(t) {
   playerLight.intensity = (MAP.night && playerLightOn && state === 'playing' && player.alive && !KC.on) ? 160 : 0;
   updateCamera(dt);
   camera.updateMatrixWorld();
-  renderer.shadowMap.needsUpdate = (++shadowTick % 3) === 0; followShadow(); cullDetail(); updateShells(dt);
+  renderer.shadowMap.needsUpdate = (++shadowTick % (MP.on && MP.host && MP.started ? 4 : 3)) === 0; followShadow(); cullDetail(); updateShells(dt);
   postBegin(dt); renderer.clear(); renderer.render(scene, camera);
   if (xrayT > 0) { xrayT -= dt; if (state === 'playing' && player.alive && !KC.on) xrayPass(); }
   $('xrayOv').classList.toggle('on', xrayT > 0 && state === 'playing' && player.alive && !KC.on);
