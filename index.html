@@ -1463,8 +1463,8 @@ function buildBase(gmat) {
 function buildSpawns() {
   const S = MAP.spawn, cx = (S.x0 + S.x1) / 2, cz = (S.z0 + S.z1) / 2;
   for (const s of [-1, 1]) {
-    const zone = new THREE.Mesh(new THREE.PlaneGeometry(S.x1 - S.x0 + 6, S.z1 - S.z0 + 4), new THREE.MeshBasicMaterial({ color: s > 0 ? 0x3d8bff : 0xff4a3d, transparent: true, opacity: 0.18, depthWrite: false }));
-    zone.rotation.x = -Math.PI / 2; zone.position.set(cx, 0.03, s * cz); mapRoot.add(zone);
+    const zone = new THREE.Mesh(new THREE.PlaneGeometry(S.x1 - S.x0 + 6, S.z1 - S.z0 + 4), new THREE.MeshBasicMaterial({ color: s > 0 ? 0x3d8bff : 0xff4a3d, transparent: true, opacity: 0.18, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
+    zone.rotation.x = -Math.PI / 2; zone.position.set(cx, 0.075, s * cz); zone.renderOrder = 1; // 바닥(0.03)과 겹쳐 깜빡이지 않게 띄움 mapRoot.add(zone);
     flags.push(flag(S.x0 - 4, s * (S.z1 - 3), s > 0 ? 0x2d6cdf : 0xd8402f), flag(S.x1 + 4, s * (S.z1 - 3), s > 0 ? 0x2d6cdf : 0xd8402f));
   }
 }
