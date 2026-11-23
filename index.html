@@ -4312,7 +4312,13 @@ function sendAll(msg) { for (const c of MP.conns.values()) if (c.open) { try { c
 function netSendTo(e, msg) { if (!MP.host) return; const s = MP.slots[e.id]; const c = s && MP.conns.get(s.peer); if (c && c.open) { try { c.send(msg); } catch (err) {} } }
 // 일부 네트워크(모바일 핫스폿·회사/학교 와이파이)는 TURN 서버 없이는 연결이 안 될 수 있음 → 아래 배열에 TURN 정보를 넣으면 사용
 const TURN_SERVERS = [];
-function peerOpts() { const o = { debug: 0 }; if (TURN_SERVERS.length) o.config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, ...TURN_SERVERS] }; return Object.assign(o, window.__PEER_OPTS || {}); }
+const STUN_SERVERS = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }];
+function peerOpts() { const o = { debug: 0, config: { iceServers: [...STUN_SERVERS, ...TURN_SERVERS], iceCandidatePoolSize: 4 } }; return Object.assign(o, window.__PEER_OPTS || {}); }
+// 연결 경로 진단: direct(같은망)/p2p(인터넷 직접)/relay(TURN 중계)
+async function connRoute(conn) { try { const pc = conn && conn.peerConnection; if (!pc) return ''; const st = await pc.getStats(); let pair = null; const c = {};
+  st.forEach(r => { if (r.type === 'transport' && r.selectedCandidatePairId) pair = st.get(r.selectedCandidatePairId); if (r.type === 'candidate-pair' && r.nominated && r.state === 'succeeded' && !pair) pair = r; if (r.type === 'local-candidate') c[r.id] = r; });
+  const lc = pair && c[pair.localCandidateId]; const t = lc && lc.candidateType; return t === 'relay' ? '중계(TURN)' : t === 'host' ? '같은 네트워크 직접' : t ? '인터넷 직접(P2P)' : ''; } catch (err) { return ''; } }
+function iceFailed(conn) { try { const s = conn && conn.peerConnection && conn.peerConnection.iceConnectionState; return s === 'failed' || s === 'disconnected'; } catch (err) { return false; } }
 // ----- 방 만들기 / 참가 -----
 function mpCreate() {
   if (!window.Peer) return mpStatus('PeerJS를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.', true);
@@ -4326,23 +4332,49 @@ function mpCreate() {
   peer.on('connection', conn => {
     if (conn.label === 'fast') { conn.on('open', () => MP.fconns.set(conn.peer, conn)); conn.on('data', m => { if (m && m.t === 'st') hostOnData(conn, m); }); conn.on('close', () => { if (MP.fconns.get(conn.peer) === conn) MP.fconns.delete(conn.peer); }); return; }
     conn.on('data', m => hostOnData(conn, m)); conn.on('close', () => hostDrop(conn.peer)); conn.on('error', () => hostDrop(conn.peer)); });
-  peer.on('error', err => { if (err.type === 'unavailable-id') { peer.destroy(); mpCreate(); } else if (!MP.on) mpStatus('연결 오류: ' + err.type, true); });
-  peer.on('disconnected', () => { try { if (!peer.destroyed) peer.reconnect(); } catch (err) {} });
+  let hostTries = 0;
+  peer.on('error', err => {
+    if (err.type === 'unavailable-id') { peer.destroy(); mpCreate(); return; }
+    if (!MP.on) { if (['network', 'server-error', 'socket-error', 'socket-closed'].includes(err.type) && hostTries++ < 2) { mpStatus('서버 연결 재시도 중... (' + hostTries + '/2)'); try { peer.destroy(); } catch (e) {} setTimeout(mpCreate, 1500); return; }
+      mpStatus(netErrText(err.type), true); }
+  });
+  peer.on('disconnected', () => { let n = 0; const tryRe = () => { if (peer.destroyed || !peer.disconnected) return; try { peer.reconnect(); } catch (err) {} if (++n < 6) setTimeout(tryRe, 2000 * n); }; tryRe(); });
 }
-function mpJoin() {
+function netErrText(t) { return t === 'peer-unavailable' ? '방을 찾을 수 없습니다. 코드를 확인하거나 방장이 방을 다시 만들어 주세요.'
+  : t === 'browser-incompatible' ? '이 브라우저는 멀티를 지원하지 않습니다. 크롬/엣지 최신 버전을 사용해 주세요.'
+  : (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed') ? '매칭 서버에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.'
+  : '연결 오류: ' + t; }
+function mpJoin(attempt) {
   if (!window.Peer) return mpStatus('PeerJS를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.', true);
+  attempt = attempt | 0; const MAXTRY = 3;
   const code = $('mpCode').value.trim().toUpperCase(); if (code.length !== 5) return mpStatus('5자리 방 코드를 입력하세요', true);
-  mpStatus('방에 연결하는 중...');
-  const peer = new Peer(undefined, peerOpts());
+  if (attempt === 0 && MP._joining) return; MP._joining = true;
+  mpStatus(attempt ? `방에 다시 연결하는 중... (${attempt + 1}/${MAXTRY})` : '방에 연결하는 중...');
+  const peer = new Peer(undefined, peerOpts()); let done = false, conn = null;
+  const retry = why => { if (done) return; done = true; clearTimeout(to); try { peer.destroy(); } catch (err) {}
+    if (attempt + 1 < MAXTRY && why !== 'fatal') { setTimeout(() => mpJoin(attempt + 1), 800 + attempt * 700); return; }
+    MP._joining = false;
+    if (why === 'ice') mpStatus(TURN_SERVERS.length ? '방장과 직접 연결이 막혀 중계 연결도 시도했지만 실패했습니다. 잠시 후 다시 시도하거나 다른 네트워크(모바일 데이터)로 접속해 주세요.'
+      : '이 와이파이가 기기끼리 직접 연결을 막고 있습니다. 방장 또는 참가자가 모바일 데이터/핫스팟으로 바꿔 다시 시도해 주세요.', true);
+    else if (why === 'unavail') mpStatus(netErrText('peer-unavailable'), true);
+    else if (why && why !== 'fatal' && why !== 'timeout') mpStatus(netErrText(why), true);
+    else if (why === 'timeout') mpStatus('방에 연결하지 못했습니다. 방장과 같은 네트워크라면 한쪽을 모바일 데이터로 바꿔 다시 시도해 주세요.', true); };
+  const to = setTimeout(() => retry(iceFailed(conn) ? 'ice' : 'timeout'), 15000);
   peer.on('open', id => {
-    const conn = peer.connect(MP_PREFIX + code, { reliable: true }); let opened = false;
-    const to = setTimeout(() => { if (!opened) { mpStatus('방에 연결하지 못했습니다. 코드를 확인하거나, 방장과 다른 네트워크(예: 모바일 데이터)로 다시 시도해 주세요.', true); peer.destroy(); } }, 12000);
-    conn.on('open', () => { opened = true; clearTimeout(to); Object.assign(MP, { on: true, host: false, peer, hostConn: conn, code, myPeer: id, started: false, evQ: [], cevQ: [] }); conn.send({ t: 'hello', name: myName(), lo: { ...selLoadout } }); mpStatus('입장 대기 중...');
+    conn = peer.connect(MP_PREFIX + code, { reliable: true });
+    const iceWatch = setInterval(() => { if (done) return clearInterval(iceWatch); if (conn.peerConnection && conn.peerConnection.iceConnectionState === 'failed') { clearInterval(iceWatch); retry('ice'); } }, 500);
+    conn.on('open', () => { if (done) return; done = true; clearTimeout(to); clearInterval(iceWatch); MP._joining = false;
+      Object.assign(MP, { on: true, host: false, peer, hostConn: conn, code, myPeer: id, started: false, evQ: [], cevQ: [] }); conn.send({ t: 'hello', name: myName(), lo: { ...selLoadout } }); mpStatus('입장 대기 중...');
+      setTimeout(async () => { const r = await connRoute(conn); MP.route = r; if (r && MP.on) { try { addChat('', '연결 방식: ' + r, true); } catch (err) {} } }, 1500);
       try { const fc = peer.connect(MP_PREFIX + code, { reliable: false, label: 'fast' }); fc.on('open', () => { MP.fastConn = fc; }); fc.on('data', m => { if (m && m.t === 'u') clientOnData(m); }); fc.on('close', () => { if (MP.fastConn === fc) MP.fastConn = null; }); } catch (err) {} });
     conn.on('data', m => clientOnData(m));
-    conn.on('close', () => clientLost()); conn.on('error', () => clientLost());
+    conn.on('close', () => { if (done && MP.on) clientLost(); }); conn.on('error', () => { if (!done) retry('ice'); else clientLost(); });
   });
-  peer.on('error', err => { mpStatus(err.type === 'peer-unavailable' ? '방을 찾을 수 없습니다. 코드를 확인해 주세요.' : '연결 오류: ' + err.type, true); });
+  peer.on('error', err => { if (done) { if (MP.on && !MP.host) return; return; }
+    if (err.type === 'peer-unavailable') return retry(attempt + 1 < MAXTRY ? 'unavail' : 'unavail');
+    if (err.type === 'browser-incompatible') { retry('fatal'); MP._joining = false; return mpStatus(netErrText(err.type), true); }
+    retry(err.type); });
+  peer.on('disconnected', () => { if (done && MP.on && !peer.destroyed) { try { peer.reconnect(); } catch (err) {} } });
 }
 function mpLeave(silent) {
   if (!MP.on) return;
