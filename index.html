@@ -730,7 +730,7 @@ const MODE_KO = { AUTO:'연사', BURST:'3점사', SINGLE:'단발' };
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true; renderer.shadowMap.autoUpdate = false;
+renderer.shadowMap.enabled = true; renderer.shadowMap.autoUpdate = false; renderer.info.autoReset = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.autoClear = false;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -782,6 +782,8 @@ function diagTick(dt) {
       L.push(`<b>핑</b> ${NETC.ping[player.id] ?? '-'}ms  ${MP.route || ''}`, `보간 ${((NETC.interp || NETC.INTERP) * 1000).toFixed(0)}ms  흔들림 ${((NETC.jit || 0) * 1000).toFixed(0)}ms`, `수신 ${r.toFixed(0)}/s (정상 20)`); }
     L.push(`예측 중 ${rem.filter(e => e._ex).length}명`);
   } else L.push('싱글 플레이');
+  { const vis = entities.filter(e => e.model && e.model.root.visible && e._occ !== true).length;
+    L.push(`<b>렌더</b> 그리기 ${DIAG.calls ?? '-'}회 · 삼각형 ${((DIAG.tris || 0) / 1000).toFixed(0)}k`, `<b>프레임</b> 평균 ${(DIAG.ms || 0).toFixed(1)}ms · 최대 ${(DIAG.msMax || 0).toFixed(1)}ms · 셰이더 ${renderer.info.programs.length}`, `<b>캐릭터</b> 그림 ${vis} · 가림생략 ${entities.filter(e => e._occ === true).length} · 원거리 ${entities.filter(e => e.model && e.model._far).length}`); }
   $('diag').innerHTML = L.join('\n');
 }
 addEventListener('keydown', e => { if (e.code === 'F3') { e.preventDefault(); DIAG.on = !DIAG.on; $('diag').classList.toggle('hidden', !DIAG.on); DIAG.t0 = 0; DIAG.fr = 0; DIAG.n = MP.host ? (MP.stN || 0) : (NETC.uN || 0); } });
@@ -2436,7 +2438,7 @@ function makeTag(text, color) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true, sizeAttenuation: false }));
   sp.scale.set(0.13, 0.037, 1); sp.renderOrder = 999; return sp;
 }
-const BEAM_GEO = new THREE.ConeGeometry(1.7, 13, 10, 1, true);
+const BEAM_GEO = new THREE.ConeGeometry(1.7, 13, 8, 1, true);
 const BEAM_MAT = new THREE.MeshBasicMaterial({ color: 0xfff0c8, transparent: true, opacity: 0.075, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
 const LENS_MAT = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,250,230,1)'); gr.addColorStop(0.25, 'rgba(255,235,180,.7)'); gr.addColorStop(1, 'rgba(255,220,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
   return new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }); })();
@@ -2456,12 +2458,12 @@ function makeSoldier(team, name, gunKey) {
   const add = (geo, m, x, y, z, p = body) => { const k = new THREE.Mesh(geo, m); k.position.set(x, y, z); k.castShadow = true; p.add(k); return k; };
   const rb = (w, h, d, m, x, y, z, p = body, r = 0.25) => add(new RoundedBoxGeometry(w, h, d, 1, Math.min(w, h, d) * r), m, x, y, z, p);
   const cap = (r, len, m, x, y, z, p = body) => add(new THREE.CapsuleGeometry(r, len, 4, 10), m, x, y, z, p);
-  const legs = [];
+  const legs = [], mSole = SM(0x151515);
   for (const sx of [-0.13, 0.13]) {
     const L = new THREE.Group(); L.position.set(sx, 0.92, 0); body.add(L);
     cap(0.105, 0.34, mU, 0, -0.22, 0, L); cap(0.09, 0.32, mU, 0, -0.6, 0.01, L);
     rb(0.17, 0.1, 0.14, mP, 0, -0.42, -0.1, L); rb(0.13, 0.16, 0.05, mP, sx > 0 ? 0.08 : -0.08, -0.2, 0, L, 0.3);
-    rb(0.19, 0.13, 0.3, mB, 0, -0.85, -0.04, L, 0.3); rb(0.18, 0.04, 0.31, SM(0x151515), 0, -0.905, -0.04, L, 0.4);
+    rb(0.19, 0.13, 0.3, mB, 0, -0.85, -0.04, L, 0.3); rb(0.18, 0.04, 0.31, mSole, 0, -0.905, -0.04, L, 0.4);
     legs.push(L);
   }
   rb(0.42, 0.14, 0.26, mU, 0, 0.98, 0, body, 0.35); rb(0.44, 0.06, 0.28, mB, 0, 1.01, 0, body, 0.4);
@@ -2505,6 +2507,20 @@ function makeSoldier(team, name, gunKey) {
   root.traverse(o => { if (o.isMesh) o.receiveShadow = false; });
   return Object.assign(mdl, { root, body, legs, arms, muzzle, tag, helmet, lod, mats: [mU, mV, mS, mH, mB, mP] });
 }
+// 몸 메쉬만 숨기고 손전등 빛줄기는 남김(원거리·벽 뒤에서도 불빛은 보이게)
+function setBodyShown(m, on) {
+  if (m._bodyOn === on && m._bodyGun === m.gunKey) return; m._bodyOn = on; m._bodyGun = m.gunKey; m._far = !on; m.body.visible = true;
+  m.body.traverse(o => { if (o === m.beam) return; let p = o; while (p) { if (p === m.beam) return; p = p.parent; } if (o.isMesh || o.isSprite) o.visible = on; });
+}
+// 벽 뒤 캐릭터 그리기 생략: 카메라→머리/가슴/발/좌우 5점 중 하나라도 보이면 표시, 보인 뒤 0.4초 유지 · 0.12초 간격 검사
+const _oc = new THREE.Vector3();
+function occluded(e) {
+  if (!e._occT) e._occT = Math.random() * 0.12; e._occT -= 1 / 60; if (e._occT > 0) return now - (e._seenAt ?? -9) > 0.4;
+  e._occT = 0.12; const c = camera.position, d2 = e.pos.distanceToSquared(c); if (d2 < 36) { e._seenAt = now; return false; }
+  const h = headY(e), sx = Math.cos(e.yaw) * 0.55, sz = -Math.sin(e.yaw) * 0.55;
+  for (const [ox, oy, oz] of [[0, h, 0], [0, h * 0.55, 0], [0, 0.25, 0], [sx, h * 0.6, sz], [-sx, h * 0.6, sz * -1]]) { _oc.set(e.pos.x + ox, e.pos.y + oy, e.pos.z + oz); if (los(c, _oc)) { e._seenAt = now; return false; } }
+  return now - (e._seenAt ?? -9) > 0.4;
+}
 function mergeParts(grp, skip) {
   const by = new Map();
   for (const c of grp.children.slice()) {
@@ -2535,6 +2551,7 @@ function soldierGun(m, key) {
   else { rb(0.07, 0.11, 0.6, mG, 0, 0, 0, 0.15); rb(0.075, 0.08, 0.25, fm, 0, -0.005, -0.25); rb(0.05, 0.16, 0.08, mG, 0, -0.12, 0.02); cyl(0.014, 0.25, mG, -0.45); rb(0.05, 0.08, 0.22, fm, 0, -0.02, 0.38); }
   if (d.kind === 'rifle') { rb(0.03, 0.012, 0.3, mG, 0, 0.062, -0.05, 0.3); rb(0.04, 0.05, 0.08, mG, 0, 0.09, -0.05, 0.25); }
   m.muzzle.position.set(0, 0.02, mz); mergeParts(gun);
+  mergeParts(gun);
 }
 
 // ===================== 1인칭 무기 모델 =====================
@@ -3889,7 +3906,9 @@ function updateModel(e, dt) {
     e._fl = k > 0; if (!e._fl) e._glow = -1;
   }
   m.root.position.copy(e.pos); m.root.rotation.y = e.yaw;
-  if (m.lod) { const far = e.alive && !e.prone && !(MAP.night && e.lightOn !== false) && !(state === 'replay' || KC.on) && e.pos.distanceToSquared(camera.position) > 2500 && !isFFA(); m.lod.visible = far; m.body.visible = !far; }
+  if (m.lod) { const cin = state === 'replay' || KC.on, far = e.alive && !e.prone && !cin && e.pos.distanceToSquared(camera.position) > 2500 && !isFFA();
+    const occ = e.alive && !cin && !e.isPlayer && occluded(e); e._occ = occ;
+    m.lod.visible = far && !occ; setBodyShown(m, !far && !occ); }
   if (e.alive) {
     const hs = Math.hypot(e.vel.x, e.vel.z);
     e.walkPhase += dt * hs * 2.2; const sw = Math.sin(e.walkPhase) * Math.min(0.7, hs * 0.12);
@@ -3898,7 +3917,7 @@ function updateModel(e, dt) {
     if (m.tag) m.tag.visible = ally(e, player) && !e.isPlayer;
     if (m.beam) { m.beam.visible = !!MAP.night && e.lightOn !== false && e.pos.distanceToSquared(camera.position) < 8100;
       if (m.beam.visible) { const dx = camera.position.x - e.pos.x, dz = camera.position.z - e.pos.z, dl = Math.hypot(dx, dz) || 1; const f = clamp((((-Math.sin(e.yaw)) * dx + (-Math.cos(e.yaw)) * dz) / dl - 0.55) / 0.45, 0, 1); // 나를 향할수록 밝게
-        const u = m.beam.userData; u.lens.material.opacity = 0.12 + 0.88 * f * f; u.lens.scale.setScalar(0.3 + 0.35 * f); u.cone.material.opacity = 0.075 * (0.35 + 0.65 * f); } }
+        const u = m.beam.userData; u.lens.visible = f > 0.02; u.lens.material.opacity = 0.12 + 0.88 * f * f; u.lens.scale.setScalar(0.3 + 0.35 * f); u.cone.material.opacity = 0.075 * (0.35 + 0.65 * f); } }
     // 가로등 아래 캐릭터는 실제로 밝게 (진짜 조명 없이 발광만 살짝)
     { const g = MAP.night ? inLight(e) : 0; if (!(e.flashT > 0) && Math.abs(g - (e._glow || 0)) > 0.02) { e._glow = g; for (const mt of m.mats) { mt.emissive.setHex(0xffcf8a); mt.emissiveIntensity = g * 0.55; } if (m.lod) { m.lod.material.emissive.setHex(0xffcf8a); m.lod.material.emissiveIntensity = g * 0.55; } } }
   } else {
@@ -5627,7 +5646,7 @@ const BG = (() => { try { const w = new Worker(URL.createObjectURL(new Blob(['se
 document.addEventListener('visibilitychange', () => { if (MP.on && MP.host) sendAll({ t: 'hv', h: document.hidden ? 1 : 0 }); });
 function loop(t) {
   requestAnimationFrame(loop); lastRAF = performance.now();
-  const dt = Math.min(0.05, (t - last) / 1000); last = t;
+  const dt = Math.min(0.05, (t - last) / 1000); last = t; const _f0 = performance.now(); renderer.info.reset();
   const paused = state === 'playing' && player.alive && !controls.isLocked && !MP.on;
   if (state === 'playing' && !paused) { if (hitstopT > 0) hitstopT -= dt; else { now += dt; update(dt); } }
   if (KC.on && state === 'playing') killcamUpdate(dt);
@@ -5643,7 +5662,8 @@ function loop(t) {
   if (xrayT > 0) { xrayT -= dt; if (state === 'playing' && player.alive && !KC.on) xrayPass(); }
   $('xrayOv').classList.toggle('on', xrayT > 0 && state === 'playing' && player.alive && !KC.on);
   if ((state === 'playing' && player.alive && !KC.on) || (state === 'replay' && RP.vmOn) || (KC.on && KC.vmOn)) { renderer.clearDepth(); renderer.render(wScene, wCam); }
-  postEnd();
+  postEnd(); DIAG.ms = (DIAG.ms || 0) * 0.9 + (performance.now() - _f0) * 0.1; DIAG.msMax = Math.max((DIAG.msMax || 0) * 0.995, performance.now() - _f0);
+  if (DIAG.on) { DIAG.calls = renderer.info.render.calls; DIAG.tris = renderer.info.render.triangles; }
 }
 
 // ===================== 초기화 =====================
