@@ -2594,7 +2594,7 @@ function meleeHand(g) {
   vb(g, 0.056, 0.07, 0.094, K.glove, 0.012, -0.004, 0.004); vb(g, 0.024, 0.062, 0.088, K.glove, -0.016, 0.0, 0.0); vb(g, 0.026, 0.024, 0.05, K.glove, -0.006, 0.034, -0.02);
   limb(g, V(0.022, -0.01, 0.05), V(0.13, -0.3, 0.34), 0.075, K.sleeve);
 }
-function vb(p, w, h, d, m, x, y, z, rx = 0, ry = 0, rz = 0) { const mn = Math.min(w, h, d); const gg = mn > 0.012 ? new RoundedBoxGeometry(w, h, d, 2, mn * 0.22) : new THREE.BoxGeometry(w, h, d); gg.setAttribute('wearM', new THREE.BufferAttribute(new Float32Array(gg.attributes.position.count).fill(1), 1)); const k = new THREE.Mesh(gg, m); k.position.set(x, y, z); k.rotation.set(rx, ry, rz); p.add(k); return k; }
+function vb(p, w, h, d, m, x, y, z, rx = 0, ry = 0, rz = 0) { const mn = Math.min(w, h, d); const gg = mn > 0.008 ? new RoundedBoxGeometry(w, h, d, 3, mn * 0.4) : new THREE.BoxGeometry(w, h, d); gg.setAttribute('wearM', new THREE.BufferAttribute(new Float32Array(gg.attributes.position.count).fill(1), 1)); const k = new THREE.Mesh(gg, m); k.position.set(x, y, z); k.rotation.set(rx, ry, rz); p.add(k); return k; }
 function vc(p, r, len, m, x, y, z) { const k = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 20), m); k.rotation.x = Math.PI / 2; k.position.set(x, y, z); p.add(k); return k; }
 function limb(p, from, to, th, m) { const cg = new THREE.CapsuleGeometry(th * 0.55, Math.max(0.01, from.distanceTo(to) - th), 4, 12); cg.rotateX(Math.PI / 2); const k = new THREE.Mesh(cg, m); k.position.copy(from).add(to).multiplyScalar(0.5); p.add(k); k.lookAt(to); return k; }
 // 총기 디테일: 레일 톱니, 방아쇠/울, 배출구, 장전손잡이 등
@@ -2605,8 +2605,9 @@ function gRibs(g, x, y, z, n, h, step) { for (let i = 0; i < n; i++) vb(g, x, 0.
 // 옆모습 윤곽([z, y] 점들)을 그려 두께를 주는 부품 — 모서리는 베벨로 깎음
 function xs(p, pts, depth, m, bev = 0.002, x = 0) {
   let P = pts.map(q => new THREE.Vector2(q[0], q[1])); if (THREE.ShapeUtils.isClockWise(P)) P = P.reverse();
+  if (bev > 0) bev = Math.min(depth * 0.32, Math.max(bev, depth * 0.24)); // 두께에 비례해 모서리를 넉넉히 굴림
   const sh = new THREE.Shape(P), d = Math.max(0.001, depth - 2 * bev);
-  const g = new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: bev > 0, bevelThickness: bev, bevelSize: bev * 0.8, bevelSegments: 2, curveSegments: 6 });
+  const g = new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: bev > 0, bevelThickness: bev, bevelSize: bev * 0.7, bevelSegments: 4, curveSegments: 6 });
   g.translate(0, 0, -d / 2); g.rotateY(-Math.PI / 2); const k = new THREE.Mesh(g, m); k.position.x = x; p.add(k); return k;
 }
 // 손잡이: 위(zt, yt)에서 뒤로 기울어 내려감
@@ -2897,22 +2898,33 @@ function attachOptic(g, idx) {
   const z = g.userData.optZ, b = g.userData.optBase; if (z === undefined) return;
   const o = new THREE.Group(); o.position.set(0, b, z); g.add(o); const M = K.black; let sy;
   const red = new THREE.MeshBasicMaterial({ color: 0xff2a2a });
+  // 둥근 사각 틀(앞에서 본 모양)을 z 방향으로 늘린 부품: 가운데가 뚫린 후드
+  const rr = (w, h, r) => { const p = new THREE.Shape(), x = -w / 2, y = -h / 2; p.moveTo(x + r, y); p.lineTo(x + w - r, y); p.quadraticCurveTo(x + w, y, x + w, y + r); p.lineTo(x + w, y + h - r); p.quadraticCurveTo(x + w, y + h, x + w - r, y + h); p.lineTo(x + r, y + h); p.quadraticCurveTo(x, y + h, x, y + h - r); p.lineTo(x, y + r); p.quadraticCurveTo(x, y, x + r, y); return p; };
+  const hood = (w, h, r, t, len, mat, y, z) => { const sh = rr(w, h, r), hole = rr(w - 2 * t, h - 2 * t, Math.max(0.002, r - t)); sh.holes.push(new THREE.Path(hole.getPoints(8).reverse()));
+    const g2 = new THREE.ExtrudeGeometry(sh, { depth: len, bevelEnabled: true, bevelThickness: 0.0015, bevelSize: 0.0012, bevelSegments: 3, curveSegments: 8 }); g2.translate(0, 0, -len / 2); const k = new THREE.Mesh(g2, mat); k.position.set(0, y, z); o.add(k); return k; };
+  const glass = new THREE.MeshStandardMaterial({ color: 0x9fd0ff, metalness: 0.9, roughness: 0.05, transparent: true, opacity: 0.16, depthWrite: false });
+  const glow = new THREE.SpriteMaterial({ color: 0xff3020, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending });
   if (idx === 0) {
-    vb(o, 0.04, 0.014, 0.075, M, 0, 0, 0);
-    vb(o, 0.006, 0.05, 0.075, M, -0.022, 0.029, 0); vb(o, 0.006, 0.05, 0.075, M, 0.022, 0.029, 0); vb(o, 0.05, 0.006, 0.075, M, 0, 0.057, 0);
-    vb(o, 0.038, 0.044, 0.002, K.lens, 0, 0.029, -0.035);
-    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.0016, 8, 6), red); dot.position.set(0, 0.027, -0.04); o.add(dot);
-    sy = 0.027;
-  } else if (idx === 1) {
-    vb(o, 0.05, 0.024, 0.11, M, 0, 0.004, 0.005);
-    vb(o, 0.007, 0.05, 0.03, M, -0.026, 0.04, -0.03); vb(o, 0.007, 0.05, 0.03, M, 0.026, 0.04, -0.03);
-    vb(o, 0.06, 0.008, 0.055, M, 0, 0.068, -0.035);
-    vb(o, 0.007, 0.04, 0.012, M, -0.026, 0.035, 0.04); vb(o, 0.007, 0.04, 0.012, M, 0.026, 0.035, 0.04); vb(o, 0.06, 0.006, 0.012, M, 0, 0.058, 0.04);
-    vb(o, 0.045, 0.042, 0.002, K.lens, 0, 0.038, -0.03);
-    vb(o, 0.008, 0.008, 0.012, K.dark, 0.028, 0.012, 0.02); vb(o, 0.008, 0.008, 0.012, K.dark, 0.028, 0.012, 0.035);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.0055, 0.0005, 6, 24), red); ring.position.set(0, 0.038, -0.033); o.add(ring);
-    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.0009, 8, 6), red); dot.position.set(0, 0.038, -0.033); o.add(dot);
+    // 레드도트: 원통형 컴팩트 도트 사이트 (마운트 · 앞 후드 링 · 다이얼 2개)
+    xs(o, [[0.04, 0.0], [-0.04, 0.0], [-0.034, 0.012], [0.034, 0.012]], 0.03, M, 0.003);                        // 마운트 받침
+    xs(o, [[0.022, 0.012], [-0.022, 0.012], [-0.016, 0.02], [0.016, 0.02]], 0.02, M, 0.002);                     // 마운트 목
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.062, 32, 1, true), new THREE.MeshStandardMaterial({ color: 0x1c1d1f, metalness: 0.6, roughness: 0.45, side: THREE.DoubleSide })); tube.rotation.x = Math.PI / 2; tube.position.set(0, 0.038, 0); o.add(tube);
+    for (const [z, r, t] of [[-0.032, 0.0215, 0.0035], [0.031, 0.0205, 0.003], [-0.02, 0.0198, 0.0012]]) { const ring = new THREE.Mesh(new THREE.TorusGeometry(r, t, 10, 32), M); ring.position.set(0, 0.038, z); o.add(ring); }
+    for (const [x, y, rot] of [[0.026, 0.038, 1], [0, 0.064, 0]]) { const dial = new THREE.Mesh(new THREE.CylinderGeometry(0.0075, 0.0075, 0.012, 16), M); if (rot) dial.rotation.z = Math.PI / 2; dial.position.set(x, y, 0.004); o.add(dial);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.0062, 0.0062, 0.002, 16), K.dark); if (rot) cap.rotation.z = Math.PI / 2; cap.position.set(x + (rot ? 0.007 : 0), y + (rot ? 0 : 0.007), 0.004); o.add(cap); }
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.018, 32), glass); lens.position.set(0, 0.038, -0.026); o.add(lens);
+    const dot = new THREE.Sprite(glow); dot.scale.setScalar(0.0045); dot.position.set(0, 0.038, -0.027); o.add(dot);
     sy = 0.038;
+  } else if (idx === 1) {
+    // 홀로그램: 사각 본체 + 아치형 보호 후드 + 앞·뒤 창 + 측면 버튼 · 원형 레티클
+    xs(o, [[0.058, 0.0], [-0.05, 0.0], [-0.05, 0.016], [-0.035, 0.024], [0.05, 0.024], [0.058, 0.014]], 0.044, M, 0.003);          // 본체 (배터리부)
+    for (const [x, z] of [[0.025, 0.018], [0.025, 0.034]]) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.0042, 0.0042, 0.006, 12), K.dark); b.rotation.z = Math.PI / 2; b.position.set(x, 0.012, z); o.add(b); } // 버튼
+    hood(0.052, 0.046, 0.009, 0.0045, 0.058, M, 0.045, -0.018);                                                        // 후드 (가운데 뚫림)
+    hood(0.044, 0.038, 0.006, 0.003, 0.004, K.dark, 0.044, -0.046);                                                    // 앞 창틀
+    for (const z of [-0.045, 0.009]) { const pane = new THREE.Mesh(new THREE.PlaneGeometry(0.038, 0.032), glass); pane.position.set(0, 0.044, z); o.add(pane); }
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.0062, 0.00045, 6, 40), red); ring.position.set(0, 0.044, -0.03); o.add(ring);
+    const dot = new THREE.Sprite(glow); dot.scale.setScalar(0.0028); dot.position.set(0, 0.044, -0.031); o.add(dot);
+    sy = 0.044;
   } else if (idx === 2) {
     vb(o, 0.02, 0.022, 0.02, M, 0, 0.008, -0.03); vb(o, 0.02, 0.022, 0.02, M, 0, 0.008, 0.03);
     vc(o, 0.017, 0.13, M, 0, 0.036, 0); vc(o, 0.022, 0.03, M, 0, 0.036, -0.075); vc(o, 0.02, 0.026, M, 0, 0.036, 0.075);
