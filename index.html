@@ -737,11 +737,11 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.88;
 $('game').appendChild(renderer.domElement);
 // ----- 후처리: 화면을 한 장(RT)에 그린 뒤 FXAA + 톤매핑으로 출력 · 자동 해상도 -----
-const POST = { rt: new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 0 }), scale: 1, fpsE: 60, adjT: 0, upT: 0, sz: new THREE.Vector2() };
+const POST = { rt: new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 0, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter }), scale: 1, fpsE: 60, adjT: 0, upT: 0, sz: new THREE.Vector2() };
 const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), postScene = new THREE.Scene();
-const postMat = new THREE.ShaderMaterial({ uniforms: { tDiffuse: { value: POST.rt.texture }, res: { value: new THREE.Vector2(4, 4) }, grade: { value: 1 } }, depthTest: false, depthWrite: false,
+const postMat = new THREE.ShaderMaterial({ uniforms: { tDiffuse: { value: POST.rt.texture }, res: { value: new THREE.Vector2(4, 4) }, grade: { value: 1 }, up: { value: 1 } }, depthTest: false, depthWrite: false,
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 res; uniform float grade; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 res; uniform float grade; uniform float up; varying vec2 vUv;
 vec3 S(vec2 uv){ vec3 c = texture2D(tDiffuse, uv).rgb;
 #ifdef TONE_MAPPING
   c = toneMapping(c);
@@ -761,7 +761,7 @@ void main(){ vec2 px = 1.0 / res;
   vec3 b = a * 0.5 + 0.25 * (S(vUv - dir * 0.5) + S(vUv + dir * 0.5));
   float lb = L(b); col = (lb < lmin || lb > lmax) ? a : b; }
   // 선명도(FXAA 흐림 보정) · 색보정(대비·채도·따뜻한 밝은 부분) · 비네팅
-  col += (col - (nw + ne + sw + se) * 0.25) * 0.28 * grade;
+  col += (col - (nw + ne + sw + se) * 0.25) * mix(0.28, 0.42, clamp(up - 1.0, 0.0, 1.0)) * grade; // 해상도를 낮춘 만큼 선명화를 살짝 더
   float lc = L(col); col = mix(vec3(lc), col, 1.0 + 0.1 * grade); col = mix(col, col * col * (3.0 - 2.0 * col), 0.18 * grade);
   col *= mix(vec3(1.0), vec3(1.03, 1.0, 0.96), smoothstep(0.45, 1.0, lc) * grade);
   vec2 q = vUv - 0.5; col *= 1.0 - dot(q, q) * 0.42 * grade;
@@ -771,7 +771,7 @@ postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
 const DIAG = { on: false, t: 0, n: 0, fr: 0 }; const NET = { out: 0, inn: 0 };
 function diagTick(dt) {
   if (!DIAG.on) return; const nw = performance.now() / 1000; if (!DIAG.t0) DIAG.t0 = nw; DIAG.fr++; if (nw - DIAG.t0 < 0.5) return;
-  const T = nw - DIAG.t0, fps = DIAG.fr / T; DIAG.t0 = nw; DIAG.fr = 0; const L = [`<b>FPS</b> ${fps.toFixed(0)}  해상도 ${Math.round(POST.scale * 100)}%`];
+  const T = nw - DIAG.t0, fps = DIAG.fr / T; DIAG.t0 = nw; DIAG.fr = 0; const L = [`<b>FPS</b> ${fps.toFixed(0)}  해상도 ${Math.round(POST.scale * 100)}% · 내부 ${POST.rt.width}×${POST.rt.height}`];
   if (MP.on) {
     const rem = entities.filter(e => e !== player && (isClient() || e.remote));
     if (MP.host) { const rs = entities.filter(e => e.remote && e.noff); const ip = rs.length ? rs.reduce((a, e) => a + (e.noff.interp || NETC.INTERP), 0) / rs.length : 0; const jt = rs.length ? Math.max(...rs.map(e => e.noff.jit || 0)) : 0;
@@ -795,8 +795,9 @@ function postBegin(dt) {
   if (state === 'playing' && POST.adjT <= 0 && !POST.lock) { POST.adjT = 1;
     if (POST.fpsE < 45 && POST.scale > 0.6) { POST.scale = Math.max(0.6, POST.scale - 0.05); POST.upT = 0; }
     else if (POST.fpsE > 58) { POST.upT += 1; if (POST.upT >= 5 && POST.scale < 1) { POST.scale = Math.min(1, POST.scale + 0.05); POST.upT = 0; } } else POST.upT = 0; }
-  renderer.getDrawingBufferSize(POST.sz); const w = Math.max(2, Math.round(POST.sz.x * POST.scale)), h = Math.max(2, Math.round(POST.sz.y * POST.scale));
-  if (POST.rt.width !== w || POST.rt.height !== h) { POST.rt.setSize(w, h); postMat.uniforms.res.value.set(w, h); }
+  renderer.getDrawingBufferSize(POST.sz); const cap = Math.min(1, Math.sqrt(1920 * 1080 / (POST.sz.x * POST.sz.y))); POST.cap = cap; // 내부 해상도 상한 ≈ 1920×1080
+  const w = Math.max(2, Math.round(POST.sz.x * POST.scale * cap)), h = Math.max(2, Math.round(POST.sz.y * POST.scale * cap));
+  if (POST.rt.width !== w || POST.rt.height !== h) { POST.rt.setSize(w, h); postMat.uniforms.res.value.set(w, h); postMat.uniforms.up.value = POST.sz.x / w; }
   renderer.setRenderTarget(POST.rt);
 }
 function postEnd() { renderer.setRenderTarget(null); renderer.render(postScene, postCam); }
@@ -1057,9 +1058,10 @@ vec4 antiTex(sampler2D s, vec2 uv){ float k = wpNoise(uv * 0.13); vec2 dx = dFdx
   float l = k * 6.0, ia = floor(l), fr = fract(l); vec2 oa = sin(vec2(3.0, 7.0) * ia), ob = sin(vec2(3.0, 7.0) * (ia + 1.0));
   vec4 ca = textureGrad(s, uv + oa, dx, dy), cb = textureGrad(s, uv + ob, dx, dy); vec3 d = ca.rgb - cb.rgb;
   return mix(ca, cb, smoothstep(0.2, 0.8, fr - 0.1 * (d.x + d.y + d.z))); }`;
+const WP_MATS = new Set(); let WP_LITE = false;
 function worldPatch(m, anti) {
   if (!m || !m.isMeshStandardMaterial || m.userData.wp) return m; m.userData.wp = anti ? 2 : 1;
-  m.customProgramCacheKey = () => 'wp' + (anti ? 'A' : '');
+  WP_MATS.add(m); m.customProgramCacheKey = () => 'wp' + (anti ? 'A' : '') + (WP_LITE ? 'L' : '');
   m.onBeforeCompile = sh => {
     sh.uniforms.wpFloorH = WPU.floorH;
     sh.vertexShader = 'varying vec3 vWP; varying vec3 vWN;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
@@ -1068,7 +1070,7 @@ function worldPatch(m, anti) {
           wq = instanceMatrix * wq; nq = mat3(instanceMatrix) * nq;
         #endif
         vWP = (modelMatrix * wq).xyz; vWN = normalize(mat3(modelMatrix) * nq); }`);
-    sh.fragmentShader = (anti ? '#define ANTI_TILE\n' : '') + WP_GLSL + '\n' + sh.fragmentShader.replace('#include <map_fragment>', `
+    sh.fragmentShader = (anti && !WP_LITE ? '#define ANTI_TILE\n' : '') + (WP_LITE ? '#define WP_LITE\n' : '') + WP_GLSL + '\n' + sh.fragmentShader.replace('#include <map_fragment>', `
       #ifdef USE_MAP
         #ifdef ANTI_TILE
           vec4 sampledDiffuseColor = antiTex(map, vMapUv);
@@ -1077,12 +1079,20 @@ function worldPatch(m, anti) {
         #endif
         diffuseColor *= sampledDiffuseColor;
       #endif
-      float wpMac = wpNoise(vWP.xz * 0.045) * 0.6 + wpNoise(vWP.xz * 0.19 + vWP.y * 0.13) * 0.4;
+      #ifdef WP_LITE
+        float wpMac = wpNoise(vWP.xz * 0.11 + vWP.y * 0.07);
+      #else
+        float wpMac = wpNoise(vWP.xz * 0.045) * 0.6 + wpNoise(vWP.xz * 0.19 + vWP.y * 0.13) * 0.4;
+      #endif
       diffuseColor.rgb *= mix(0.84, 1.1, wpMac);
       float wpVert = 1.0 - abs(vWN.y);
       float wpYL = wpFloorH > 0.0 ? mod(vWP.y, wpFloorH) : vWP.y;
       float wpLow = wpVert * (1.0 - smoothstep(0.0, 0.85 + wpNoise(vWP.xz * 1.3 + vWP.y) * 0.5, wpYL));
-      float wpStreak = wpVert * smoothstep(0.55, 0.95, wpNoise(vec2((vWP.x + vWP.z) * 2.6, vWP.y * 0.22))) * 0.5;
+      #ifdef WP_LITE
+        float wpStreak = 0.0;
+      #else
+        float wpStreak = wpVert * smoothstep(0.55, 0.95, wpNoise(vec2((vWP.x + vWP.z) * 2.6, vWP.y * 0.22))) * 0.5;
+      #endif
       float wpG = clamp(wpLow * 0.55 + wpStreak * 0.35, 0.0, 0.6);
       diffuseColor.rgb *= 1.0 - wpG; diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.0, 0.93, 0.82), wpLow * 0.5);`)
       .replace('#include <roughnessmap_fragment>', `float roughnessFactor = roughness; vec4 ormS = vec4(1.0);
@@ -1156,7 +1166,10 @@ function setAniso() { const mx = renderer.capabilities.getMaxAnisotropy(), A = (
   A(MAT.crate, 2); }
 setAniso();
 // 텍스처·셰이더 미리 올리기: 처음 보는 곳에서 끊기는 현상 제거
-function prewarm() { try { const seen = new Set(); mapRoot.traverse(o => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) for (const k of ['map', 'normalMap', 'roughnessMap', 'emissiveMap', 'aoMap']) { const t = m[k]; if (t && !seen.has(t)) { seen.add(t); renderer.initTexture(t); } } }); if (state !== 'playing') renderer.compile(scene, camera); } catch (err) {} }
+function prewarm() { try { const seen = new Set(); mapRoot.traverse(o => { if (!o.isMesh) return; for (const m of (Array.isArray(o.material) ? o.material : [o.material])) for (const k of ['map', 'normalMap', 'roughnessMap', 'emissiveMap', 'aoMap']) { const t = m[k]; if (t && !seen.has(t)) { seen.add(t); renderer.initTexture(t); } } }); renderer.compile(scene, camera);
+  // 숨겨진 것(캐릭터·원거리 모델·소품)까지 잠깐 켜서 셰이더를 미리 만들어 둠 → 처음 보일 때 멈칫하지 않게
+  const hid = []; scene.traverse(o => { if (!o.visible && (o.isMesh || o.isGroup || o.isSprite)) { hid.push(o); o.visible = true; } }); renderer.compile(scene, camera); hid.forEach(o => o.visible = false);
+  if (typeof wScene !== 'undefined') renderer.compile(wScene, wCam); } catch (err) {} }
 // ===================== 맵 / 충돌 =====================
 let mapRoot = new THREE.Group(); scene.add(mapRoot);
 const boxes = [];      // {min:[x,y,z], max:[x,y,z]}
@@ -2131,6 +2144,8 @@ function loadMap(id, small = false) {
   mapRoot = new THREE.Group(); scene.add(mapRoot); DETAIL = []; LIGHT_SPOTS = []; clearMarks();
   for (const a of [boxes, ramps, rampMeshes, coverBoxes, aiGoals, highGoals, coverPoints, flags, healPacks]) a.length = 0;
   cIdx = 0; curMapId = key; MAP = Object.assign({ id }, MAPS[id], small ? MAPS[id].small : {}); MAP.night = night; setEnv(night); if (small) MAP.name = MAPS[id].name + ' (축소)'; if (night) MAP.name = '🌙 ' + MAP.name + ' · 밤'; ARENA.x = MAP.ax; ARENA.z = MAP.az;
+  { const lite = !!MAPS[id].indoor; if (lite !== WP_LITE) { WP_LITE = lite; for (const m of WP_MATS) m.needsUpdate = true; } }
+  if (MAPS[id].indoor) { scene.fog.color.setHex(night ? 0x040507 : 0x14171b); scene.fog.near = 28; scene.fog.far = 58; camera.far = 62; } else camera.far = 600; camera.updateProjectionMatrix(); // 실내: 먼 곳은 어둡게 사라지고 안 그림
   WPU.floorH.value = MAPS[id].floorH || 0; MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (night && id !== 'harbor' && !MAPS[id].indoor) nightLamps(); if (ffaMap) buildBooths(); else buildShelters(); contactShadows(); MAP.decals = decals(); flushBatch(); mergeDeep(mapRoot, [], o => o.parent === mapRoot && o.material.transparent && o.material.blending === THREE.NormalBlending && o.material.side !== THREE.DoubleSide && !flags.includes(o) && !rampMeshes.includes(o) && !DETAIL.includes(o)); tuneEnv(scene); shadowAt = ''; MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase(); prewarm();
   { const lm = $('lobbyMap').getContext('2d'); lm.clearRect(0, 0, 180, 192); lm.drawImage(mmBase, 0, 0); }
   $('lbMapInfo').innerHTML = `<b>${MAP.name}</b>${settings.wmode !== 'normal' ? ' · ' + WMODES[settings.wmode] : ''}<br>${MAP.info}${night ? '<br>🔦 야간전 · 모두 라이트가 켜진 채로 싸웁니다' : ''}<br><span class="bdot"></span>BLUE 스폰 (남)<br><span class="rdot"></span>RED 스폰 (북)`;
@@ -5681,8 +5696,8 @@ function loop(t) {
   postBegin(dt); renderer.clear(); renderer.render(scene, camera);
   if (xrayT > 0) { xrayT -= dt; if (state === 'playing' && player.alive && !KC.on) xrayPass(); }
   $('xrayOv').classList.toggle('on', xrayT > 0 && state === 'playing' && player.alive && !KC.on);
-  if ((state === 'playing' && player.alive && !KC.on) || (state === 'replay' && RP.vmOn) || (KC.on && KC.vmOn)) { renderer.clearDepth(); renderer.render(wScene, wCam); }
-  postEnd(); DIAG.ms = (DIAG.ms || 0) * 0.9 + (performance.now() - _f0) * 0.1; DIAG.msMax = Math.max((DIAG.msMax || 0) * 0.995, performance.now() - _f0);
+  postEnd();
+  if ((state === 'playing' && player.alive && !KC.on) || (state === 'replay' && RP.vmOn) || (KC.on && KC.vmOn)) { renderer.clearDepth(); renderer.render(wScene, wCam); } // 1인칭 총은 화면 원래 해상도로 (흐려지거나 깨지지 않게) DIAG.ms = (DIAG.ms || 0) * 0.9 + (performance.now() - _f0) * 0.1; DIAG.msMax = Math.max((DIAG.msMax || 0) * 0.995, performance.now() - _f0);
   if (DIAG.on) { DIAG.calls = renderer.info.render.calls; DIAG.tris = renderer.info.render.triangles; }
 }
 
