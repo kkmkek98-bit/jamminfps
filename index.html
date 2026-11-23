@@ -461,7 +461,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
   <div class="lb-grid">
     <section class="lb-col">
       <h2>매치 설정</h2>
-      <div class="opt"><label>전장</label><div class="seg" data-opt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">고속도로 휴게소</button><button data-v="apt">아파트 단지</button><button data-v="harbor">항구</button></div></div>
+      <div class="opt"><label>전장</label><div class="seg" data-opt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">고속도로 휴게소</button><button data-v="apt">아파트 단지</button><button data-v="harbor">항구</button><button data-v="bunker">지하 벙커</button></div></div>
       <div class="opt"><label>시간대</label><div class="seg" data-opt="tod"><button data-v="day" class="on">☀️ 낮</button><button data-v="night">🌙 밤 (F: 라이트)</button></div></div>
       <div class="opt"><label>총기 모드</label><div class="seg" data-opt="wmode"><button data-v="normal" class="on">자유</button><button data-v="sniper">🎯 저격전</button><button data-v="shotgun">💥 샷건전</button><button data-v="knife">🔪 칼전</button></div><div class="wmnote" id="wmNote"></div></div>
       <div class="opt"><label>목표 킬 (선취 승리)</label><div class="seg" data-opt="kills"><button data-v="20">20</button><button data-v="30">30</button><button data-v="50" class="on">50</button><button data-v="80">80</button><button data-v="100">100</button></div></div>
@@ -575,7 +575,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
       <div class="rm-grid">
         <section class="rm-col">
           <h2>전장</h2>
-          <div class="seg" data-mopt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">휴게소</button><button data-v="apt">아파트</button><button data-v="harbor">항구</button></div>
+          <div class="seg" data-mopt="map"><button data-v="yard" class="on">컨테이너 야드</button><button data-v="school">학교</button><button data-v="rest">휴게소</button><button data-v="apt">아파트</button><button data-v="harbor">항구</button><button data-v="bunker">지하 벙커</button></div>
           <div class="seg" data-mopt="tod"><button data-v="day" class="on">☀️ 낮</button><button data-v="night">🌙 밤</button></div>
           <div class="seg" data-mopt="wmode"><button data-v="normal" class="on">자유</button><button data-v="sniper">🎯 저격</button><button data-v="shotgun">💥 샷건</button><button data-v="knife">🔪 칼전</button></div>
           <canvas class="mapShot" width="480" height="270"></canvas>
@@ -1444,6 +1444,104 @@ function buildSpawns() {
   }
 }
 
+
+// ---------- 지하 벙커 (실내 · 2층) ----------
+// 점대칭: BLUE 절반(z>0)을 만들고 (x,z)→(-x,-z)로 RED 절반 생성 → 양 팀 완전히 같은 구조
+function buildBunker() {
+  buildBase(MAT.concreteDark); floorPlane(-32, 32, -42, 42, MAT.floor, 0.03, 2.5);
+  const T = 0.4, G = 3.8, UF = 4.1, CH = 8.4, UH = CH - UF; // 1층 높이 · 2층 바닥 · 천장
+  const door = (a, w = 2.6, h = 2.7) => ({ a: a - w / 2, b: a + w / 2, y0: 0, y1: h });
+  const win = (a, w = 3, y0 = 1.1, y1 = 2.4) => ({ a: a - w / 2, b: a + w / 2, y0, y1 });
+  const steel = MAT.steel, cw = MAT.concrete, cd = MAT.concreteDark, rack = SM(0x2a2e33, { roughness: 0.5, metalness: 0.6 }), desk = SM(0x5b6168, { roughness: 0.6, metalness: 0.3 });
+  const tube = MAT.headlight;
+  for (const s of [1, -1]) {
+    const WX = (a0, a1, z, t, yb, h, ops, mat) => s > 0 ? wallX(a0, a1, z, t, yb, h, ops, mat) : wallX(-a1, -a0, -z, t, yb, h, ops.map(o => ({ ...o, a: -o.b, b: -o.a })), mat);
+    const WZ = (a0, a1, x, t, yb, h, ops, mat) => s > 0 ? wallZ(a0, a1, x, t, yb, h, ops, mat) : wallZ(-a1, -a0, -x, t, yb, h, ops.map(o => ({ ...o, a: -o.b, b: -o.a })), mat);
+    const B = (cx, y0, cz, w, h, d, mat, opt) => addBox(s * cx, y0, s * cz, w, h, d, mat, opt);
+    const D = (cx, y0, cz, w, h, d, mat) => deco(s * cx, y0 + h / 2, s * cz, w, h, d, mat);
+    const SL = (x0, x1, z0, z1, y = UF) => B((x0 + x1) / 2, y - 0.3, (z0 + z1) / 2, x1 - x0, 0.3, z1 - z0, cd);
+    const P = (x, y, z) => V(s * x, y, s * z);
+    // 형광등: 천장 등기구 + (밤) 바닥 빛웅덩이 — 복도·창고는 일부러 적게
+    const fluo = (x, y, z, fy, sz = 9) => { D(x, y - 0.12, z, 0.35, 0.08, 2.2, steel); D(x, y - 0.18, z, 0.18, 0.05, 2.0, tube);
+      if (MAP.night) { const g = new THREE.PlaneGeometry(sz, sz); g.rotateX(-Math.PI / 2); batchAdd(g, POOL_MAT, false, true).position.set(s * x, fy + 0.06, s * z); LIGHT_SPOTS.push({ x: s * x, z: s * z, r: sz * 0.36 }); } };
+    // ── 1층 ──
+    // 중앙 격납고 벽 (2층 높이 · 위쪽에 관측창)
+    WX(-14, 14, 12, T, 0, CH, [door(-8), { a: -2.6, b: 2.6, y0: 0, y1: 3.4 }, door(8), win(-9, 3.4, 5.3, 6.8), win(9, 3.4, 5.3, 6.8)], cw);
+    for (const o of [-1, 1]) WZ(0, 12, o * 14, T, 0, CH, [door(6), win(2.5, 3, 5.3, 6.8), win(9.5, 3, 5.3, 6.8)], cw);
+    // 적재장(격납고 ↔ 스폰 사이) 옆벽 · 스폰 홀 앞벽
+    for (const o of [-1, 1]) WZ(12, 30, o * 14, T, 0, G, [door(24, 2.4)], cw);
+    WX(-14, 14, 30, T, 0, G, [door(-8, 3, 2.8), door(0, 3.4, 2.8), door(8, 3, 2.8)], cw);
+    // 양옆 복도(x 14~18) 바깥벽 → 방 3개 (실험실 · 창고 · 통제실)
+    for (const o of [-1, 1]) {
+      WZ(0, 30, o * 18, T, 0, G, [door(6), door(18), door(27, 2.2)], cw);
+      WX(o > 0 ? 18 : -32, o > 0 ? 32 : -18, 24, 0.3, 0, G, [door(o * 25, 2.2)], MAT.wall);
+      WX(o > 0 ? 18 : -32, o > 0 ? 32 : -18, 12, 0.3, 0, G, [door(o * 25, 2.2)], MAT.wall);
+      // 실험실(z 0~12): 실험대 · 서버랙
+      for (const z of [3.5, 8.5]) B(o * 24, 0, z, 2.6, 0.95, 1.0, desk, { cover: true });
+      for (const z of [2, 5, 8, 11]) B(o * 31.2, 0, z, 1.0, 2.2, 1.4, rack);
+      // 창고(z 12~24): 상자 더미 · 선반
+      crate(s * o * 21, s * 15.5, 1.3); crate(s * o * 21, s * 15.5, 1.1, 1.3); crate(s * o * 26, s * 20, 1.4); B(o * 30.8, 0, 18, 1.2, 2.4, 5, rack);
+      // 통제실(z 24~30): 제어 콘솔
+      B(o * 25, 0, 27.6, 5, 1.1, 0.9, desk, { cover: true }); B(o * 30.8, 0, 27, 1.0, 1.9, 4, rack);
+      // 복도 소품: 사물함 · 소화전함
+      B(o * 17.3, 0, 13, 0.7, 1.9, 2.0, MAT.metal); B(o * 14.6, 0, 20, 0.6, 1.2, 1.2, MAT.trimDark, { cover: true });
+    }
+    if (s > 0) for (const o of [-1, 1]) WX(o > 0 ? 18 : -32, o > 0 ? 32 : -18, 0, 0.3, 0, G, [door(o * 25, 2.2)], MAT.wall); // 가운데 칸막이는 한 번만
+    // 격납고 안: 컨테이너 · 장갑차 · 발전기 · 상자
+    if (s > 0) { container(-6, 0, true); container(6, 0, true); truck(0, -1, 0, 2); }
+    crate(s * 10, s * 6, 1.4); crate(s * -11, s * 4, 1.2); crate(s * -11, s * 4, 1.0, 1.2); B(-3.5, 0, 8, 2.4, 1.6, 1.4, MAT.trimDark, { cover: true });
+    jersey(s * 4, s * 9.5, 3, true);
+    // 적재장: 팔레트 · 지게차 · 방벽
+    B(-9, 0, 16, 2.6, 1.6, 1.4, MAT.woodDark, { cover: true }); B(9.5, 0, 17.5, 1.4, 2.0, 2.4, SM(0xd8a21a, { roughness: 0.5, metalness: 0.3 }), { cover: true });
+    jersey(s * 0, s * 18.5, 4, true); crate(s * -4, s * 25, 1.3); crate(s * 5, s * 26, 1.2); jersey(s * -10, s * 27, 3, false); jersey(s * 11, s * 25, 3, false);
+    // 스폰 홀 ↔ 모서리 계단실 벽
+    for (const o of [-1, 1]) WZ(30, 42, o * 14, T, 0, G, [door(36, 3)], cw);
+    // 계단 (모서리 계단실, 양쪽) → 2층
+    for (const o of [-1, 1]) { const x = o * 23;
+      for (let k = 1; k <= 10; k++) B(x, 0, 40.4 - (k - 0.5) * 0.6, 2.2, k * 0.41, 0.6, cw);
+      B(x, 0, 32.7, 2.2, UF, 3.4, cw); B(x + o * 1.15, UF, 36.5, 0.1, 1.0, 7.8, steel); }
+    // ── 2층 바닥 ──
+    for (const o of [-1, 1]) { SL(o > 0 ? 14 : -32, o > 0 ? 32 : -14, 0, 30);           // 양 날개 2층
+      const SX = (p, q, z0, z1) => SL(Math.min(o * p, o * q), Math.max(o * p, o * q), z0, z1);
+      SX(14, 21.9, 30, 42); SX(21.9, 24.1, 30, 31); SX(24.1, 32, 30, 42); } // 계단 위는 뚫어 둠
+    SL(-14, 14, 20, 42); // 메자닌 + 스폰 홀 위
+    // 2층 난간: 적재장 내려다보는 곳
+    B(0, UF, 20.1, 28, 1.0, 0.15, steel); for (const o of [-1, 1]) B(o * 14, UF, 16, 0.15, 1.0, 8, steel);
+    // ── 2층 벽 ──
+    for (const o of [-1, 1]) {
+      WZ(0, 30, o * 20, 0.3, UF, UH, [door(6), door(18), door(27, 2.2)], MAT.wall);           // 2층 복도(격납고 관측창 쪽) ↔ 사무실
+      WX(o > 0 ? 20 : -32, o > 0 ? 32 : -20, 12, 0.3, UF, UH, [door(o * 26, 2.2)], MAT.wall);
+      WX(o > 0 ? 20 : -32, o > 0 ? 32 : -20, 24, 0.3, UF, UH, [door(o * 26, 2.2)], MAT.wall);
+      WZ(30, 42, o * 14, 0.3, UF, UH, [door(36, 3)], MAT.wall);
+      // 2층 사무실 · 서버실 소품
+      B(o * 26, UF, 6, 3, 0.8, 1.2, desk, {}); B(o * 31.2, UF, 18, 1.0, 2.2, 6, rack); B(o * 26, UF, 27, 2.6, 0.8, 1.0, desk, {});
+      B(o * 17, UF, 24, 1.2, 1.2, 1.2, MAT.crate, {}); B(o * 16, UF, 8.5, 0.8, 1.0, 1.6, MAT.trimDark, {});
+    }
+    if (s > 0) for (const o of [-1, 1]) WX(o > 0 ? 20 : -32, o > 0 ? 32 : -20, 0, 0.3, UF, UH, [door(o * 26, 2.2)], MAT.wall);
+    B(-6, UF, 26, 2.4, 0.9, 1.0, desk, {}); B(6, UF, 33, 2.4, 0.9, 1.0, desk, {}); B(0, UF, 38, 4, 1.1, 0.8, MAT.trimDark, {});
+    // ── 형광등 (밤에는 이 자리만 밝음) ──
+    fluo(-7, CH, 6, 0, 11); fluo(7, CH, -2, 0, 11); fluo(0, CH, 16, 0, 9); fluo(0, CH, 25, UF, 8); fluo(0, G, 36, 0, 8);
+    for (const o of [-1, 1]) { fluo(o * 16, G, 6, 0, 7); fluo(o * 25, G, 6, 0, 8); fluo(o * 25, G, 27, 0, 7); fluo(o * 27, G, 36, 0, 7); fluo(o * 17, CH, 18, UF, 7); fluo(o * 26, CH, 6, UF, 7); }
+    // ── 간판 ──
+    signBoard(s * 0, 3.15, s * 30.25, 5, 0.7, s > 0 ? 'B 구역 대기실' : 'A 구역 대기실', '#1f2a1f', '#cfe8c9', s > 0 ? 0 : Math.PI);
+    signBoard(s * 0, 7.2, s * 12.25, 7, 1.0, '격납고', '#2b2f35', '#ffd23f', s > 0 ? 0 : Math.PI);
+    // ── AI 경로 ──
+    for (const o of [-1, 1]) {
+      const st = [P(o * 23, 0, 41.2), P(o * 23, UF, 32.4), P(o * 17, UF, 29)];
+      aiGoals.push({ path: [...st, P(o * rand(15, 19), UF, rand(2, 11))], high: true });          // 격납고 관측창
+      aiGoals.push({ path: [...st, P(o * 17, UF, 18), P(o * 25, UF, rand(14, 22))], high: true }); // 서버실
+      aiGoals.push({ path: [P(o * 23, 0, 41.2), P(o * 23, UF, 32.4), P(o * 10, UF, 31), P(rand(-11, 11), UF, rand(21, 24))], high: true }); // 메자닌
+      aiGoals.push({ path: [P(o * 16, 0, 31), P(o * 16, 0, 14), P(o * 16, 0, rand(1, 10))] });
+      aiGoals.push({ path: [P(o * 16, 0, 31), P(o * 16, 0, 6), P(o * 24, 0, rand(2, 10))] });
+    }
+    aiGoals.push({ path: [P(0, 0, 31), P(0, 0, 21), P(0, 0, 13), P(rand(-10, 10), 0, rand(1, 10))] });
+    aiGoals.push({ path: [P(-8, 0, 31), P(-8, 0, 13), P(rand(-12, -3), 0, rand(-10, 10))] });
+  }
+  // 천장: 아래를 향한 면만 있는 판 → 안에서는 천장, 위(맵 미리보기)에서는 보이지 않음
+  { const g = new THREE.PlaneGeometry(64, 84); g.rotateX(Math.PI / 2); batchAdd(g, MAT.concreteDark, false, true).position.set(0, CH, 0); }
+  buildSpawns();
+}
+
 // ---------- 학교 (근접전) ----------
 function buildSchool() {
   buildBase(MAT.dirt);
@@ -1968,7 +2066,11 @@ const MAPS = {
     info: '150 × 180 m<br>컨테이너 미로 · 화물선 갑판 · 창고<br>갠트리 크레인 · 조명탑',
     tp: [['BLUE 스폰', 8, 0, 79], ['RED 스폰', 8, 0, -79], ['화물선 갑판', -62, 3, 15], ['창고', 57, 0, 5], ['중앙 광장', 0, 0, 3], ['크레인 아래', -47, 0, 30]],
     small: { ax: 45, az: 55, spawn: { x0: -14, x1: 14, z0: 44, z1: 51 }, heal: [{ x: 0, z: 0 }], info: '90 × 110 m · 사람만 축소판<br>컨테이너 미로 · 힐팩: 중앙 광장',
-      tp: [['BLUE 스폰', 0, 0, 47], ['RED 스폰', 0, 0, -47], ['중앙 광장', 0, 0, 3]] } }
+      tp: [['BLUE 스폰', 0, 0, 47], ['RED 스폰', 0, 0, -47], ['중앙 광장', 0, 0, 3]] } },
+  bunker: { name: '지하 벙커', ax: 32, az: 42, wallH: 8.4, indoor: true, spawn: { x0: -10, x1: 10, z0: 33, z1: 40 }, build: buildBunker,
+    heal: [{ x: 26, z: 18 }, { x: -26, z: -18 }],
+    info: '64 × 84 m · 실내 근접전 · 2층<br>중앙 격납고(2층 높이·관측창) · 적재장 메자닌<br>실험실 · 창고(힐팩) · 통제실 · 서버실<br>밤: 정전 — 형광등 몇 곳뿐, 손전등 필수',
+    tp: [['BLUE 스폰', 0, 0, 37], ['RED 스폰', 0, 0, -37], ['격납고', 0, 0, 6], ['메자닌', 0, 4.1, 24], ['관측창 복도', 17, 4.1, 6], ['창고', 26, 0, 16], ['계단실', 23, 0, 41]] }
 };
 let MAP = MAPS.yard, curMapId = null, MAP_CULL = false;
 function outsideArena(x, z) { return MAP_CULL && (Math.abs(x) > ARENA.x + 1.5 || Math.abs(z) > ARENA.z + 1.5); }
@@ -1980,7 +2082,7 @@ function loadMap(id, small = false) {
   mapRoot = new THREE.Group(); scene.add(mapRoot); DETAIL = []; LIGHT_SPOTS = []; clearMarks();
   for (const a of [boxes, ramps, rampMeshes, coverBoxes, aiGoals, highGoals, coverPoints, flags, healPacks]) a.length = 0;
   cIdx = 0; curMapId = key; MAP = Object.assign({ id }, MAPS[id], small ? MAPS[id].small : {}); MAP.night = night; setEnv(night); if (small) MAP.name = MAPS[id].name + ' (축소)'; if (night) MAP.name = '🌙 ' + MAP.name + ' · 밤'; ARENA.x = MAP.ax; ARENA.z = MAP.az;
-  MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (night && id !== 'harbor') nightLamps(); if (ffaMap) buildBooths(); else buildShelters(); contactShadows(); MAP.decals = decals(); flushBatch(); tuneEnv(scene); shadowAt = ''; MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase(); prewarm();
+  MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (night && id !== 'harbor' && !MAPS[id].indoor) nightLamps(); if (ffaMap) buildBooths(); else buildShelters(); contactShadows(); MAP.decals = decals(); flushBatch(); tuneEnv(scene); shadowAt = ''; MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase(); prewarm();
   { const lm = $('lobbyMap').getContext('2d'); lm.clearRect(0, 0, 180, 192); lm.drawImage(mmBase, 0, 0); }
   $('lbMapInfo').innerHTML = `<b>${MAP.name}</b>${settings.wmode !== 'normal' ? ' · ' + WMODES[settings.wmode] : ''}<br>${MAP.info}${night ? '<br>🔦 야간전 · F로 라이트 켜기/끄기 · 불빛을 노려 쏘세요' : ''}<br><span class="bdot"></span>BLUE 스폰 (남)<br><span class="rdot"></span>RED 스폰 (북)`;
   $('lbMapName').textContent = MAP.name;
