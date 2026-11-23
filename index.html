@@ -578,7 +578,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
           <div class="seg" data-mopt="wmode"><button data-v="normal" class="on">자유</button><button data-v="sniper">🎯 저격</button><button data-v="shotgun">💥 샷건</button><button data-v="knife">🔪 칼전</button></div>
           <canvas class="mapShot" width="480" height="270"></canvas>
           <h2>규칙</h2>
-          <div class="opt"><label>모드</label><div class="seg" data-mopt="mode"><button data-v="coop" class="on">협동</button><button data-v="mixed">팀 대전</button><button data-v="pvp">사람만</button></div><div class="rm-hint" id="modeHint"></div></div>
+          <div class="opt"><label>모드</label><div class="seg" data-mopt="mode"><button data-v="coop" class="on">협동</button><button data-v="mixed">팀 대전</button><button data-v="pvp">사람만</button><button data-v="ffa">개인전</button></div><div class="rm-hint" id="modeHint"></div></div>
           <div class="opt"><label>목표 킬</label><div class="seg" data-mopt="kills"><button data-v="20">20</button><button data-v="30">30</button><button data-v="50" class="on">50</button><button data-v="80">80</button><button data-v="100">100</button></div></div>
           <div class="opt"><label>제한 시간</label><div class="seg" data-mopt="time"><button data-v="180">3분</button><button data-v="300">5분</button><button data-v="600" class="on">10분</button><button data-v="900">15분</button></div></div>
           <div class="opt" id="diffOpt"><label>AI 난이도</label><div class="seg" data-mopt="diff"><button data-v="easy">쉬움</button><button data-v="normal" class="on">보통</button><button data-v="hard">어려움</button></div></div>
@@ -650,6 +650,10 @@ const lerp = (a, b, t) => a + (b - a) * t;
 // ===================== 상수 =====================
 const CROUCH_EYE = 1.05, CROUCH_SPEED = 0.55, PRONE_EYE = 0.42, PRONE_SPEED = 0.22, LEAN_DIST = 0.45;
 const G = 22, JUMP_V = 7.2, WALK = 5.0, SPRINT = 7.6, STEP = 0.55, RAD = 0.38, BODY_H = 1.8, EYE = 1.62;
+// 개인전(FFA): 모두가 적 — 같은 팀 판정은 본인만
+const isFFA = () => typeof MP !== 'undefined' && MP.on && MP.mode === 'ffa';
+const ally = (a, b) => !!a && !!b && (a === b || (!isFFA() && a.team === b.team));
+const noAI = () => MP.mode === 'pvp' || MP.mode === 'ffa';
 let MATCH_TIME = 600, KILL_TARGET = 50; const RESPAWN_DELAY = 3, PROTECT_TIME = 2, TEAM_SIZE = 8;
 const settings = { kills: 50, time: 600, diff: 'normal', map: 'yard', tod: 'day', wmode: 'normal' };
 const DIFF = { easy: { react: 1.6, err: 1.6, label: '쉬움' }, normal: { react: 1, err: 1, label: '보통' }, hard: { react: 0.7, err: 0.72, label: '어려움' } };
@@ -2775,11 +2779,30 @@ function spawnPoint(team) {
   }
   return V((MAP.spawn.x0 + MAP.spawn.x1) / 2 + rand(-4, 4), 0, s * (MAP.spawn.z0 + MAP.spawn.z1) / 2);
 }
+// 개인전 스폰: 맵 전체 후보 지점 중 살아있는 다른 사람과 가장 먼 곳들(상위 20%) 중 무작위 → 누구에게나 같은 기준
+let FFA_PTS = null, FFA_KEY = '';
+function ffaPoints() {
+  if (FFA_PTS && FFA_KEY === curMapId) return FFA_PTS; FFA_KEY = curMapId; FFA_PTS = [];
+  for (let x = -ARENA.x + 3; x <= ARENA.x - 3; x += 4) for (let z = -ARENA.z + 3; z <= ARENA.z - 3; z += 4) {
+    if (outsideArena(x, z) || blocked(x, z, 0) || (MAP.id === 'harbor' && x < -51)) continue;
+    if (blocked(x + 0.8, z, 0) || blocked(x - 0.8, z, 0) || blocked(x, z + 0.8, 0) || blocked(x, z - 0.8, 0)) continue;
+    if (boxes.some(b => b.min[1] > 0.3 && b.min[1] < 2.2 && x > b.min[0] && x < b.max[0] && z > b.min[2] && z < b.max[2])) continue; // 낮은 천장 밑 제외
+    FFA_PTS.push([x, z]); }
+  return FFA_PTS;
+}
+function ffaSpawn(e) {
+  const P = ffaPoints(); if (!P.length) return spawnPoint(e.team);
+  const others = entities.filter(o => o !== e && o.alive && !o.off);
+  if (!others.length) { const p = P[Math.random() * P.length | 0]; return V(p[0], 0, p[1]); }
+  const sc = P.map(p => { let d = 1e9; for (const o of others) d = Math.min(d, Math.hypot(o.pos.x - p[0], o.pos.z - p[1])); return d; });
+  const order = sc.map((d, i) => i).sort((a, b) => sc[b] - sc[a]); const top = order.slice(0, Math.max(1, order.length * 0.2 | 0));
+  const p = P[top[Math.random() * top.length | 0]]; return V(p[0] + rand(-1, 1), 0, p[1] + rand(-1, 1));
+}
 function spawnEntity(e) {
   if (e.off) { e.alive = false; e.respawnT = 1e9; if (e.model) e.model.root.visible = false; return; }
-  e.pos.copy(spawnPoint(e.team)); e.vel.set(0, 0, 0); e.knock.set(0, 0, 0);
+  e.pos.copy(isFFA() && !isClient() ? ffaSpawn(e) : spawnPoint(e.team)); e.vel.set(0, 0, 0); e.knock.set(0, 0, 0);
   e.dmgBy.clear(); e.streak = 0; e.crouch = 0; e.prone = 0; e.lean = 0; e.stance = 0;
-  e.yaw = e.team === 'blue' ? 0 : Math.PI; e.pitch = 0; e.hp = 100; e.alive = true; e.onGround = true; e.protectT = PROTECT_TIME;
+  e.yaw = isFFA() ? Math.atan2(e.pos.x, e.pos.z) : e.team === 'blue' ? 0 : Math.PI; e.pitch = 0; e.hp = 100; e.alive = true; e.onGround = true; e.protectT = isFFA() ? 3 : PROTECT_TIME;
   if (e.aw) { e.aw.spawnAt = now; e.aw.lp = null; } setupWeapons(e); if (!e.isPlayer && !e.remote) e.lightOn = true; else if (e.isPlayer) e.lightOn = playerLightOn;
   if (e.model && e.loadout) soldierGun(e.model, e.modelKey || e.loadout.primary);
   if (e.model) { e.model.root.visible = !e.isPlayer; e.model.body.rotation.set(0, 0, 0); e.model.body.position.set(0, 0, 0); e.model.helmet.visible = true; e.flashT = 0; }
@@ -2836,7 +2859,7 @@ function fireBullet(e, origin, dir, def, muzzlePos, quiet) {
   if (!hit) return;
   if (hit.entity) {
     const v = hit.entity;
-    if (v.team === e.team) { impact(hit.point, V(0, 1, 0)); return; }
+    if (ally(v, e)) { impact(hit.point, V(0, 1, 0)); return; }
     let dmg = def.dmg * (hit.head ? (def.hsMul || 2) : 1);
     if (hit.t > def.range) dmg *= def.pellets ? 0.45 : def.cls === 'smg' ? 0.6 : def.kind === 'pistol' ? 0.72 : 0.85;
     if (v.protectT <= 0) bloodFx(hit.point);
@@ -2851,7 +2874,7 @@ function fireBullet(e, origin, dir, def, muzzlePos, quiet) {
 function applyDamage(v, dmg, att, wname, head, fromPos) {
   if (CHEAT_BUILD && CHEAT.god && v === player && !MP.on) return false;
   if (!v.alive || v.protectT > 0) return false;
-  if (att && att !== v && att.team === v.team) return false;
+  if (att && att !== v && ally(att, v)) return false;
   const real = Math.min(dmg, v.hp); v.hp -= dmg; if (att === v && v.aw) v.aw.selfDmg += real;
   if (att && att !== v) { att.dmgDealt += real; v.dmgBy.set(att, (v.dmgBy.get(att) || 0) + real); }
   if (v.isPlayer) { hurt = Math.min(1, hurt + dmg / 55); if (fromPos) showDamageDir(fromPos); sfx('hurt'); }
@@ -2939,14 +2962,42 @@ function closeAwards() {
   if (cards.some(c => !c.classList.contains('on'))) { AW.timers.forEach(clearTimeout); cards.forEach(c => c.classList.add('on')); document.querySelectorAll('#awDots i').forEach(d => d.classList.add('on')); $('awCnt').textContent = `${cards.length} / ${cards.length}`; return; }
   $('awards').classList.add('hidden'); const d = AW.done; AW.done = null; if (d) d();
 }
+// 개인전 힐팩 드롭: 죽은 자리에 떨어짐 · 먹으면 HP +50 · 모든 총 탄창 자동 재장전 · 25초 후 사라짐
+const DROPS = []; let DROPN = 0;
+const DROP_MAT = { box: SM(0xf2f2f2, { roughness: 0.4 }), red: new THREE.MeshBasicMaterial({ color: 0xe02020 }), ring: new THREE.MeshBasicMaterial({ color: 0x40ff80, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false }) };
+function addDrop(id, x, y, z) {
+  const grp = new THREE.Group(); grp.position.set(x, y, z); scene.add(grp);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.38, 0.48, 24), DROP_MAT.ring); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; grp.add(ring);
+  const item = new THREE.Group(); item.position.y = 0.45; grp.add(item);
+  const b = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.24, 0.26), DROP_MAT.box); b.castShadow = true; item.add(b);
+  for (const sz of [0.131, -0.131]) { const a = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 0.01), DROP_MAT.red); a.position.z = sz; item.add(a); const c = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.01), DROP_MAT.red); c.position.z = sz; item.add(c); }
+  DROPS.push({ id, pos: V(x, y, z), grp, item, t: 0 });
+}
+function removeDrop(id, fx) { const i = DROPS.findIndex(d => d.id === id); if (i < 0) return; const d = DROPS[i];
+  if (fx) for (let k = 0; k < 10; k++) particle(d.pos.clone().add(V(rand(-0.3, 0.3), rand(0.3, 0.9), rand(-0.3, 0.3))), V(rand(-1, 1), rand(1.5, 3), rand(-1, 1)), PMAT.heal, rand(0.4, 0.8), rand(0.05, 0.08), -2);
+  scene.remove(d.grp); DROPS.splice(i, 1); }
+function clearDrops() { while (DROPS.length) { scene.remove(DROPS[0].grp); DROPS.shift(); } }
+function dropReload(e) { if (!e.slots) return; for (const sl of e.slots) if (sl.def.mag && sl.mag < sl.def.mag) { const take = Math.min(sl.def.mag - sl.mag, sl.reserve); sl.mag += take; sl.reserve -= take; } if (e.reloadT > 0) e.reloadT = 0; if (e.isPlayer) vm.reloadT = 0; }
+function dropLocalFx() { showCenterMsg('✚ +50 HP · 자동 재장전', '#5dff8a'); hurt = 0; sfx('heal'); dropReload(player); }
+function updateDrops(dt) {
+  for (let i = DROPS.length - 1; i >= 0; i--) { const d = DROPS[i]; d.t += dt; d.item.rotation.y += dt * 2.2; d.item.position.y = 0.45 + Math.sin(now * 3 + d.id) * 0.06;
+    if (d.t > (isClient() ? 32 : 25)) { if (!isClient()) MP.evQ.push({ type: 'dpx', id: d.id }); removeDrop(d.id); continue; }
+    if (isClient() || state !== 'playing') continue;
+    for (const e of entities) { if (!e.alive || e.off) continue;
+      if (Math.hypot(e.pos.x - d.pos.x, e.pos.z - d.pos.z) < 1.1 && Math.abs(e.pos.y - d.pos.y) < 1.3) {
+        e.hp = Math.min(100, e.hp + HEAL_AMT); if (e.aw) e.aw.packs++; sfx('heal', d.pos);
+        if (e.isPlayer) dropLocalFx(); else if (e.remote) netSendTo(e, { t: 'dpk' }); else dropReload(e);
+        MP.evQ.push({ type: 'dpx', id: d.id, fx: 1 }); removeDrop(d.id, true); break; } } }
+}
 function killEntity(v, k, wname, head) {
+  if (isFFA() && !isClient()) { const id = ++DROPN; addDrop(id, v.pos.x, v.pos.y, v.pos.z); MP.evQ.push({ type: 'dp', id, p: [r2(v.pos.x), r2(v.pos.y), r2(v.pos.z)] }); }
   awKill(v, k, wname);
   v.alive = false; v.hp = 0; v.deaths++; v.respawnT = RESPAWN_DELAY; v.deadT = 0; v.deathSign = -1; v.deathAt = now;
   if (k && k !== v) { const fwd = V(-Math.sin(v.yaw), 0, -Math.cos(v.yaw)); const toK = k.pos.clone().sub(v.pos).setY(0).normalize(); v.deathSign = fwd.dot(toK) > 0 ? 1 : -1; }
   if (v.model && k && k.isPlayer && k !== v) { v.flashT = 0.2; v.flashCol = head ? 0xffd23f : 0xff3b30; if (head) helmetPop(v, k); }
   if (k && k !== v) {
     k.kills++; score[k.team]++; k.streak++; k.bestStreak = Math.max(k.bestStreak, k.streak); if (head) k.hsKills++;
-    for (const [a, d] of v.dmgBy) if (a !== k && a.team !== v.team && d >= 20) { a.assists++; if (a.isPlayer) showCenterMsg('어시스트 +1', '#9fd0ff'); }
+    for (const [a, d] of v.dmgBy) if (a !== k && !ally(a, v) && d >= 20) { a.assists++; if (a.isPlayer) showCenterMsg('어시스트 +1', '#9fd0ff'); }
     if (k.isPlayer && [8, 12].includes(k.streak)) setTimeout(() => showCenterMsg(`🔥 ${k.streak}연속 처치!`, '#ff9f43'), 700);
     if (k.streak === 3 || k.streak === 5) streakReward(k, k.streak);
   }
@@ -2979,7 +3030,7 @@ function streakLocal(n) {
 }
 function xrayPass() {
   const list = [];
-  for (const e of entities) { if (!e.model || !e.alive || e.off || e.isPlayer || e.team === player.team) continue; e.model.root.traverse(o => { if (o.isMesh) { o.layers.enable(1); list.push(o); } }); }
+  for (const e of entities) { if (!e.model || !e.alive || e.off || e.isPlayer || ally(e, player)) continue; e.model.root.traverse(o => { if (o.isMesh) { o.layers.enable(1); list.push(o); } }); }
   if (!list.length) return;
   xrayMat.opacity = 0.42 + 0.18 * Math.sin(performance.now() * 0.012) * (xrayT < 0.6 ? xrayT / 0.6 : 1);
   const bg = scene.background, fg = scene.fog, su = renderer.shadowMap.autoUpdate;
@@ -3059,7 +3110,7 @@ function explode(g) {
   const d0 = g.pos.distanceTo(camera.position); shake = Math.max(shake, clamp(1 - d0 / 35, 0, 1) * 0.9);
   for (const e of entities) {
     if (!e.alive) continue;
-    if (e !== g.owner && e.team === g.owner.team) continue;
+    if (e !== g.owner && ally(e, g.owner)) continue;
     const c = e.pos.clone().add(V(0, 0.9, 0)); const d = c.distanceTo(g.pos);
     if (d > R) continue;
     let f = 1 - d / R; if (!los(g.pos.clone().add(V(0, 0.25, 0)), c)) f *= 0.3;
@@ -3121,10 +3172,10 @@ function flashBang(pos, owner, live) {
     const str = Math.pow(1 - d / R, 0.6) * (0.2 + 0.8 * Math.max(0, fwd.dot(to)));
     if (str < 0.08) continue;
     const dur = 4.5 * str + 0.3;
-    if (e.isPlayer) { flashT = Math.max(flashT, dur); sfx('ring', null, Math.min(1, str * 1.5)); recEvent({ type: 'pf', d: dur }); if (owner && owner.team !== e.team) showCenterMsg('💥 섬광에 실명!', '#fff'); }
+    if (e.isPlayer) { flashT = Math.max(flashT, dur); sfx('ring', null, Math.min(1, str * 1.5)); recEvent({ type: 'pf', d: dur }); if (owner && !ally(owner, e)) showCenterMsg('💥 섬광에 실명!', '#fff'); }
     else if (e.remote) netSendTo(e, { t: 'pf', d: r2(dur) });
     else if (e.ai) { e.ai.blindT = Math.max(e.ai.blindT, dur * 0.9); e.ai.seen = false; }
-    if (owner && owner.isPlayer && e.team !== owner.team) showHitmarker('');
+    if (owner && owner.isPlayer && !ally(e, owner)) showHitmarker('');
   }
 }
 function smokeBlocks(a, b) {
@@ -3179,7 +3230,7 @@ function meleeStrike(heavy) {
   const p = player, cd0 = p.slots[p.cur].def, def = cd0.kind === 'melee' ? cd0 : WEAPONS.KNIFE; const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
   const range = heavy ? def.heavyRange : def.range; let best = null, bd = 99;
   for (const e of entities) {
-    if (!e.alive || e.off || e.team === p.team) continue;
+    if (!e.alive || e.off || ally(e, p)) continue;
     const c = e.pos.clone().add(V(0, 1.1, 0)); const to = c.clone().sub(camera.position); const d = to.length();
     if (d > range + 0.3) continue; to.normalize();
     if (to.dot(camDir) < (heavy ? 0.7 : 0.55)) continue;
@@ -3311,7 +3362,7 @@ function playerSpot() {
   const cd = new THREE.Vector3(); camera.getWorldDirection(cd);
   const lim = Math.cos(THREE.MathUtils.degToRad(Math.min(65, camera.fov * 0.75)));
   for (const t of entities) {
-    if (!t.alive || t.team === player.team) continue;
+    if (!t.alive || ally(t, player)) continue;
     const head = V(t.pos.x, t.pos.y + 1.5, t.pos.z), to = head.clone().sub(camera.position); const d = to.length();
     if (d > 160 || to.dot(cd) / d < lim) continue;
     if (smokeBlocks(camera.position, head)) continue;
@@ -3319,7 +3370,7 @@ function playerSpot() {
   }
 }
 function hearShot(src) {
-  src.lastFired = now; if (MAP.night && src.spotT) { const ot = otherTeam(src.team); src.spotT[ot] = Math.max(src.spotT[ot] || -99, now + 0.8); } // 밤엔 총구 섬광으로 2초간 미니맵 노출
+  src.lastFired = now; if (MAP.night && src.spotT) { const ot = otherTeam(src.team); src.spotT[ot] = Math.max(src.spotT[ot] || -99, now + 0.8); if (isFFA()) src.spotT[src.team] = src.spotT[ot]; } // 밤엔 총구 섬광으로 2초간 미니맵 노출
   for (const e of entities) {
     if (!e.ai || !e.alive || e.team === src.team || e.ai.seen) continue;
     if (e.pos.distanceTo(src.pos) < 55) { e.ai.alertPos.copy(src.pos); e.ai.alertT = 3.5; }
@@ -3538,7 +3589,7 @@ function updateModel(e, dt) {
     e.walkPhase += dt * hs * 2.2; const sw = Math.sin(e.walkPhase) * Math.min(0.7, hs * 0.12);
     m.legs[0].rotation.x = sw; m.legs[1].rotation.x = -sw;
     m.arms.rotation.x = clamp(e.ai ? e.ai.pitch : 0, -0.8, 0.8);
-    if (m.tag) m.tag.visible = e.team === player.team && !e.isPlayer;
+    if (m.tag) m.tag.visible = ally(e, player) && !e.isPlayer;
     if (m.beam) { m.beam.visible = !!MAP.night && e.lightOn !== false && e.pos.distanceToSquared(camera.position) < 8100;
       if (m.beam.visible) { const dx = camera.position.x - e.pos.x, dz = camera.position.z - e.pos.z, dl = Math.hypot(dx, dz) || 1; const f = clamp((((-Math.sin(e.yaw)) * dx + (-Math.cos(e.yaw)) * dz) / dl - 0.55) / 0.45, 0, 1); // 나를 향할수록 밝게
         const u = m.beam.userData; u.lens.material.opacity = 0.12 + 0.88 * f * f; u.lens.scale.setScalar(0.3 + 0.35 * f); u.cone.material.opacity = 0.075 * (0.35 + 0.65 * f); } }
@@ -3605,10 +3656,15 @@ function addKillFeed(k, v, w, head) {
   kf.prepend(d); while (kf.children.length > 6) kf.lastChild.remove();
   setTimeout(() => d.style.opacity = 0, 5000); setTimeout(() => d.remove(), 5600);
 }
+function ffaRank() { return entities.filter(e => !e.off).sort((a, b) => b.kills - a.kills || a.deaths - b.deaths); }
 function updateHUD(dt) {
-  setText('sBlue', String(score.blue)); setText('sRed', String(score.red));
+  if (isFFA()) { const rk = ffaRank(), top = rk.find(e => e !== player) || player, lead = rk[0];
+    setText('sBlue', String(player.kills)); setText('sRed', String(top.kills));
+    const nm = document.querySelector('.sb-team.red .sb-name'), want = (lead === player ? '2위 ' : '1위 ') + top.name; if (nm.textContent !== want) nm.textContent = want;
+    setStyle($('pBlue'), 'width', (player.kills / KILL_TARGET * 100).toFixed(1) + '%'); setStyle($('pRed'), 'width', (top.kills / KILL_TARGET * 100).toFixed(1) + '%'); }
+  else { setText('sBlue', String(score.blue)); setText('sRed', String(score.red));
   setStyle($('pBlue'), 'width', (score.blue / KILL_TARGET * 100).toFixed(1) + '%');
-  setStyle($('pRed'), 'width', (score.red / KILL_TARGET * 100).toFixed(1) + '%');
+  setStyle($('pRed'), 'width', (score.red / KILL_TARGET * 100).toFixed(1) + '%'); }
   const tl = Math.max(0, Math.ceil(matchTime)); setText('timer', `${(tl / 60 | 0)}:${String(tl % 60).padStart(2, '0')}`);
   setStyle($('timer'), 'color', matchTime < 60 ? '#ff7b70' : '#fff');
   const p = player;
@@ -3659,10 +3715,11 @@ function drawMinimap() {
   mctx.clearRect(0, 0, 180, 192); mctx.drawImage(mmBase, 0, 0);
   for (const e of entities) {
     if (!e.alive || e === player) continue;
-    if (e.team === player.team) mctx.fillStyle = e.remote || (MP.on && MP.slots[e.id] && MP.slots[e.id].kind === 'human') ? '#9fe0ff' : '#5aa0ff';
-    else { if (now - e.spotT[player.team] > 1.2) continue; mctx.fillStyle = '#ff4a3d'; }
+    if (ally(e, player)) mctx.fillStyle = e.remote || (MP.on && MP.slots[e.id] && MP.slots[e.id].kind === 'human') ? '#9fe0ff' : '#5aa0ff';
+    else { if (now - (isFFA() ? Math.max(e.spotT.blue ?? -99, e.spotT.red ?? -99) : e.spotT[player.team]) > 1.2) continue; mctx.fillStyle = '#ff4a3d'; }
     mctx.beginPath(); mctx.arc(mmX(e.pos.x), mmY(e.pos.z), 3, 0, Math.PI * 2); mctx.fill();
   }
+  for (const d of DROPS) { const x = mmX(d.pos.x), y = mmY(d.pos.z); mctx.fillStyle = '#3dff7a'; mctx.fillRect(x - 3, y - 1, 6, 2); mctx.fillRect(x - 1, y - 3, 2, 6); }
   for (const hp of healPacks) { const x = mmX(hp.pos.x), y = mmY(hp.pos.z); mctx.fillStyle = hp.cd > 0 ? '#777' : '#3dff7a'; mctx.fillRect(x - 4, y - 1.5, 8, 3); mctx.fillRect(x - 1.5, y - 4, 3, 8); }
   for (const a of areas) { mctx.fillStyle = a.type === 'smoke' ? 'rgba(220,220,220,.55)' : 'rgba(255,110,20,.6)'; mctx.beginPath(); mctx.arc(mmX(a.pos.x), mmY(a.pos.z), (a.type === 'smoke' ? WEAPONS.SMOKE.radius : (a.r || WEAPONS.MOLOTOV.radius)) * MS, 0, Math.PI * 2); mctx.fill(); }
   for (const g of grenades) { mctx.fillStyle = '#ffd23f'; mctx.fillRect(mmX(g.pos.x) - 1.5, mmY(g.pos.z) - 1.5, 3, 3); }
@@ -3685,7 +3742,9 @@ function renderScoreboard(el, forEnd = false) {
     return `<div class="${team === 'blue' ? 'bt' : 'rt'}"><h4>${team === 'blue' ? 'BLUE · 아군' : 'RED · 적군'} — ${score[team]} / ${KILL_TARGET}킬</h4><table class="sbt"><tr><th>#</th><th>이름</th><th>무기</th><th class="num">K</th><th class="num">D</th><th class="num">A</th><th class="num">피해</th><th class="num">HS</th></tr>` +
       list.map((e, i) => `<tr class="${e.isPlayer ? 'me' : ''}"><td>${i + 1}</td><td>${e.name}${e.alive || forEnd ? '' : ' 💀'}${pingTag(e)}</td><td>${WEAPONS[e.loadout.primary].name}</td><td class="num">${e.kills}</td><td class="num">${e.deaths}</td><td class="num">${e.assists}</td><td class="num">${Math.round(e.dmgDealt)}</td><td class="num">${e.hsKills}</td></tr>`).join('') + '</table></div>';
   };
-  const html = `<div class="sbcols">${col('blue')}${col('red')}</div>`;
+  let html = `<div class="sbcols">${col('blue')}${col('red')}</div>`;
+  if (isFFA()) { const list = ffaRank(); html = `<div class="sbcols" style="grid-template-columns:1fr"><div class="rt"><h4>개인전 — ${KILL_TARGET}킬 먼저 달성 시 승리</h4><table class="sbt"><tr><th>#</th><th>이름</th><th>무기</th><th class="num">K</th><th class="num">D</th><th class="num">A</th><th class="num">피해</th><th class="num">HS</th></tr>` +
+      list.map((e, i) => `<tr class="${e.isPlayer ? 'me' : ''}"><td>${i + 1}</td><td>${e.name}${e.alive || forEnd ? '' : ' 💀'}${pingTag(e)}</td><td>${WEAPONS[e.loadout.primary].name}</td><td class="num">${e.kills}</td><td class="num">${e.deaths}</td><td class="num">${e.assists}</td><td class="num">${Math.round(e.dmgDealt)}</td><td class="num">${e.hsKills}</td></tr>`).join('') + '</table></div></div>'; }
   if (el._h !== html) { el._h = html; el.innerHTML = html; }
 }
 
@@ -3821,7 +3880,7 @@ function updateTeamList(dt) {
 let state = 'menu', now = 0, matchTime = MATCH_TIME;
 function resetMatch() {
   if (!MP.on) for (const e of entities) e.off = false;
-  loadMap(settings.map, MP.on && MP.mode === 'pvp');
+  loadMap(settings.map, MP.on && noAI());
   KILL_TARGET = settings.kills; MATCH_TIME = settings.time;
   score.blue = score.red = 0; matchTime = MATCH_TIME; now = 0; $('goalTxt').textContent = `${KILL_TARGET}킬 선취 승리`;
   for (const g of grenades) scene.remove(g.mesh); grenades.length = 0;
@@ -3829,7 +3888,8 @@ function resetMatch() {
   $('killfeed').innerHTML = '';
   for (const e of entities) { e.kills = e.deaths = e.assists = e.dmgDealt = e.hsKills = e.shots = e.hits = e.streak = e.bestStreak = 0; }
   player.name = ($('callsign').value.trim() || 'YOU').slice(0, 10);
-  player.loadout = { ...selLoadout }; awReset();
+  player.loadout = { ...selLoadout }; awReset(); clearDrops();
+  if (isFFA()) for (const e of entities) e.alive = false;
   for (const e of entities) spawnEntity(e);
   recStart(); lastHighlight = null;
 }
@@ -3838,8 +3898,8 @@ function onPlayerDeath(k, w) {
   deathTime = now; deathCam = { pos: camera.position.clone(), killer: k };
   mouseL = mouseR = false; adsAmt = 0;
   const dist = k && k !== player ? Math.round(k.pos.distanceTo(player.pos)) : 0;
-  $('killCard').innerHTML = k && k !== player ? `처치한 적<br><b>${k.name}</b> <span style="opacity:.7">(${k.team === 'red' ? 'RED' : 'BLUE'})</span><br>무기 <b style="font-size:13px;color:#fff">${w}</b> · 거리 ${dist}m · 적 남은 HP ${Math.max(0, Math.ceil(k.hp))}<br>적 기록 ${k.kills}K / ${k.deaths}D` : `<b>자폭</b><br>${w}에 휘말렸습니다`;
-  $('deathScore').innerHTML = `내 기록: ${player.kills}K / ${player.deaths}D / ${player.assists}A · BLUE ${score.blue} : ${score.red} RED`;
+  $('killCard').innerHTML = k && k !== player ? `처치한 적<br><b>${k.name}</b> <span style="opacity:.7">(${isFFA() ? '개인전' : k.team === 'red' ? 'RED' : 'BLUE'})</span><br>무기 <b style="font-size:13px;color:#fff">${w}</b> · 거리 ${dist}m · 적 남은 HP ${Math.max(0, Math.ceil(k.hp))}<br>적 기록 ${k.kills}K / ${k.deaths}D` : `<b>자폭</b><br>${w}에 휘말렸습니다`;
+  $('deathScore').innerHTML = `내 기록: ${player.kills}K / ${player.deaths}D / ${player.assists}A · ` + (isFFA() ? `현재 ${ffaRank().indexOf(player) + 1}위` : `BLUE ${score.blue} : ${score.red} RED`);
   $('deployBtn').disabled = true;
   const canKc = k && k !== player && k.model && REC.buf && REC.n > 10;
   setTimeout(() => {
@@ -3857,7 +3917,7 @@ function deploy() {
 }
 function checkWin() {
   if (state !== 'playing') return;
-  if (score.blue >= KILL_TARGET || score.red >= KILL_TARGET) endMatch();
+  if (isFFA() ? entities.some(e => !e.off && e.kills >= KILL_TARGET) : (score.blue >= KILL_TARGET || score.red >= KILL_TARGET)) endMatch();
 }
 function endMatch() {
   if (KC.on) endKillcam(true);
@@ -3875,12 +3935,14 @@ function showEndScreen() {
   const t = $('endTitle');
   $('againBtn').style.display = isClient() ? 'none' : ''; $('againBtn').textContent = MP.on ? '다시 하기 (전원)' : '다시 하기'; $('lobbyBtn').textContent = MP.on ? '방으로' : '로비로';
   const mine = score[player.team], theirs = score[otherTeam(player.team)];
-  if (mine > theirs) { t.textContent = '🏆 승리!'; t.className = 'win'; }
+  if (isFFA()) { const rk = ffaRank(), r = rk.findIndex(e => e.kills === player.kills) + 1; const tie = rk.filter(e => e.kills === player.kills).length > 1;
+    t.textContent = r === 1 ? (tie ? '🏆 공동 1위!' : '🏆 1위!') : `${r}위`; t.className = r === 1 ? 'win' : 'lose'; }
+  else if (mine > theirs) { t.textContent = '🏆 승리!'; t.className = 'win'; }
   else if (theirs > mine) { t.textContent = '패배'; t.className = 'lose'; }
   else { t.textContent = '무승부'; t.className = ''; }
   const mvp = entities.slice().sort((a, b) => b.kills - a.kills)[0];
   const played = MATCH_TIME - matchTime;
-  $('endSub').textContent = `BLUE ${score.blue} : ${score.red} RED  ·  ${matchTime <= 0 ? '시간 종료' : KILL_TARGET + '킬 달성'}  ·  경기 시간 ${(played / 60 | 0)}분 ${String(Math.round(played % 60)).padStart(2, '0')}초  ·  적 AI 난이도 ${DIFF[settings.diff].label}`;
+  $('endSub').textContent = isFFA() ? `개인전 · 1위 ${ffaRank()[0].name} ${ffaRank()[0].kills}킬  ·  ${matchTime <= 0 ? '시간 종료' : KILL_TARGET + '킬 달성'}` : `BLUE ${score.blue} : ${score.red} RED  ·  ${matchTime <= 0 ? '시간 종료' : KILL_TARGET + '킬 달성'}  ·  경기 시간 ${(played / 60 | 0)}분 ${String(Math.round(played % 60)).padStart(2, '0')}초  ·  적 AI 난이도 ${DIFF[settings.diff].label}`;
   const acc = player.shots ? Math.round(player.hits / player.shots * 100) : 0;
   const kd = (player.kills / Math.max(1, player.deaths)).toFixed(2);
   $('endCards').innerHTML = `<div class="mvp"><small>🏅 MVP</small><b>${mvp.name}</b><br><span style="font-size:12px;opacity:.75">${mvp.kills}K / ${mvp.deaths}D / ${mvp.assists}A</span></div>
@@ -4291,6 +4353,7 @@ function buildHealPacks() {
   }
 }
 function updateHealPacks(dt) {
+  updateDrops(dt);
   for (const hp of healPacks) {
     if (hp.cd > 0) {
       hp.cd -= dt; hp.item.visible = false; hp.light.intensity = 0; hp.glowRing.material.color.setHex(0x777777); hp.glowRing.scale.setScalar(1 - Math.max(0, hp.cd) / (hp.gun ? GUNPACK_CD : HEAL_CD));
@@ -4416,7 +4479,7 @@ function killcamUpdate(dt) {
     }
     const m = e.model; if (!m) continue;
     m.root.visible = true; m.root.position.set(x, y, z); m.root.rotation.y = yaw;
-    if (m.tag) m.tag.visible = alive && !e.isPlayer && e.team === KC.killer.team; // 킬캠: 상대 팀 기준 이름표
+    if (m.tag) m.tag.visible = alive && !e.isPlayer && ally(e, KC.killer) && e !== KC.killer; // 킬캠: 상대 팀 기준 이름표
     if (e.isPlayer) { poseGhost(m, alive, b[o0 + 11], b[o0 + 12], b[o0 + 13], KC.t - deathTime); m.arms.rotation.x = clamp(pitch, -0.8, 0.8); }
     else if (alive) {
       const wp = lerp(b[o0 + 7], b[o1 + 7], t); const sw = Math.sin(wp) * 0.5 * Math.min(1, Math.abs(b[o1 + 7] - b[o0 + 7]) * 6);
@@ -4634,14 +4697,14 @@ function clientLost() { if (!MP.on || MP.host) return; const was = MP.started; m
 function humanCount() { return MP.slots.filter(s => s.kind === 'human').length; }
 function teamHumans(team) { const b = team === 'blue' ? 0 : 8; return MP.slots.slice(b, b + 8).filter(s => s.kind === 'human').length; }
 function freeSlot(team) { const b = team === 'blue' ? 0 : 8; for (let i = b; i < b + 8; i++) if (MP.slots[i].kind === 'ai') return i; return -1; }
-function pickTeam() { return MP.mode === 'coop' ? 'blue' : (teamHumans('blue') <= teamHumans('red') ? 'blue' : 'red'); }
+function pickTeam() { return MP.mode === 'coop' ? 'blue' : MP.mode === 'ffa' ? 'red' : (teamHumans('blue') <= teamHumans('red') ? 'blue' : 'red'); }
 function reassignTeams() {
   const humans = MP.slots.filter(s => s.kind === 'human').sort((a, b) => (a.peer === 'host' ? -1 : 0) - (b.peer === 'host' ? -1 : 0));
   MP.slots = defaultSlots(); let bi = 0, ri = 8;
-  humans.forEach((h, k) => { if (MP.mode === 'coop' || k % 2 === 0) MP.slots[bi++] = h; else MP.slots[ri++] = h; });
+  humans.forEach((h, k) => { if (MP.mode === 'ffa') MP.slots[ri++] = h; else if (MP.mode === 'coop' || k % 2 === 0) MP.slots[bi++] = h; else MP.slots[ri++] = h; });
 }
 function moveTeam(peerId) {
-  if (MP.mode === 'coop' || MP.started) return;
+  if (MP.mode === 'coop' || MP.mode === 'ffa' || MP.started) return;
   const si = MP.slots.findIndex(s => s.peer === peerId); if (si < 0) return;
   const nt = otherTeam(si < 8 ? 'blue' : 'red'), j = freeSlot(nt); if (j < 0) return;
   MP.slots[j] = MP.slots[si]; MP.slots[si] = { kind: 'ai', name: entities[si].aiName, peer: null, lo: null }; broadcastRoom();
@@ -4656,14 +4719,15 @@ function showRoom() {
   hideAllOverlays(); state = 'menu'; $('hud').classList.add('hidden');
   for (const e of entities) { e.alive = false; if (e.model) e.model.root.visible = false; }
   $('multi').classList.remove('hidden'); $('multi').classList.add('roomMode'); $('mpEntry').classList.add('hidden'); $('mpRoom').classList.remove('hidden');
-  renderRoom(); attachPreview('armRoom'); loadMap(settings.map, MP.mode === 'pvp'); showMapPreview();
+  renderRoom(); attachPreview('armRoom'); loadMap(settings.map, noAI()); showMapPreview();
 }
-const MODE_HINT = { coop: '사람 전원 BLUE · 나머지 자리는 AI', mixed: '사람을 양 팀에 나누고 빈자리는 AI', pvp: 'AI 없음 · 축소 맵 · 힐팩 1개' };
+const MODE_HINT = { coop: '사람 전원 BLUE · 나머지 자리는 AI', mixed: '사람을 양 팀에 나누고 빈자리는 AI', pvp: 'AI 없음 · 축소 맵 · 힐팩 1개', ffa: '개인전 · AI 없음 · 모두가 적 · 사람 없는 곳 랜덤 스폰 · 처치하면 힐팩 드롭' };
+const KILL_TARGET_TXT = () => `${settings.kills}킬 먼저 달성 시 승리`;
 function renderRoom() {
   $('roomCode').textContent = MP.code;
   { const me = MP.slots.find(x => x.peer === MP.myPeer); if (me && document.activeElement !== $('roomName')) $('roomName').value = me.name; }
   $('roomRole').textContent = MP.host ? '👑 방장' : '👤 참가자';
-  const pvp = MP.mode === 'pvp';
+  const pvp = noAI();
   const row = s => { const me = s.peer === MP.myPeer; if (s.kind !== 'human') return pvp ? `<div class="rs" style="opacity:.3"><span>— 빈자리</span></div>` : `<div class="rs" style="opacity:.55"><span>🤖 ${s.name}</span><span class="rs-w">AI</span></div>`; return `<div class="rs ${me ? 'me' : ''}"><span>${s.peer === 'host' ? '👑 ' : '👤 '}${s.name}${me ? ' (나)' : ''}</span></div>`; };
   $('roomBlue').innerHTML = MP.slots.slice(0, 8).map(row).join(''); $('roomRed').innerHTML = MP.slots.slice(8).map(row).join('');
   const hc = humanCount();
@@ -4672,9 +4736,9 @@ function renderRoom() {
   $('modeHint').textContent = MODE_HINT[MP.mode] || '';
   $('diffOpt').style.display = pvp ? 'none' : '';
   $('hostNote').style.display = MP.host ? 'none' : '';
-  $('roomInfo').textContent = pvp ? `BLUE ${teamHumans('blue')} vs RED ${teamHumans('red')} · 경기 중 난입 가능` : `빈자리 ${16 - hc}개는 AI · 경기 중 난입 가능`;
+  $('roomInfo').textContent = MP.mode === 'ffa' ? `개인전 ${hc}명 · ${KILL_TARGET_TXT()} · 경기 중 난입 가능` : pvp ? `BLUE ${teamHumans('blue')} vs RED ${teamHumans('red')} · 경기 중 난입 가능` : `빈자리 ${16 - hc}개는 AI · 경기 중 난입 가능`;
   $('roomStart').style.display = MP.host ? '' : 'none'; $('roomWait').style.display = MP.host ? 'none' : '';
-  $('switchTeam').style.display = MP.mode !== 'coop' ? '' : 'none';
+  $('switchTeam').style.display = MP.mode !== 'coop' && MP.mode !== 'ffa' ? '' : 'none';
   document.querySelectorAll('#mpRoom .seg').forEach(seg => { const k = seg.dataset.mopt; const v = k === 'mode' ? MP.mode : String(settings[k]); seg.querySelectorAll('button').forEach(b => { b.disabled = !MP.host; b.classList.toggle('on', b.dataset.v === v); }); });
 }
 function mpLoadoutChanged() {
@@ -4686,7 +4750,7 @@ function mpLoadoutChanged() {
 function applySlots() {
   MP.slots.forEach((s, i) => {
     const e = entities[i], mine = s.peer === MP.myPeer;
-    e.off = MP.mode === 'pvp' && s.kind !== 'human';
+    e.off = noAI() && s.kind !== 'human';
     e.remote = MP.host && s.kind === 'human' && !mine;
     const nm = s.kind === 'human' ? s.name : e.aiName; if (e.name !== nm) { e.name = nm; retag(e); }
     if (mine) setLocalPlayer(i);
@@ -4699,11 +4763,13 @@ function enterMatchUI() {
   $('hint').style.opacity = 0.8; setTimeout(() => $('hint').style.opacity = 0, 12000);
 }
 function setTeamLabels() {
+  if (isFFA()) { document.querySelector('.sb-team.blue .sb-name').textContent = '나'; document.querySelector('.sb-team.red .sb-name').textContent = '1위'; return; }
   document.querySelector('.sb-team.blue .sb-name').textContent = player.team === 'blue' ? 'BLUE (아군)' : 'BLUE (적군)';
   document.querySelector('.sb-team.red .sb-name').textContent = player.team === 'red' ? 'RED (아군)' : 'RED (적군)';
 }
 function mpStartMatch() {
   if (!MP.host) return;
+  if (MP.mode === 'ffa' && humanCount() < 2) { showToast('개인전은 2명 이상이어야 시작할 수 있어요'); return; }
   if (MP.mode === 'pvp' && (!teamHumans('blue') || !teamHumans('red'))) { showToast('사람만 모드는 BLUE·RED 양 팀에 최소 1명씩 있어야 합니다 (⇄ 팀 변경)'); return; }
   initAudio(); applySlots(); resetMatch(); MP.started = true; state = 'playing';
   sendAll(startMsg());
@@ -4781,7 +4847,7 @@ function hostDrop(pid) {
   const si = MP.slots.findIndex(s => s.peer === pid); if (si < 0) return;
   const nm = MP.slots[si].name, e = entities[si];
   MP.slots[si] = { kind: 'ai', name: e.aiName, peer: null, lo: null };
-  if (MP.started && MP.mode === 'pvp') {
+  if (MP.started && noAI()) {
     e.remote = false; e.off = true; e.alive = false; if (e.model) e.model.root.visible = false;
     const msg = `${nm} 퇴장`; MP.evQ.push({ type: 'sys', m: msg }); sysFeed(msg);
   } else if (MP.started) {
@@ -4808,6 +4874,7 @@ function clientOnData(m) {
       } break;
     case 'pf': flashT = Math.max(flashT, m.d); sfx('ring'); recEvent({ type: 'pf', d: m.d }); break;
     case 'healed': showCenterMsg('✚ +50 HP 회복', '#5dff8a'); hurt = 0; break;
+    case 'dpk': dropLocalFx(); break;
     case 'pk': if (player.alive && WEAPONS[m.k]) givePackGun(player, m.k); break;
     case 'end': if (MP.started) { score.blue = m.sc[0]; score.red = m.sc[1]; matchTime = m.tm; MP.started = false; AW.list = Array.isArray(m.aw) ? m.aw.slice(0, 6) : []; AW.shown = false; endMatch(); } break;
     case 'toRoom': MP.started = false; if (KC.on) endKillcam(true); showRoom(); break;
@@ -4819,7 +4886,7 @@ function syncSlotsMid() {
   MP.slots.forEach((sl, i) => {
     const e = entities[i]; if (!e || e === player) return;
     const nm = sl.kind === 'human' ? sl.name : e.aiName; if (e.name !== nm) { e.name = nm; retag(e); }
-    const off = MP.mode === 'pvp' && sl.kind !== 'human';
+    const off = noAI() && sl.kind !== 'human';
     if (off && !e.off) { e.off = true; e.alive = false; if (e.model) e.model.root.visible = false; }
     else if (!off && e.off) { e.off = false; e.alive = false; e.netT = null; }
   });
@@ -4831,7 +4898,7 @@ function applySnap(m) {
   m.e.forEach((a, i) => {
     const e = entities[i];
     e.kills = a[10]; e.deaths = a[11]; e.assists = a[12]; e.dmgDealt = a[13]; e.hsKills = a[17];
-    if (a[15] & myBit) e.spotT[player.team] = now;
+    if (a[15] & (isFFA() ? 3 : myBit)) e.spotT[player.team] = now;
     if (e === player) { if (player.alive) { player.hp = a[5]; if (!a[14]) player.protectT = Math.min(player.protectT, 0); } return; }
     e.protectT = a[14] ? 1 : 0; if (a[19] !== undefined) e.lightOn = a[19] !== 0;
     if (a[18] >= 0 && WKEYS[a[18]] && e.modelKey !== WKEYS[a[18]]) { e.modelKey = WKEYS[a[18]]; if (e.model) soldierGun(e.model, e.modelKey); }
@@ -4855,6 +4922,8 @@ function clientEvent(ev) {
     case 'k': netKill(ev); recEvent(ev); break;
     case 'sys': sysFeed(ev.m); break;
     case 'ks': if (ev.id === player.id) streakLocal(ev.n); break;
+    case 'dp': addDrop(ev.id, ...ev.p); break;
+    case 'dpx': removeDrop(ev.id, !!ev.fx); break;
   }
 }
 function netKill(ev) {
@@ -4933,7 +5002,7 @@ function netPuppet(e, dt) {
 }
 function dealDamage(v, dmg, att, w, head, from) {
   if (isClient()) {
-    if (att !== player || !v.alive || v.protectT > 0 || v.team === att.team) return false;
+    if (att !== player || !v.alive || v.protectT > 0 || ally(v, att)) return false;
     const ry = NET_RAY; const msg = { t: 'hit', v: v.id, d: Math.round(dmg * 10) / 10, h: head ? 1 : 0, w, rt: NETC.off != null ? +(nclock() + NETC.off - (NETC.interp || NETC.INTERP)).toFixed(3) : 0 };
     if (ry) { msg.o = [r2(ry.o.x), r2(ry.o.y), r2(ry.o.z)]; msg.r = [+ry.d.x.toFixed(3), +ry.d.y.toFixed(3), +ry.d.z.toFixed(3)]; if (ry.mel) msg.mel = 1; }
     try { MP.hostConn.send(msg); } catch (err) {}
@@ -4999,7 +5068,7 @@ document.querySelectorAll('#mpRoom .seg').forEach(seg => seg.querySelectorAll('b
   if (k === 'mode') { if (MP.mode !== b.dataset.v) { MP.mode = b.dataset.v; reassignTeams(); } }
   else settings[k] = (k === 'diff' || k === 'map' || k === 'tod' || k === 'wmode') ? b.dataset.v : +b.dataset.v;
   if (k === 'wmode') { curMapId = null; fixLoadoutForMode(); }
-  loadMap(settings.map, MP.mode === 'pvp'); showMapPreview();
+  loadMap(settings.map, noAI()); showMapPreview();
   broadcastRoom();
 })));
 // 옵션
@@ -5176,7 +5245,7 @@ showLobby(); applyOpts(); showTitle();
   }
 }
 $('loading').remove();
-window.__game = { get DPOS() { return DPOS; }, canSee, inLight, get LIGHT_SPOTS() { return LIGHT_SPOTS; }, HOLES, SHELLS, POST, renderer, renderCheat, spawnFire, loadMap, CHEAT, MAPS, settings, get MAP() { return MAP; }, coverPoints, buildDebug, ramps, startReload, vmRoot, MP, mpCreate, mpJoin, opts, healPacks, eyeH, KC, headY, bodyTop, camera, setMouseR: v => { mouseR = v; }, opticSel, areas, throwGrenade, get flashT() { return flashT; }, setupWeapons, tick: dt => { now += dt; update(dt); }, killEntity, endMatch, startReplay, findHighlight, REC, RP, WEAPONS, switchSlot, playerAttack: () => playerAttack(), get now() { return now; }, entities, score, get state() { return state; }, set state(v) { state = v; }, resetMatch, update, get player() { return player; }, boxes, aiGoals };
+window.__game = { DROPS, get DPOS() { return DPOS; }, canSee, inLight, get LIGHT_SPOTS() { return LIGHT_SPOTS; }, HOLES, SHELLS, POST, renderer, renderCheat, spawnFire, loadMap, CHEAT, MAPS, settings, get MAP() { return MAP; }, coverPoints, buildDebug, ramps, startReload, vmRoot, MP, mpCreate, mpJoin, opts, healPacks, eyeH, KC, headY, bodyTop, camera, setMouseR: v => { mouseR = v; }, opticSel, areas, throwGrenade, get flashT() { return flashT; }, setupWeapons, tick: dt => { now += dt; update(dt); }, killEntity, endMatch, startReplay, findHighlight, REC, RP, WEAPONS, switchSlot, playerAttack: () => playerAttack(), get now() { return now; }, entities, score, get state() { return state; }, set state(v) { state = v; }, resetMatch, update, get player() { return player; }, boxes, aiGoals };
 requestAnimationFrame(loop);
 </script>
 </body>
