@@ -746,7 +746,7 @@ input[type=range]{accent-color:#c9a24a}
     <div class="ht-card pnl88"><h3>작전 시간 · 총기 모드</h3><div class="ht-seg" id="htTod"></div><div class="ht-seg" id="htWm" style="margin-top:6px"></div></div>
     <div class="ht-card pnl88 ht-load" id="htLoad" title="무기고로 이동"><h3>현재 장비 <small>클릭하면 무기고</small></h3><div class="ht-ld" id="htLd"></div></div>
   </div>
-  <div class="ht-foot">v91 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
+  <div class="ht-foot">v92 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
 </div>
 
 <div id="multi" class="overlay hidden">
@@ -4005,6 +4005,7 @@ function startHeavyStab() {
 }
 function playerAttack() {
   const p = player, s = p.slots[p.cur], def = s.def;
+  if (p.prone > 0.5 && def.kind !== 'melee' && Math.hypot(p.vel.x, p.vel.z) > 0.6) { if (!p._pnT || now - p._pnT > 1.5) { p._pnT = now; showCenterMsg('엎드려 이동 중엔 사격 불가', '#d6c79a'); } return; } // 엎드려 기어가며 사격 금지
   const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
   if (def.kind === 'melee') {
     p.fireCD = 60 / def.rpm; vm.swing = 1; vm.swingDir = -(vm.swingDir || -1); sfx('swing');
@@ -4020,7 +4021,7 @@ function playerAttack() {
   if (s.mag <= 0) { sfx('empty'); p.fireCD = 0.25; startReload(p); return; }
   s.mag--; p.fireCD = 60 / def.rpm; p.lastFired = now; p.shots++;
   const moving = Math.hypot(p.vel.x, p.vel.z) / WALK;
-  const spread = (lerp(def.hip, def.ads, adsAmt) + clamp(moving, 0, 1.5) * def.move * (1 - adsAmt * 0.6) + bloom) * stanceMul(p, 0.75, 0.55) + (p.onGround ? 0 : 0.06);
+  const spread = (lerp(def.hip, def.ads, adsAmt) + clamp(moving, 0, 1.5) * def.move * (1 - adsAmt * 0.6) + bloom) * stanceMul(p, 0.75, 0.65) * (now - (p.stanceT ?? -9) < 0.3 ? 1.6 : 1) + (p.onGround ? 0 : 0.06); // 엎드림 보정 완화 · 자세 바꾼 직후 0.3초 탄 퍼짐 ×1.6
   bloom = Math.min(0.03, bloom + (def.kind === 'rifle' ? 0.0035 : 0.006) * (1 - adsAmt * 0.5));
   const mw = muzzleWorld(); p._hitShot = false;
   if (def.pellets) { const sp = lerp(def.hip, def.ads, adsAmt) + (p.onGround ? 0 : 0.03); for (let i = 0; i < def.pellets; i++) fireBullet(p, camera.position.clone(), spreadDir(camDir, sp), def, mw, i > 0); }
@@ -4028,9 +4029,9 @@ function playerAttack() {
   flushDmgNums();
   recEvent({ type: 'ps', s: def.sfx });
   const scopeRec = adsAmt > 0.5 && canOptic(def) ? OPTICS[opticSel[def.key] || 0].rec : 1; // 확대 배율 반동 완화
-  const rk = (adsAmt > 0.5 ? 0.75 : 1) * rand(0.85, 1.2) * (def.modes[p.modeIdx] === 'BURST' ? 0.6 : 1) * scopeRec * stanceMul(p, 0.8, 0.6);
+  const rk = (adsAmt > 0.5 ? 0.75 : 1) * rand(0.85, 1.2) * (def.modes[p.modeIdx] === 'BURST' ? 0.6 : 1) * scopeRec * stanceMul(p, 0.8, 0.7);
   camera.rotation.x = clamp(camera.rotation.x + def.recoil * rk, -1.55, 1.55);
-  camera.rotation.y += rand(-1, 1) * def.recoilYaw * scopeRec * stanceMul(p, 0.8, 0.6);
+  camera.rotation.y += rand(-1, 1) * def.recoilYaw * scopeRec * stanceMul(p, 0.8, 0.7);
   recoilDebt += def.recoil * rk * 0.45;
   if (def.amr) shake = Math.max(shake, 0.35);
   vm.kick = 1; vm.flashT = 0.04; muzzleLight.intensity = 8; muzzleLight.position.copy(muzzleWorld());
@@ -4055,7 +4056,8 @@ function updatePlayer(dt) {
   const def = p.slots[p.cur].def;
   if (p.stance && (keys.ShiftLeft || keys.ShiftRight) && fw > 0) p.stance = 0; // 달리면 자동으로 일어남
   p.crouch += ((p.stance === 1 ? 1 : 0) - p.crouch) * Math.min(1, dt * 12);
-  p.prone += ((p.stance === 2 ? 1 : 0) - p.prone) * Math.min(1, dt * 6);
+  if (p.stance === 2) p.prone += (1 - p.prone) * Math.min(1, dt * 6); else p.prone = Math.max(0, p.prone - dt / 0.4); // 일어서기 0.4초
+  if (p.stance !== p._stPrev) { p._stPrev = p.stance; p.stanceT = now; }
   sprinting = !!(keys.ShiftLeft || keys.ShiftRight) && fw > 0 && !mouseR && !mouseL && p.reloadT <= 0 && !p.stance;
   // 기울이기 (Q/E) — 벽에 막히면 덜 기울어짐
   if (sprinting || !p.alive) leanT = 0; // 달리면 기울이기 해제
@@ -4322,6 +4324,10 @@ function updateAI(e, dt) {
     } else if (moved > 0.5) ai.stuckCount = 0;
     ai.stuckT = 0; ai.lastPos.copy(e.pos);
   }
+  // 엄폐물 뒤에서 앉기: 엄폐 위치에 도착하면 재장전 중이나 숨 고를 때 앉았다가 다시 일어나 사격 (원격 플레이어 제외)
+  { if ((ai._lcT = (ai._lcT || 0) - dt) <= 0) { ai._lcT = 0.3; ai._lowC = boxes.some(b => { const h = b.max[1] - b.min[1]; return h > 0.8 && h < 1.7 && b.min[1] < e.pos.y + 0.3 && e.pos.x > b.min[0] - 1.3 && e.pos.x < b.max[0] + 1.3 && e.pos.z > b.min[2] - 1.3 && e.pos.z < b.max[2] + 1.3; }); }
+    const atCover = (ai.coverPos && Math.hypot(e.pos.x - ai.coverPos.x, e.pos.z - ai.coverPos.z) < 1.6 || (ai.target && ai._lowC)) && Math.hypot(e.vel.x, e.vel.z) < 1.2;
+    const want = atCover && (e.reloadT > 0 || ((now + (e.id || 0) * 0.7) % 3.2) < 1.3) ? 1 : 0; e.crouch = (e.crouch || 0) + (want - (e.crouch || 0)) * Math.min(1, dt * 7); }
 }
 function updateModel(e, dt) {
   const m = e.model; if (!m) return;
