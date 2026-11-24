@@ -783,7 +783,7 @@ function diagTick(dt) {
     L.push(`예측 중 ${rem.filter(e => e._ex).length}명`);
   } else L.push('싱글 플레이');
   { const vis = entities.filter(e => e.model && e.model.root.visible && e._occ !== true).length;
-    L.push(`<b>렌더</b> 그리기 ${DIAG.calls ?? '-'}회 · 삼각형 ${((DIAG.tris || 0) / 1000).toFixed(0)}k`, `<b>프레임</b> 평균 ${(DIAG.ms || 0).toFixed(1)}ms · 최대 ${(DIAG.msMax || 0).toFixed(1)}ms · 셰이더 ${renderer.info.programs.length}`, `<b>캐릭터</b> 그림 ${vis} · 가림생략 ${entities.filter(e => e._occ === true).length} · 원거리 ${entities.filter(e => e.model && e.model._far).length}`); }
+    L.push(`<b>렌더</b> 그리기 ${DIAG.calls ?? '-'}회 · 삼각형 ${((DIAG.tris || 0) / 1000).toFixed(0)}k`, `<b>프레임</b> 평균 ${(DIAG.ms || 0).toFixed(1)}ms · 최대 ${(DIAG.msMax || 0).toFixed(1)}ms · 셰이더 ${renderer.info.programs.length}`, `<b>CPU</b> 게임계산 ${(DIAG.cpuU || 0).toFixed(1)}ms · 그리기명령 ${(DIAG.cpuR || 0).toFixed(1)}ms · <b>GPU 추정</b> ${Math.max(0, 1000 / Math.max(1, fps) - (DIAG.ms || 0)).toFixed(1)}ms`, `<b>캐릭터</b> 그림 ${vis} · 가림생략 ${entities.filter(e => e._occ === true).length} · 원거리 ${entities.filter(e => e.model && e.model._far).length}`); }
   $('diag').innerHTML = L.join('\n');
 }
 addEventListener('keydown', e => { if (e.code === 'F3') { e.preventDefault(); DIAG.on = !DIAG.on; $('diag').classList.toggle('hidden', !DIAG.on); DIAG.t0 = 0; DIAG.fr = 0; DIAG.n = MP.host ? (MP.stN || 0) : (NETC.uN || 0); } });
@@ -5743,11 +5743,13 @@ function loop(t) {
   updateCamera(dt);
   camera.updateMatrixWorld();
   renderer.shadowMap.needsUpdate = (++shadowTick % (MP.on && MP.host && MP.started ? 4 : 3)) === 0; followShadow(); cullDetail(); updateShells(dt);
-  postBegin(dt); renderer.clear(); renderer.render(scene, camera);
+  const _fR = performance.now(); postBegin(dt); renderer.clear(); renderer.render(scene, camera);
   if (xrayT > 0) { xrayT -= dt; if (state === 'playing' && player.alive && !KC.on) xrayPass(); }
   $('xrayOv').classList.toggle('on', xrayT > 0 && state === 'playing' && player.alive && !KC.on);
   postEnd();
   if ((state === 'playing' && player.alive && !KC.on) || (state === 'replay' && RP.vmOn) || (KC.on && KC.vmOn)) vmPass(); // 1인칭 총: 원래 해상도 + 4x MSAA DIAG.ms = (DIAG.ms || 0) * 0.9 + (performance.now() - _f0) * 0.1; DIAG.msMax = Math.max((DIAG.msMax || 0) * 0.995, performance.now() - _f0);
+  { const f1 = performance.now(), A = 0.1; DIAG.ms = (DIAG.ms || 0) * (1 - A) + (f1 - _f0) * A; DIAG.cpuU = (DIAG.cpuU || 0) * (1 - A) + (_fR - _f0) * A; DIAG.cpuR = (DIAG.cpuR || 0) * (1 - A) + (f1 - _fR) * A; DIAG.msMax = Math.max((DIAG.msMax || 0) * 0.995, f1 - _f0);
+    if (DIAG.on) { DIAG.calls = renderer.info.render.calls; DIAG.tris = renderer.info.render.triangles; } }
   if (DIAG.on) { DIAG.calls = renderer.info.render.calls; DIAG.tris = renderer.info.render.triangles; }
 }
 
