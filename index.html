@@ -765,7 +765,7 @@ body.slowmo #hud::after{content:"FINAL KILL";position:absolute;left:50%;top:30%;
     <div class="ht-card pnl88"><h3>작전 시간 · 총기 모드</h3><div class="ht-seg" id="htTod"></div><div class="ht-seg" id="htWm" style="margin-top:6px"></div></div>
     <div class="ht-card pnl88 ht-load" id="htLoad" title="무기고로 이동"><h3>현재 장비 <small>클릭하면 무기고</small></h3><div class="ht-ld" id="htLd"></div></div>
   </div>
-  <div class="ht-foot">v99 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
+  <div class="ht-foot">v100 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
 </div>
 
 <div id="multi" class="overlay hidden">
@@ -1821,10 +1821,10 @@ function buildBunker() {
       if (MAP.night && nightOn) { const g = new THREE.PlaneGeometry(sz, sz); g.rotateX(-Math.PI / 2); if (fl) { const o = new THREE.Mesh(g, FLICK.pool); o.position.set(s * x, fy + 0.06, s * z); mapRoot.add(o); } else batchAdd(g, POOL_MATS.fluo, false, true).position.set(s * x, fy + 0.06, s * z); LIGHT_SPOTS.push({ x: s * x, z: s * z, r: sz * 0.36 }); } };
     // ── 1층 ──
     // 중앙 격납고 벽 (2층 높이 · 위쪽에 관측창)
-    WX(-14, 14, 12, T, 0, CH, [door(-8), { a: -2.6, b: 2.6, y0: 0, y1: 3.4 }, door(8), win(-9, 3.4, 5.3, 6.8), win(9, 3.4, 5.3, 6.8)], pv);
+    WX(-14, 14, 12, T, 0, CH, [door(-8, 3.2, 3.0), { a: -2.6, b: 2.6, y0: 0, y1: 3.4 }, door(8, 3.2, 3.0), win(-11.6, 3.2, 5.3, 6.8), win(11.6, 3.2, 5.3, 6.8)], pv); // 격납고 양쪽 출입문: 관측창과 겹쳐 0.6m 틈만 남던 문제 수정 → 3.2m 문으로 활짝
     for (const o of [-1, 1]) WZ(0, 12, o * 14, T, 0, CH, [door(6), win(2.5, 3, 5.3, 6.8), win(9.5, 3, 5.3, 6.8)], pv);
     // 적재장(격납고 ↔ 스폰 사이) 옆벽 · 스폰 홀 앞벽
-    for (const o of [-1, 1]) WZ(12, 30, o * 14, T, 0, G, [door(24, 2.4)], cw);
+    for (const o of [-1, 1]) WZ(12, 30, o * 14, T, 0, G, [door(15.6, 5, G), door(24, 4.4, G)], cw); /* 하역장 양쪽 벽: 총만 넘어가던 틈 → 넓은 문 2개로 개방 */
     WX(-14, 14, 30, T, 0, G, [door(-8, 3, 2.8), door(0, 3.4, 2.8), door(8, 3, 2.8)], pv);
     // 양옆 복도(x 14~18) 바깥벽 → 방 3개 (실험실 · 창고 · 통제실)
     for (const o of [-1, 1]) {
