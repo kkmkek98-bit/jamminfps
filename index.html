@@ -4985,7 +4985,7 @@ function updateViewModel(dt) {
   ry += vm.sprint * 0.55; rx -= vm.sprint * 0.18; x += vm.sprint * 0.03; y -= vm.sprint * 0.03;
   vm.swayX *= Math.max(0, 1 - dt * 10); vm.swayY *= Math.max(0, 1 - dt * 10);
   const sw = 1 - adsAmt * 0.8; ry -= clamp(vm.swayX, -0.08, 0.08) * sw; rx -= clamp(vm.swayY, -0.08, 0.08) * sw;
-  { const Kp = def.kind === 'pistol' ? 260 : 420, Dp = def.kind === 'pistol' ? 24 : 32; vm.kv = (vm.kv || 0) + (-vm.kick * Kp - vm.kv * Dp) * Math.min(dt, 0.033); vm.kick += vm.kv * Math.min(dt, 0.033); if (Math.abs(vm.kick) < 0.002 && Math.abs(vm.kv) < 0.05) { vm.kick = 0; vm.kv = 0; } } // 반동 후 스프링처럼 살짝 넘어갔다 제자리로
+  { const Kp = def.kind === 'pistol' ? 260 : 420, Dp = def.kind === 'pistol' ? 24 : 32; const kv0 = isFinite(vm.kv) ? vm.kv : 0; if (!isFinite(vm.kick)) vm.kick = 0; vm.kv = kv0 + (-vm.kick * Kp - kv0 * Dp) * Math.min(dt, 0.033); vm.kick += vm.kv * Math.min(dt, 0.033); if (Math.abs(vm.kick) < 0.002 && Math.abs(vm.kv) < 0.05) { vm.kick = 0; vm.kv = 0; } } // 반동 후 스프링처럼 살짝 넘어갔다 제자리로
   z += vm.kick * (def.kind === 'pistol' ? 0.06 : 0.035); rx += vm.kick * (def.kind === 'pistol' ? 0.25 : 0.05) * (1 - adsAmt * 0.6);
   { if ((vm.wallT = (vm.wallT || 0) - dt) <= 0) { vm.wallT = 0.08; const dd = V(); camera.getWorldDirection(dd); dd.y = 0; if (dd.lengthSq() > 0.01) dd.normalize(); const a = camera.position, b2 = a.clone().addScaledVector(dd, def.kind === 'rifle' ? 0.95 : 0.6); vm.wallW = (def.kind === 'rifle' || def.kind === 'pistol') && p.alive && !los(a, b2) ? 1 : 0; }
     vm.wall = (vm.wall || 0) + ((vm.wallW || 0) - (vm.wall || 0)) * Math.min(1, dt * 10); if (vm.wall > 0.01) { rx += vm.wall * 0.75; y -= vm.wall * 0.06; z += vm.wall * 0.08; } } // 벽 앞에서는 총구를 위로 듦
