@@ -765,7 +765,7 @@ body.slowmo #hud::after{content:"FINAL KILL";position:absolute;left:50%;top:30%;
     <div class="ht-card pnl88"><h3>작전 시간 · 총기 모드</h3><div class="ht-seg" id="htTod"></div><div class="ht-seg" id="htWm" style="margin-top:6px"></div></div>
     <div class="ht-card pnl88 ht-load" id="htLoad" title="무기고로 이동"><h3>현재 장비 <small>클릭하면 무기고</small></h3><div class="ht-ld" id="htLd"></div></div>
   </div>
-  <div class="ht-foot">v96 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
+  <div class="ht-foot">v97 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
 </div>
 
 <div id="multi" class="overlay hidden">
@@ -4388,8 +4388,14 @@ function updateModel(e, dt) {
   if (e.alive) {
     const hs = Math.hypot(e.vel.x, e.vel.z);
     e.walkPhase += dt * hs * 2.2; const sw = Math.sin(e.walkPhase) * Math.min(0.7, hs * 0.12);
-    m.legs[0].rotation.x = sw; m.legs[1].rotation.x = -sw;
-    m.arms.rotation.x = clamp(e.ai ? e.ai.pitch : 0, -0.8, 0.8);
+    // 3인칭 자세: 앉기·엎드리기·기울이기 + 달리기 상체 숙임 + 사격 반동 + 재장전 팔 동작
+    const c = e.crouch || 0, pr = e.prone || 0, ln = e.lean || 0, run = clamp(hs / SPRINT, 0, 1) * (1 - c) * (1 - pr);
+    m.body.rotation.set(-pr * 1.45 - run * 0.17 - c * 0.12, 0, -ln * 0.25); m.body.position.set(0, -c * 0.42 + pr * 0.3, pr * 0.6 - c * 0.05);
+    const legSw = sw * (1 - pr) * (1 - c * 0.5) * (1 + run * 0.4);
+    m.legs[0].rotation.x = c * 0.9 + legSw; m.legs[1].rotation.x = c * 0.9 - legSw;
+    const kick = Math.max(0, 1 - (now - (e.lastFired ?? -9)) / 0.12);
+    let rl = 0; if (e.reloadT > 0 && e.slots) { const d = e.slots[e.cur] && e.slots[e.cur].def; if (d && d.reload) rl = Math.sin(clamp(1 - e.reloadT / d.reload, 0, 1) * Math.PI); }
+    m.arms.rotation.x = clamp(e.ai ? e.ai.pitch : 0, -0.8, 0.8) + pr * 1.3 - kick * 0.12 - rl * 0.55 + run * 0.35; m.arms.rotation.z = rl * 0.35; m.arms.rotation.y = 0;
     if (m.tag) m.tag.visible = ally(e, player) && !e.isPlayer;
     if (m.beam) { m.beam.visible = !!MAP.night && e.lightOn !== false && !e._occ && e.pos.distanceToSquared(camera.position) < 8100; // 벽 뒤 캐릭터 빛줄기는 숨김
       if (m.beam.visible) { const dx = camera.position.x - e.pos.x, dz = camera.position.z - e.pos.z, dl = Math.hypot(dx, dz) || 1; const f = clamp((((-Math.sin(e.yaw)) * dx + (-Math.cos(e.yaw)) * dz) / dl - 0.55) / 0.45, 0, 1); // 나를 향할수록 밝게
@@ -4398,10 +4404,12 @@ function updateModel(e, dt) {
     { const g = MAP.night ? inLight(e) : 0; if (!(e.flashT > 0) && Math.abs(g - (e._glow || 0)) > 0.02) { e._glow = g; for (const mt of m.mats) { mt.emissive.setHex(0xffcf8a); mt.emissiveIntensity = g * 0.55; } if (m.lod) { m.lod.material.emissive.setHex(0xffcf8a); m.lod.material.emissiveIntensity = g * 0.55; } } }
   } else {
     e.deadT += dt;
-    const sg = e.deathSign || -1;
-    m.body.rotation.x = sg * Math.min(Math.PI / 2, e.deadT * 6);
+    const sg = e.deathSign || -1, dv = ((e.id || 0) * 7 + (e.deaths || 0) * 3) % 3; // 사망 동작 3종: 앞뒤로 넘어짐 · 무릎 꿇고 쓰러짐 · 옆으로 쓰러짐
+    if (dv === 1) { const k = Math.min(1, e.deadT * 3.2), k2 = Math.max(0, Math.min(1, (e.deadT - 0.3) * 3)); m.body.position.set(0, -0.42 * k - 0.2 * k2, sg * 0.3 * k2); m.body.rotation.set(sg * (0.25 * k + 1.3 * k2), 0, 0); m.legs[0].rotation.x = m.legs[1].rotation.x = 1.1 * k; }
+    else if (dv === 2) { const k = Math.min(1, e.deadT * 4.5); m.body.rotation.set(sg * 0.25 * k, 0, (e.id % 2 ? 1 : -1) * Math.min(Math.PI / 2, e.deadT * 5.5)); m.body.position.set((e.id % 2 ? -1 : 1) * 0.35 * k, Math.max(-0.05, -e.deadT * 0.3), 0); }
+    else { m.body.rotation.set(sg * Math.min(Math.PI / 2, e.deadT * 6), 0, 0);
     m.body.position.y = Math.max(-0.05, -e.deadT * 0.3);
-    m.body.position.z = sg * Math.min(0.55, e.deadT * 2.8);
+    m.body.position.z = sg * Math.min(0.55, e.deadT * 2.8); }
     if (m.tag) m.tag.visible = false; if (m.beam) m.beam.visible = false;
   }
 }
