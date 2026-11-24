@@ -37,7 +37,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Se
 #crosshair .dot{position:absolute;width:2px;height:2px;left:-1px;top:-1px;background:#fff}
 #hitmarker{position:absolute;left:50%;top:50%;width:0;height:0;opacity:0}
 #hitmarker i{position:absolute;width:2px;height:9px;background:#fff;left:-1px;top:-4px}
-#hitmarker.kill i{background:#ff3b30}#hitmarker.head i{background:#ffd23f}
+#hitmarker.kill i{background:#ff3b30}#hitmarker.head i{background:#ffd23f}#hitmarker.rej i{background:#8a8a8a!important;box-shadow:none!important}#hitmarker.rej::after{content:'명중 취소';position:absolute;left:-40px;top:22px;width:80px;text-align:center;font-size:12px;font-weight:700;color:#bdbdbd;text-shadow:0 0 2px #000}
 #hitmarker i:nth-child(1){transform:rotate(45deg) translateY(-11px)}
 #hitmarker i:nth-child(2){transform:rotate(135deg) translateY(-11px)}
 #hitmarker i:nth-child(3){transform:rotate(225deg) translateY(-11px)}
@@ -746,7 +746,7 @@ input[type=range]{accent-color:#c9a24a}
     <div class="ht-card pnl88"><h3>작전 시간 · 총기 모드</h3><div class="ht-seg" id="htTod"></div><div class="ht-seg" id="htWm" style="margin-top:6px"></div></div>
     <div class="ht-card pnl88 ht-load" id="htLoad" title="무기고로 이동"><h3>현재 장비 <small>클릭하면 무기고</small></h3><div class="ht-ld" id="htLd"></div></div>
   </div>
-  <div class="ht-foot">v92 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
+  <div class="ht-foot">v93 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
 </div>
 
 <div id="multi" class="overlay hidden">
@@ -5340,11 +5340,11 @@ const MP = { fconns: new Map(), fastConn: null, ping: [], seen: new Map(), on: f
 const MP_PREFIX = 'jamminfps-v18-', MAX_HUMANS = 8;
 let netIn = false, netSrc;
 // ----- 네트코드: 보간 버퍼 · 예측 이동 · 랙 보상 -----
-const NETC = { INTERP: 0.1, EXTRA: 0.12, SNAP: 12, REWIND: 0.3, off: null, fastAt: -9, ping: [] };
+const NETC = { INTERP: 0.1, EXTRA: 0.12, SNAP: 12, REWIND: 0.2, off: null, fastAt: -9, ping: [] };
 const nclock = () => performance.now() / 1000;
 function netOff(o, t) { const smp = t - nclock(); if (o.off == null || smp > o.off) o.off = smp; else o.off += (smp - o.off) * 0.02;
   // 도착 흔들림(지터) 추적 → 보간 지연을 자동 조절 (안정적이면 0.08초, 흔들리면 최대 0.3초)
-  const late = Math.max(0, o.off - smp); o.jit = o.jit == null ? late : o.jit + (late - o.jit) * (late > o.jit ? 0.05 : 0.1); o.interp = Math.min(0.25, Math.max(0.1, 0.07 + o.jit * 2.0)); }
+  const late = Math.max(0, o.off - smp); o.jit = o.jit == null ? late : o.jit + (late - o.jit) * (late > o.jit ? 0.05 : 0.1); o.interp = Math.min(0.25, Math.max(0.065, 0.05 + o.jit * 2.2)); } // 사람마다 따로: 안정적이면 0.065초까지 짧게
 // 보내기 대기열이 쌓이면(느린 회선·중계) 이번 위치 갱신은 건너뜀 → 지연이 눈덩이처럼 커지는 것 방지
 // 위치 패킷을 이진으로: 위치 cm 단위 2바이트 · 각도 2바이트 · 자세 1바이트 (숫자 1개 9바이트 → 1~2바이트)
 const NB = {
@@ -5396,7 +5396,7 @@ function histAt(e, t) {
   for (let i = h.length - 1; i > 0; i--) if (t >= h[i - 1].t) { const A = h[i - 1], B = h[i], k = (t - A.t) / Math.max(1e-4, B.t - A.t); return { x: A.x + (B.x - A.x) * k, y: A.y + (B.y - A.y) * k, z: A.z + (B.z - A.z) * k, c: B.c, pr: B.pr }; }
   return h[0];
 }
-// 쏜 사람 화면 기준 판정을 방장이 되감아 검증 (최대 0.3초) — 말이 안 되는 판정은 거절
+// 쏜 사람 화면 기준 판정을 방장이 되감아 검증 (최대 0.2초 · 벽 뒤 사망 줄이기) — 말이 안 되는 판정은 거절
 function hitPlausible(v, m) {
   if (!m.o || !m.r) return true;
   const rt = clamp(+m.rt || 0, nclock() - NETC.REWIND, nclock()); const H = histAt(v, rt) || { x: v.pos.x, y: v.pos.y, z: v.pos.z, c: v.crouch, pr: v.prone };
@@ -5734,7 +5734,7 @@ function clientOnData(m) {
       } break;
     case 'pf': flashT = Math.max(flashT, m.d); sfx('ring'); recEvent({ type: 'pf', d: m.d }); break;
     case 'healed': showCenterMsg('✚ +50 HP 회복', '#5dff8a'); hurt = 0; break;
-    case 'hx': { const P = MP.predHit && MP.predHit.get(m.q); if (P) { const v = entities[P.v]; if (v && v.alive) v.hp = Math.min(100, v.hp + P.d); MP.predHit.delete(m.q); MP.rejN = (MP.rejN || 0) + 1;
+    case 'hx': { const P = MP.predHit && MP.predHit.get(m.q); if (P) { const v = entities[P.v]; if (v && v.alive) v.hp = Math.min(100, v.hp + P.d); MP.predHit.delete(m.q); MP.rejN = (MP.rejN || 0) + 1; showHitmarker('rej');
       if (now - (MP.rejT || -9) > 3) { MP.rejT = now; showCenterMsg('⚠ 연결 지연으로 명중 일부가 인정되지 않았어요', '#ffb84d'); } } break; }
     case 'hv': MP.hostHidden = !!m.h; break;
     case 'dpk': player.hp = Math.min(100, player.hp + HEAL_AMT); dropLocalFx(); break;
@@ -5885,14 +5885,19 @@ function dealDamage(v, dmg, att, w, head, from) {
   if (isClient()) {
     if (att === player && v.alive && v.protectT > 0 && !ally(v, att)) protHint(v);
     if (att !== player || !v.alive || v.protectT > 0 || ally(v, att)) return false;
-    const ry = NET_RAY; const msg = { t: 'hit', v: v.id, d: Math.round(dmg * 10) / 10, h: head ? 1 : 0, w, rt: NETC.off != null ? +(nclock() + NETC.off - (NETC.interp || NETC.INTERP)).toFixed(3) : 0 };
+    const ry = NET_RAY; const msg = { t: 'hit', v: v.id, d: Math.round(dmg * 10) / 10, h: head ? 1 : 0, w, rt: NETC.off != null ? +(nclock() + NETC.off - ((v.noff && v.noff.interp) || NETC.interp || NETC.INTERP)).toFixed(3) : 0 }; // 맞은 사람을 실제로 보던 보간 지연 기준으로 되감기
     if (ry) { msg.o = [r2(ry.o.x), r2(ry.o.y), r2(ry.o.z)]; msg.r = [+ry.d.x.toFixed(3), +ry.d.y.toFixed(3), +ry.d.z.toFixed(3)]; if (ry.mel) msg.mel = 1; }
     msg.q = MP.hitSeq = ((MP.hitSeq || 0) + 1) % 100000;
     if (MP.fastConn && MP.fastConn.open) { const fc = MP.fastConn; try { fc.send(msg); } catch (err) {} setTimeout(() => { try { fc.open && fc.send(msg); } catch (err) {} }, 60); } else try { MP.hostConn.send(msg); } catch (err) {}
     const pred = dmg >= v.hp ? 'kill' : 'hit'; v.hp -= dmg; (MP.predHit = MP.predHit || new Map()).set(msg.q, { v: v.id, d: dmg }); return pred;
   }
+  if (MP.on && MP.host && att === player && v.remote && v.alive && !ally(v, att) && !(v.protectT > 0)) {
+    const dl = Math.min(0.08, Math.max(0, (MP.ping[v.id] || 0) / 2000)); // 방장 유리함 줄이기: 상대 핑의 절반만큼 늦게 적용 (최대 0.08초)
+    if (dl > 0.01) { HOSTQ.push({ at: now + dl, v, dmg, att, w, head, from: from && from.clone ? from.clone() : from }); return dmg >= v.hp ? 'kill' : 'hit'; } }
   return applyDamage(v, dmg, att, w, head, from);
 }
+const HOSTQ = [];
+function hostQTick() { for (let i = HOSTQ.length - 1; i >= 0; i--) { const q = HOSTQ[i]; if (now < q.at) continue; HOSTQ.splice(i, 1); if (q.v.alive) applyDamage(q.v, q.dmg, q.att, q.w, q.head, q.from); } }
 
 // ===================== 타이틀 · 옵션 · 도움말 =====================
 function hideAllOverlays() { ['title', 'menu', 'multi', 'options', 'howto', 'pause', 'death', 'end', 'scoreboard', 'awards'].forEach(id => $(id).classList.add('hidden')); }
@@ -6080,7 +6085,7 @@ function update(dt) {
   updateViewModel(dt);
   updateHUD(dt);
   recordFrame(dt);
-  if (MP.on && MP.started) netTick(dt);
+  if (MP.on && MP.started) { if (MP.host && HOSTQ.length) hostQTick(); netTick(dt); }
 }
 function updateCamera(dt) {
   if (state === 'replay' || state === 'ended' || KC.on) return;
