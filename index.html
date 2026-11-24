@@ -765,7 +765,7 @@ body.slowmo #hud::after{content:"FINAL KILL";position:absolute;left:50%;top:30%;
     <div class="ht-card pnl88"><h3>작전 시간 · 총기 모드</h3><div class="ht-seg" id="htTod"></div><div class="ht-seg" id="htWm" style="margin-top:6px"></div></div>
     <div class="ht-card pnl88 ht-load" id="htLoad" title="무기고로 이동"><h3>현재 장비 <small>클릭하면 무기고</small></h3><div class="ht-ld" id="htLd"></div></div>
   </div>
-  <div class="ht-foot">v97 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
+  <div class="ht-foot">v98 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
 </div>
 
 <div id="multi" class="overlay hidden">
@@ -3629,8 +3629,10 @@ function startReload(e) {
   const s = e.slots[e.cur];
   if (!(s.def.kind === 'rifle' || s.def.kind === 'pistol')) return;
   if (e.reloadT > 0 || s.mag >= s.def.mag || s.reserve <= 0) return;
-  e.reloadT = s.def.reload; e.burstQ = 0;
+  e.reloadT = s.def.reload; e.burstQ = 0; e.rlEnd = now + s.def.reload; e.rlDur = s.def.reload;
   if (e.isPlayer) sfx('reload');
+  // 3인칭 재장전 동작 공유: 방장 → 모두(AI 포함), 참가자 → 방장 → 모두
+  if (MP.on && MP.started) { const d = +s.def.reload.toFixed(2); if (MP.host) sendAll({ t: 'rl', i: e.id, d }); else if (e.isPlayer && MP.hostConn && MP.hostConn.open) try { MP.hostConn.send({ t: 'rl', d }); } catch (err) {} }
 }
 function finishReload(e) {
   const s = e.slots[e.cur]; const take = Math.min(s.def.mag - s.mag, s.reserve);
@@ -4370,9 +4372,9 @@ function updateAI(e, dt) {
     ai.stuckT = 0; ai.lastPos.copy(e.pos);
   }
   // 엄폐물 뒤에서 앉기: 엄폐 위치에 도착하면 재장전 중이나 숨 고를 때 앉았다가 다시 일어나 사격 (원격 플레이어 제외)
-  { if ((ai._lcT = (ai._lcT || 0) - dt) <= 0) { ai._lcT = 0.3; ai._lowC = boxes.some(b => { const h = b.max[1] - b.min[1]; return h > 0.8 && h < 1.7 && b.min[1] < e.pos.y + 0.3 && e.pos.x > b.min[0] - 1.3 && e.pos.x < b.max[0] + 1.3 && e.pos.z > b.min[2] - 1.3 && e.pos.z < b.max[2] + 1.3; }); }
-    const atCover = (ai.coverPos && Math.hypot(e.pos.x - ai.coverPos.x, e.pos.z - ai.coverPos.z) < 1.6 || (ai.target && ai._lowC)) && Math.hypot(e.vel.x, e.vel.z) < 1.2;
-    const want = atCover && (e.reloadT > 0 || ((now + (e.id || 0) * 0.7) % 3.2) < 1.3) ? 1 : 0; e.crouch = (e.crouch || 0) + (want - (e.crouch || 0)) * Math.min(1, dt * 7); }
+  { if ((ai._lcT = (ai._lcT || 0) - dt) <= 0) { ai._lcT = 0.3; ai._lowC = boxes.some(b => { const h = b.max[1] - b.min[1]; return h > 0.8 && h < 1.9 && b.min[1] < e.pos.y + 0.3 && e.pos.x > b.min[0] - 1.9 && e.pos.x < b.max[0] + 1.9 && e.pos.z > b.min[2] - 1.9 && e.pos.z < b.max[2] + 1.9; }); }
+    const atCover = (ai.coverPos && Math.hypot(e.pos.x - ai.coverPos.x, e.pos.z - ai.coverPos.z) < 1.6 || (ai.target && ai._lowC)) && Math.hypot(e.vel.x, e.vel.z) < 2.2;
+    const want = (atCover && (e.reloadT > 0 || ((now + (e.id || 0) * 0.7) % 3.0) < 1.8)) || (ai.target && e.reloadT > 0 && Math.hypot(e.vel.x, e.vel.z) < 2.2) || (ai.target && !ai.seen && ai.waitT > 0.6) || (ai.target && ai.target.pos && e.pos.distanceToSquared(ai.target.pos) > 625 && Math.hypot(e.vel.x, e.vel.z) < 1.5 && ((now + (e.id || 0) * 1.3) % 4) < 1.7) ? 1 : 0; /* 엄폐 근처·재장전·대기 중 앉기 */ e.crouch = (e.crouch || 0) + (want - (e.crouch || 0)) * Math.min(1, dt * 7); }
 }
 function updateModel(e, dt) {
   const m = e.model; if (!m) return;
@@ -4394,7 +4396,7 @@ function updateModel(e, dt) {
     const legSw = sw * (1 - pr) * (1 - c * 0.5) * (1 + run * 0.4);
     m.legs[0].rotation.x = c * 0.9 + legSw; m.legs[1].rotation.x = c * 0.9 - legSw;
     const kick = Math.max(0, 1 - (now - (e.lastFired ?? -9)) / 0.12);
-    let rl = 0; if (e.reloadT > 0 && e.slots) { const d = e.slots[e.cur] && e.slots[e.cur].def; if (d && d.reload) rl = Math.sin(clamp(1 - e.reloadT / d.reload, 0, 1) * Math.PI); }
+    let rl = 0; if (e.rlEnd > now && e.rlDur > 0) rl = Math.sin(clamp(1 - (e.rlEnd - now) / e.rlDur, 0, 1) * Math.PI); // 원격 플레이어도 재장전 동작 표시
     m.arms.rotation.x = clamp(e.ai ? e.ai.pitch : 0, -0.8, 0.8) + pr * 1.3 - kick * 0.12 - rl * 0.55 + run * 0.35; m.arms.rotation.z = rl * 0.35; m.arms.rotation.y = 0;
     if (m.tag) m.tag.visible = ally(e, player) && !e.isPlayer;
     if (m.beam) { m.beam.visible = !!MAP.night && e.lightOn !== false && !e._occ && e.pos.distanceToSquared(camera.position) < 8100; // 벽 뒤 캐릭터 빛줄기는 숨김
@@ -5772,6 +5774,7 @@ function hostOnData(conn, m) {
     case 'pe': if (e.packGun) { e.packGun = null; const K = WEAPONS[e.loadout.melee] || WEAPONS.KNIFE; e.modelKey = K.key; if (e.model) soldierGun(e.model, K.key); } break;
     case 'po': MP.ping = MP.ping || []; MP.ping[si] = Math.round((nclock() - (+m.s || 0)) * 1000); break;
     case 'chat': chatFromPeer(si, m.m); break;
+    case 'rl': { const e = entities[si], d = clamp(+m.d || 0, 0.3, 4); if (e) { e.rlEnd = now + d; e.rlDur = d; } sendAll({ t: 'rl', i: si, d }); break; }
     case 'deploy': if (MP.started && !e.alive && now - (e.deathAt ?? -99) >= RESPAWN_DELAY - 0.3) { e.loadout = sanitizeLo(m.lo); spawnEntity(e); e.nb = []; e.netT = [e.pos.x, e.pos.y, e.pos.z]; e.netYaw = e.yaw; conn.send({ t: 'spawn', p: [e.pos.x, e.pos.y, e.pos.z], y: e.yaw, pt: e.protectT }); } break;
   }
 }
@@ -5807,6 +5810,7 @@ function clientOnData(m) {
     case 'u': if (MP.started && state === 'playing' && Array.isArray(m.e)) { netOff(NETC, m.ht); NETC.fastAt = nclock(); NETC.uN = (NETC.uN || 0) + 1; m.e.forEach((a, i) => { const e = entities[i]; if (e && e !== player) netPush(e, a[8] != null ? a[8] : m.ht, a); }); } break;
     case 'pi': try { (MP.fastConn && MP.fastConn.open ? MP.fastConn : MP.hostConn).send({ t: 'po', s: m.s }); } catch (err) {} break;
     case 'chat': addChat(m.n, m.m, m.sys, m.tm); break;
+    case 'rl': { const e = entities[m.i]; if (e && e !== player) { e.rlEnd = now + (+m.d || 1); e.rlDur = +m.d || 1; } break; }
     case 'spawn': clientSpawn(m); break;
     case 'hurt':
       if (player.alive) {
