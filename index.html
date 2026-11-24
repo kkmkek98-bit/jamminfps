@@ -769,9 +769,22 @@ void main(){ vec2 px = 1.0 / res;
 postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
 // F3 진단 표시: FPS · 핑 · 연결 방식 · 보간 지연 · 수신 빈도 · 흔들림 · 예측 중인 캐릭터 수
 const DIAG = { on: false, t: 0, n: 0, fr: 0 }; const NET = { out: 0, inn: 0 };
+// 실제로 게임을 그리는 그래픽카드 이름 (내장/외장 구분)
+let _gpuN = null;
+function gpuName() {
+  if (_gpuN) return _gpuN;
+  try { const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
+    let n = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); n = String(n || '알 수 없음');
+    if (/^ANGLE \(/.test(n)) { const p = n.slice(7).split(','); if (p.length > 1) n = p[1].replace(/\(0x[0-9a-f]+\)/i, '').replace(/Direct3D.*$|vs_\d.*$|OpenGL.*$/i, '').trim(); }
+    const igpu = /Intel|UHD|Iris|Radeon\(TM\) Graphics|Radeon Graphics|Vega|Adreno|Mali|Apple/i.test(n) && !/Arc|RX\s?\d/i.test(n), dgpu = /NVIDIA|GeForce|RTX|GTX|Radeon RX|Arc/i.test(n);
+    _gpuN = n + (dgpu ? ' <span style="color:#5dff8a">(외장)</span>' : igpu ? ' <span style="color:#ff6b5a">(내장)</span>' : /SwiftShader|llvmpipe|Software/i.test(n) ? ' <span style="color:#ff6b5a">(소프트웨어)</span>' : '');
+  } catch (e) { _gpuN = '알 수 없음'; }
+  return _gpuN;
+}
 function diagTick(dt) {
   if (!DIAG.on) return; const nw = performance.now() / 1000; if (!DIAG.t0) DIAG.t0 = nw; DIAG.fr++; if (nw - DIAG.t0 < 0.5) return;
   const T = nw - DIAG.t0, fps = DIAG.fr / T; DIAG.t0 = nw; DIAG.fr = 0; const L = [`<b>FPS</b> ${fps.toFixed(0)}  해상도 ${Math.round(POST.scale * 100)}% · 내부 ${POST.rt.width}×${POST.rt.height}`];
+  L.push(`<b>GPU</b> ${gpuName()}`);
   if (MP.on) {
     const rem = entities.filter(e => e !== player && (isClient() || e.remote));
     if (MP.host) { const rs = entities.filter(e => e.remote && e.noff); const ip = rs.length ? rs.reduce((a, e) => a + (e.noff.interp || NETC.INTERP), 0) / rs.length : 0; const jt = rs.length ? Math.max(...rs.map(e => e.noff.jit || 0)) : 0;
