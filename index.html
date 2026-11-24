@@ -540,6 +540,41 @@ body.dead88 #game canvas{filter:grayscale(.85) brightness(.8) sepia(.25) hue-rot
 #loading::after{content:"";width:320px;height:3px;background:linear-gradient(90deg,transparent,var(--amber),transparent) 0 0/40% 100% no-repeat,rgba(214,199,154,.2);animation:ldBar 1.1s linear infinite}
 @keyframes ldBar{from{background-position:-40% 0,0 0}to{background-position:140% 0,0 0}}
 
+
+/* ===== v89 메인 화면 (작전 로비) ===== */
+.title{display:block;background:linear-gradient(90deg,rgba(10,12,8,.95) 0,rgba(10,12,8,.84) 40%,rgba(10,12,8,.5) 72%,rgba(10,12,8,.78))}
+.title:not(.hidden)::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(rgba(214,199,154,.05) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(214,199,154,.05) 1px,transparent 1px) 0 0/40px 40px}
+.ht-top{position:absolute;left:0;right:0;top:0;height:58px;border-bottom:1px solid var(--ln);display:flex;align-items:center;padding:0 40px;gap:28px;background:rgba(8,9,6,.65)}
+.ht-logo{font:700 26px 'Oswald',sans-serif;letter-spacing:.12em;color:var(--tan)}.ht-logo em{color:var(--amber);font-style:normal}
+.ht-nav{display:flex;gap:4px;margin-left:16px}.ht-nav a{font:700 16px 'Pretendard',sans-serif;color:#d6cdb0;padding:18px 15px;cursor:pointer;position:relative;pointer-events:auto}
+.ht-nav a:hover{color:#fff}.ht-nav a.on{color:#fff}.ht-nav a.on::after{content:"";position:absolute;left:11px;right:11px;bottom:0;height:3px;background:var(--amber)}
+.ht-call{margin-left:auto;display:flex;align-items:center;gap:10px}.ht-call label{font:700 13px 'Rajdhani';letter-spacing:.2em;color:var(--tan2)}
+.ht-call input{background:rgba(20,23,15,.85);border:1px solid var(--ln);color:#fff;padding:7px 12px;font-size:15px;font-weight:700;width:170px;outline:none;font-family:inherit}.ht-call input:focus{border-color:var(--amber)}
+.ht-left{position:absolute;left:clamp(30px,5vw,80px);top:clamp(80px,13vh,130px);width:min(470px,40vw)}
+.ht-op{font:700 14px 'Rajdhani';letter-spacing:.3em;color:var(--amber)}
+.ht-h1{font:800 clamp(44px,6vw,68px) 'Pretendard',sans-serif;line-height:1.05;margin-top:8px;color:#f3ead0}
+.ht-h1 small{display:block;font:700 18px 'Oswald',sans-serif;letter-spacing:.3em;color:var(--tan2);margin-top:8px}
+.ht-menu{margin-top:clamp(18px,4vh,34px);display:flex;flex-direction:column;gap:9px}
+.ht-btn{display:flex;align-items:center;gap:14px;padding:clamp(11px,1.8vh,16px) 20px;color:#e8dfc4;border:1px solid var(--ln);background:rgba(20,23,15,.8);clip-path:polygon(0 0,100% 0,100% 70%,96% 100%,0 100%);cursor:pointer;font-family:inherit;text-align:left;transition:transform .15s,background .15s;pointer-events:auto}
+.ht-btn.tt-btn{flex-direction:row;align-items:center;gap:14px;border-left:1px solid var(--ln);padding:clamp(11px,1.8vh,16px) 20px}.ht-btn.tt-btn:hover{background:rgba(60,68,40,.9);transform:translateX(7px)}.ht-btn.tt-btn small{opacity:1}
+.ht-btn b{font-size:19px;font-weight:700}.ht-btn .k{font:700 14px 'Rajdhani';color:var(--tan2);letter-spacing:.14em;width:28px}.ht-btn .d{margin-left:auto;font-size:14px;font-weight:600;color:#c4bb9c}
+.ht-btn:hover{border-color:var(--tan);background:rgba(60,68,40,.9);transform:translateX(7px)}.ht-btn:active{transform:translateX(7px) scale(.985)}
+.ht-btn.pri{background:linear-gradient(90deg,#c9a24a,#e6b956);color:#16130a;border-color:#f0cf7a}.ht-btn.pri .k,.ht-btn.pri .d{color:#3d3214}.ht-btn.pri:hover{filter:brightness(1.08)}
+.ht-right{position:absolute;right:clamp(30px,5vw,80px);top:clamp(80px,13vh,130px);width:min(520px,42vw);display:flex;flex-direction:column;gap:14px}
+.ht-card{padding:15px 17px}.ht-card h3{font:700 13px 'Rajdhani';letter-spacing:.24em;color:var(--tan2);margin-bottom:10px}.ht-card h3 small{letter-spacing:0;font:600 12px 'Pretendard';color:#8f8770;margin-left:8px}
+.ht-maps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ht-map{height:clamp(62px,9vh,84px);position:relative;border:1px solid var(--ln);background:linear-gradient(160deg,#3a4128,#1b1e14);overflow:hidden;cursor:pointer;pointer-events:auto;transition:border-color .12s,transform .12s}
+.ht-map canvas{position:absolute;inset:0;width:100%;height:100%;opacity:.5;object-fit:cover}
+.ht-map span{position:absolute;left:8px;bottom:6px;font:700 15px 'Pretendard';text-shadow:0 1px 3px #000}
+.ht-map:hover{border-color:var(--tan);transform:translateY(-2px)}.ht-map.on{border:2px solid var(--amber)}.ht-map.on::after{content:"SELECTED";position:absolute;right:6px;top:5px;font:700 11px 'Rajdhani';letter-spacing:.14em;color:var(--amber)}
+.ht-seg{display:flex;gap:6px}.ht-seg button{flex:1;padding:9px 0;font:700 15px 'Pretendard';border:1px solid var(--ln);background:rgba(20,23,15,.75);color:#d6cdb0;cursor:pointer;pointer-events:auto}
+.ht-seg button:hover{background:rgba(60,68,40,.85)}.ht-seg button.on{background:var(--olive);border-color:var(--tan);color:#fff}
+.ht-load{cursor:pointer;pointer-events:auto;transition:border-color .12s}.ht-load:hover{border-color:var(--tan)!important}
+.ht-ld{display:flex;gap:8px}.ht-ld div{flex:1;border:1px solid var(--ln);padding:8px 10px}.ht-ld b{display:block;font:700 12px 'Rajdhani';letter-spacing:.16em;color:var(--tan2)}.ht-ld span{font:700 15px 'Pretendard'}
+.ht-foot{position:absolute;left:clamp(30px,5vw,80px);bottom:24px;font:600 12px 'Rajdhani';letter-spacing:.2em;color:#7d7660}
+.title:not(.hidden) .ht-left{animation:htL .45s cubic-bezier(.2,1,.3,1)}.title:not(.hidden) .ht-right{animation:htR .45s cubic-bezier(.2,1,.3,1) .06s both}
+@keyframes htL{from{transform:translateX(-30px);opacity:0}}@keyframes htR{from{transform:translateX(30px);opacity:0}}
+
 </style>
 </head>
 <body>
@@ -669,17 +704,25 @@ body.dead88 #game canvas{filter:grayscale(.85) brightness(.8) sepia(.25) hue-rot
   <div class="potg-prog"><i id="potgProg"></i></div>
 </div>
 <div id="title" class="overlay title hidden">
-  <div class="tt-box">
-    <div class="tt-logo">잼민<em>FPS</em></div>
-    <div class="tt-sub">TEAM DEATHMATCH · 8 VS 8 · PUBG TDM 모티브</div>
-    <div class="tt-menu">
-      <button class="tt-btn" data-go="single"><b>🎯 싱글플레이</b><small>AI와 8대8 팀 데스매치</small></button>
-      <button class="tt-btn" data-go="multi"><b>🌐 멀티플레이</b><small>방 코드로 친구와 최대 8명 · 빈자리는 AI</small></button>
-      <button class="tt-btn" data-go="options"><b>⚙ 옵션</b><small>사운드 · 감도 · 시야각 · 그래픽</small></button>
-      <button class="tt-btn" data-go="howto"><b>📖 게임 플레이 방법</b><small>조작키 · 총기 소개 · 규칙</small></button>
-    </div>
-    <div class="tt-foot">v88 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
+  <div class="ht-top"><div class="ht-logo">JAMMIN<em>FPS</em></div>
+    <nav class="ht-nav"><a class="on">작전</a><a data-go="single">무기고</a><a data-go="options">옵션</a><a data-go="howto">플레이 방법</a></nav>
+    <div class="ht-call"><label>콜사인</label><input id="htCall" maxlength="10" spellcheck="false"></div></div>
+  <div class="ht-left">
+    <div class="ht-op">OPERATION · TEAM DEATHMATCH</div>
+    <h1 class="ht-h1">잼민 FPS<small>TACTICAL ARENA</small></h1>
+    <div class="ht-menu">
+      <button class="ht-btn pri" id="htQuick"><span class="k">01</span><b>바로 출격</b><span class="d">싱글 · AI 15명</span></button>
+      <button class="ht-btn tt-btn" data-go="multi"><span class="k">02</span><b>멀티 플레이</b><span class="d">방 만들기 · 참가 · 최대 8명</span></button>
+      <button class="ht-btn tt-btn" data-go="single"><span class="k">03</span><b>작전 준비</b><span class="d">매치 설정 · 무기고 · 팀 편성</span></button>
+      <button class="ht-btn tt-btn" data-go="options"><span class="k">04</span><b>옵션</b><span class="d">사운드 · 감도 · 시야각</span></button>
+      <button class="ht-btn tt-btn" data-go="howto"><span class="k">05</span><b>플레이 방법</b><span class="d">조작키 · 총기 · 규칙</span></button>
+    </div></div>
+  <div class="ht-right">
+    <div class="ht-card pnl88"><h3>작전 지역</h3><div class="ht-maps" id="htMaps"></div></div>
+    <div class="ht-card pnl88"><h3>작전 시간 · 총기 모드</h3><div class="ht-seg" id="htTod"></div><div class="ht-seg" id="htWm" style="margin-top:6px"></div></div>
+    <div class="ht-card pnl88 ht-load" id="htLoad" title="무기고로 이동"><h3>현재 장비 <small>클릭하면 무기고</small></h3><div class="ht-ld" id="htLd"></div></div>
   </div>
+  <div class="ht-foot">v89 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
 </div>
 
 <div id="multi" class="overlay hidden">
@@ -5735,17 +5778,34 @@ function dealDamage(v, dmg, att, w, head, from) {
 
 // ===================== 타이틀 · 옵션 · 도움말 =====================
 function hideAllOverlays() { ['title', 'menu', 'multi', 'options', 'howto', 'pause', 'death', 'end', 'scoreboard', 'awards'].forEach(id => $(id).classList.add('hidden')); }
+// 메인 화면: 맵·시간·총기 모드 빠른 선택(로비 설정 버튼과 연동) · 현재 장비 · 콜사인
+const HT_MAPS = [['yard', '컨테이너 야드'], ['school', '학교'], ['rest', '휴게소'], ['apt', '아파트'], ['harbor', '항구'], ['bunker', '지하 벙커']];
+function htClick(opt, v) { const b = document.querySelector(`#menu .seg[data-opt="${opt}"] button[data-v="${v}"]`); if (b) b.click(); refreshTitle(); }
+function refreshTitle() {
+  const mp = $('htMaps'); if (!mp.children.length) { for (const [k, n] of HT_MAPS) { const d = document.createElement('div'); d.className = 'ht-map'; d.dataset.v = k; d.innerHTML = `<span>${n}</span>`; d.onclick = () => htClick('map', k); mp.appendChild(d); } }
+  [...mp.children].forEach(d => d.classList.toggle('on', d.dataset.v === settings.map));
+  const seg = (id, opt, list, cur) => { const el = $(id); if (!el.children.length) for (const [v, n] of list) { const b = document.createElement('button'); b.dataset.v = v; b.textContent = n; b.onclick = () => htClick(opt, v); el.appendChild(b); } [...el.children].forEach(b => b.classList.toggle('on', b.dataset.v === cur)); };
+  seg('htTod', 'tod', [['day', '주간'], ['night', '야간']], settings.tod);
+  seg('htWm', 'wmode', [['normal', '자유'], ['sniper', '저격전'], ['shotgun', '샷건전'], ['knife', '칼전']], settings.wmode);
+  const nm = k => (WEAPONS[k] || {}).name || k; $('htLd').innerHTML = `<div><b>PRIMARY</b><span>${nm(selLoadout.primary)}</span></div><div><b>SIDEARM</b><span>${nm(selLoadout.pistol)}</span></div><div><b>THROW</b><span>${nm(selLoadout.throw)}</span></div>`;
+  if (document.activeElement !== $('htCall')) $('htCall').value = $('callsign').value;
+}
 function showTitle() {
   if (MP.on) mpLeave(true);
   if (KC.on) endKillcam(true);
   state = 'menu'; hideAllOverlays(); $('hud').classList.add('hidden');
   for (const e of entities) { e.alive = false; if (e.model) e.model.root.visible = false; }
-  clearAreas(); $('title').classList.remove('hidden');
+  clearAreas(); $('title').classList.remove('hidden'); refreshTitle();
 }
 function showMulti() {
   hideAllOverlays(); $('multi').classList.remove('hidden', 'roomMode'); $('mpEntry').classList.remove('hidden'); $('mpRoom').classList.add('hidden');
   $('mpName').value = $('callsign').value; mpStatus('');
 }
+$('htQuick').addEventListener('click', () => { initAudio(); hideAllOverlays(); $('startBtn').click(); });
+$('htLoad').addEventListener('click', () => { initAudio(); showLobby(); });
+$('htCall').addEventListener('keydown', e => e.stopPropagation());
+$('htCall').addEventListener('input', () => { $('callsign').value = $('htCall').value; $('callsign').dispatchEvent(new Event('input')); $('callsign').dispatchEvent(new Event('change')); });
+document.querySelectorAll('.ht-nav a[data-go]').forEach(a => a.addEventListener('click', () => { initAudio(); const g = a.dataset.go; if (g === 'single') showLobby(); else if (g === 'options') { hideAllOverlays(); $('options').classList.remove('hidden'); } else { hideAllOverlays(); $('howto').classList.remove('hidden'); renderHow('keys'); } }));
 document.querySelectorAll('.tt-btn').forEach(b => b.addEventListener('click', () => {
   initAudio(); const g = b.dataset.go;
   if (g === 'single') showLobby();
