@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>잼민FPS - 3D 팀 데스매치</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Rajdhani:wght@600;700&display=swap">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Segoe UI','Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:#fff;user-select:none}
@@ -414,6 +415,131 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
 @media (min-height:900px){.rm-center .arm-list{max-height:600px}.rm-center .arm-preview{min-height:380px}.rm-right .roster .rs{padding:5px 8px}}
 @media (max-height:800px){.rm-center .arm-preview{min-height:160px}.rm-center .arm-list{max-height:330px}.rm-col .opt{margin-bottom:6px}.rm-top .lb-logo{font-size:24px}}
 
+/* ===================== v88 테마: 군사 UI · 가독성 · 전환 애니메이션 ===================== */
+:root{--tan:#d6c79a;--tan2:#cbbd92;--olive:#4f5a34;--amber:#ffb238;--pnl:rgba(12,14,9,.82);--ln:rgba(214,199,154,.45);--bl:#8fb8ff;--rd:#ff8a78}
+html,body{font-family:'Pretendard','Pretendard Variable','Malgun Gothic',sans-serif}
+.mil,#timer,.sb-score,#wAmmo b,#wAmmo span,#hpText,.tt-foot,#compassDeg{font-family:'Rajdhani','Oswald',sans-serif!important;font-weight:700}
+.osw,.tt-logo,.lb-logo,.panel h1,#endTitle{font-family:'Oswald','Pretendard',sans-serif!important}
+button,input,select{font-family:inherit}
+/* 공통 패널 + 모서리 브래킷 */
+.pnl88{background:var(--pnl)!important;border:1px solid var(--ln)!important;position:relative}
+.pnl88::before,.pnl88::after{content:"";position:absolute;width:9px;height:9px;border:2px solid var(--tan);pointer-events:none}
+.pnl88::before{left:-2px;top:-2px;border-right:0;border-bottom:0}.pnl88::after{right:-2px;bottom:-2px;border-left:0;border-top:0}
+.out88{text-shadow:0 0 2px #000,0 0 2px #000,0 1px 3px rgba(0,0,0,.9)}
+/* 점수판 */
+#scorebar{gap:0;filter:none}
+.sb-team,.sb-mid{background:var(--pnl);border-top:1px solid var(--ln);border-bottom:1px solid var(--ln)}
+.sb-team.blue{border-left:4px solid #4f8fe0}.sb-team.red{border-right:4px solid #e0503c}
+.sb-name{font-size:13px;letter-spacing:.14em;color:var(--tan2);opacity:1}
+.sb-score{font-size:38px}.blue .sb-score{color:var(--bl)}.red .sb-score{color:var(--rd)}
+.sb-mid{background:rgba(30,34,22,.9);min-width:130px}#timer{font-size:34px;line-height:1}.sb-goal{font-size:12px;color:var(--tan2);opacity:1;letter-spacing:0;font-weight:600}
+/* 나침반 */
+#compass,#compassDeg{filter:drop-shadow(0 1px 2px #000)}#compassDeg{color:var(--tan);font-size:14px}
+/* 킬피드 */
+.kf{background:var(--pnl);border:1px solid var(--ln);border-radius:0;font-size:15px;padding:5px 12px;animation:kfIn .28s cubic-bezier(.2,1.3,.4,1)}
+.kf .w{color:var(--tan2);opacity:1;font-size:13px}.kf.me{border-color:var(--amber)}
+@keyframes kfIn{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+/* 미니맵 · 팀원 */
+#minimap{border:1px solid var(--ln);border-radius:0;background:var(--pnl);box-shadow:0 0 0 2px rgba(0,0,0,.25)}
+#teamList .tm{background:var(--pnl);border:1px solid var(--ln);border-left:3px solid #4f8fe0;margin-bottom:4px}
+#teamList .tm .n{font-size:15px;font-weight:700}#teamList .tm .n em{font-style:normal;font-size:14px;color:var(--tan2);font-variant-numeric:tabular-nums}
+#teamList .tm.dead{opacity:.5;border-left-color:#666}
+#teamList .hb i{background:var(--tan)}
+/* 체력 */
+#hpbox{width:460px;background:var(--pnl);border:1px solid var(--ln);padding:9px 14px 8px}
+.hp-label{font-size:13px;letter-spacing:.12em;color:var(--tan2);opacity:1;align-items:center;font-weight:700}
+#hpText{font-size:26px;color:#fff}
+#stance{color:var(--amber);font-size:13px;letter-spacing:0}
+.hp-bar{position:relative;height:11px;background:rgba(255,255,255,.08);border:0;clip-path:polygon(0 0,100% 0,98.5% 100%,0 100%)}
+.hp-bar i#hpFill{position:absolute;left:0;top:0;transition:width .12s}
+#hpGhost{position:absolute;left:0;top:0;height:100%;width:100%;background:#f5efe0;opacity:.75;transition:width .5s ease .35s}
+.hp-bar::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 9.6%,rgba(0,0,0,.55) 9.6% 10%)}
+#myStats{font-size:14px;color:#ddd4b6;margin-top:5px;font-variant-numeric:tabular-nums}
+/* 무기 · 슬롯 */
+#weaponbox{background:var(--pnl);border:1px solid var(--ln);padding:10px 16px 10px;min-width:280px;text-shadow:none}
+#wName{font-family:'Oswald',sans-serif;font-size:21px;letter-spacing:.06em;color:#f3ead0}
+#wAmmo b{font-size:60px;line-height:.95;color:#fff}#wAmmo span{font-size:24px;color:var(--tan2);opacity:1}
+#wMode{font-size:14px;color:var(--tan);opacity:1;font-weight:700}
+#weaponbox.low #wAmmo b{color:#ff9a3c;animation:lowA .6s infinite alternate}
+#weaponbox.low::after{content:"탄약 부족 · R 재장전";position:absolute;right:0;top:-26px;bottom:auto;white-space:nowrap;width:auto;height:auto;border:0;font-size:13px;font-weight:800;color:#ff9a3c;text-shadow:0 0 3px #000}
+@keyframes lowA{to{color:#ff5a3c}}
+#slots{bottom:178px}
+.slot{background:var(--pnl);border:1px solid var(--ln);border-right:0;border-left:3px solid transparent;font-size:15px;min-width:280px;opacity:.8;padding:6px 10px;color:#ddd4b6}
+.slot span{color:var(--tan2)}.slot.on{opacity:1;border-left-color:var(--amber);background:var(--pnl);color:#fff}
+/* 조작 안내: 처음 몇 초만, H로 다시 */
+#hint{font-size:14px;background:var(--pnl);border:1px solid var(--ln);color:#ddd4b6}#hint b{color:var(--amber)}
+#hintKey{position:absolute;left:16px;bottom:22px;font-size:14px;font-weight:600;color:var(--tan2);background:var(--pnl);border:1px solid var(--ln);padding:6px 10px;transition:opacity .4s}
+#hintKey b{font-family:'Rajdhani';color:var(--tan);border:1px solid var(--ln);padding:0 5px;margin-right:5px}
+/* 가운데 메시지 · 히트 */
+#centerMsg{font-family:'Oswald','Pretendard';letter-spacing:.12em;text-shadow:0 0 2px #000,0 0 3px #000,0 2px 8px rgba(0,0,0,.8)}
+#centerMsg.pop{animation:cmPop .35s cubic-bezier(.2,1.5,.4,1)}@keyframes cmPop{from{transform:translateX(-50%) scale(1.35);opacity:0}}
+#protect{font-size:15px;text-shadow:0 0 2px #000,0 1px 3px #000}
+#crosshair .c,#crosshair .dot{background:#f3ead0}
+/* 점수판(Tab) */
+#scoreboard{background:rgba(10,12,8,.9);border:1px solid var(--ln);border-top:2px solid var(--tan);min-width:1000px;padding:18px 22px}.sbt td{white-space:nowrap}
+.sbt th{font-family:'Rajdhani';font-size:13px;letter-spacing:.16em;color:var(--tan2);opacity:1}
+.sbt td{font-size:15px;font-variant-numeric:tabular-nums;border-top:1px solid rgba(214,199,154,.1)}
+.sbt tr.me td{background:linear-gradient(90deg,rgba(255,178,56,.24),rgba(255,178,56,.04));color:#fff}.sbt tr.me td:first-child{box-shadow:inset 3px 0 var(--amber)}
+.sbcols h4{font-size:15px;border-bottom:1px solid var(--ln);margin-bottom:4px}
+/* 오버레이 · 패널 · 버튼 */
+.overlay{background:rgba(8,9,6,.84);backdrop-filter:none}
+.overlay:not(.hidden){animation:ovIn .28s ease-out}
+.overlay:not(.hidden)>.panel,.overlay:not(.hidden)>.tt-box,.overlay:not(.hidden)>.aw-wrap{animation:pnIn .34s cubic-bezier(.2,1,.3,1)}
+@keyframes ovIn{from{opacity:0}}@keyframes pnIn{from{transform:translateY(18px);opacity:0}}
+.panel{background:rgba(14,16,11,.96);border:1px solid var(--ln);box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.panel h1 em,.lb-logo em,.tt-logo em{color:var(--amber)}
+.lb-grid h2,.panel h2,.lo-row h3{color:var(--amber);font-size:13px}
+.btn{background:linear-gradient(90deg,#c9a24a,#e6b956);color:#16130a;clip-path:polygon(0 0,100% 0,100% 68%,94% 100%,0 100%);transition:transform .12s,filter .12s;font-size:17px}
+.btn:hover:not(:disabled){filter:brightness(1.1);transform:translateX(3px)}.btn:active:not(:disabled){transform:translateY(1px) scale(.98)}
+.btn.ghost{clip-path:none;background:rgba(20,23,15,.8);color:#e8dfc4;border:1px solid var(--ln)}
+.btn:disabled{background:#4a4a40;color:#999}
+.seg button{background:rgba(20,23,15,.75);border:1px solid var(--ln);color:#d6cdb0;font-size:14px;padding:8px 0;transition:background .12s}
+.seg button:hover{background:rgba(60,68,40,.85)}.seg button.on{background:var(--olive);border-color:var(--tan);color:#fff}
+.arm-tabs button{background:rgba(20,23,15,.75);border-color:var(--ln);color:#d6cdb0;font-size:14px}.arm-tabs button.on{background:var(--olive);border-color:var(--tan);color:#fff}
+.arm-stats .row{font-size:13px}.arm-stats .row .bar i{background:var(--tan)}
+.card,.lb-col,.lb-center{background:rgba(20,23,15,.72);border:1px solid var(--ln)}.card.sel{border-color:var(--amber);background:rgba(255,178,56,.08)}
+.lobby{background:linear-gradient(90deg,rgba(10,12,8,.95),rgba(10,12,8,.88))}
+.lobby::before{content:"";position:fixed;inset:0;pointer-events:none;background:linear-gradient(rgba(214,199,154,.05) 1px,transparent 1px) 0 0/40px 40px,linear-gradient(90deg,rgba(214,199,154,.05) 1px,transparent 1px) 0 0/40px 40px}
+.roster .rs{font-size:14px}.roster .rs.me{background:rgba(255,178,56,.16)}
+.keys{font-size:14px}.keys b{color:var(--amber)}
+/* 메인 타이틀 */
+.title{background:linear-gradient(90deg,rgba(10,12,8,.94),rgba(10,12,8,.7))}
+.tt-logo{font-weight:700;letter-spacing:.06em}
+.tt-sub{color:var(--tan2);opacity:1;font-size:14px;font-weight:600}
+.tt-btn{background:rgba(20,23,15,.85);border:1px solid var(--ln);border-left:4px solid var(--amber);clip-path:polygon(0 0,100% 0,100% 70%,96% 100%,0 100%);transition:transform .15s,background .15s}
+.tt-btn:hover{background:rgba(60,68,40,.9);transform:translateX(8px)}.tt-btn small{opacity:1;color:#c4bb9c;font-size:14px}
+.tt-foot{color:#7d7660;opacity:1;letter-spacing:.2em}
+/* 사망 · 킬캠 · 종료 */
+body.dead88 #game canvas{filter:grayscale(.85) brightness(.8) sepia(.25) hue-rotate(-20deg) saturate(1.6);transition:filter .6s}
+#game canvas{transition:filter .6s}
+#killcam:not(.hidden)::after{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.08) 0 2px,transparent 2px 4px);animation:kcStatic .45s steps(6) forwards}
+@keyframes kcStatic{0%{opacity:1;background-position:0 0}100%{opacity:0;background-position:0 40px}}
+#end:not(.hidden) #endTitle{animation:stamp .55s cubic-bezier(.2,1.6,.4,1) .15s both;letter-spacing:.1em}
+@keyframes stamp{from{transform:scale(2.4) rotate(-6deg);opacity:0}60%{opacity:1}}
+#end:not(.hidden) #endBoard tr{animation:rowIn .3s ease-out both}
+#end:not(.hidden) #endBoard tr:nth-child(2){animation-delay:.35s}#end:not(.hidden) #endBoard tr:nth-child(3){animation-delay:.42s}#end:not(.hidden) #endBoard tr:nth-child(4){animation-delay:.49s}#end:not(.hidden) #endBoard tr:nth-child(5){animation-delay:.56s}#end:not(.hidden) #endBoard tr:nth-child(6){animation-delay:.63s}#end:not(.hidden) #endBoard tr:nth-child(7){animation-delay:.7s}#end:not(.hidden) #endBoard tr:nth-child(8){animation-delay:.77s}#end:not(.hidden) #endBoard tr:nth-child(9){animation-delay:.84s}
+@keyframes rowIn{from{transform:translateX(-20px);opacity:0}}
+/* 시상식 카드 색 맞춤 */
+.aw-card{background:rgba(20,23,15,.9);border-color:var(--ln)}.aw-card.me{border-color:var(--amber);box-shadow:0 0 18px rgba(255,178,56,.18)}.aw-h em,.aw-s{color:var(--amber)}.aw-btn,.aw-card.me .aw-tag{background:var(--amber)}.aw-dots i.on{background:var(--amber)}
+/* 출격 연출 · 로딩 브리핑 */
+#deploy{position:fixed;inset:0;z-index:40;pointer-events:none;display:none}
+#deploy.on{display:block}
+#deploy .sh{position:absolute;left:0;right:0;height:50.5%;background:#0b0d08;border-color:var(--tan)}
+#deploy .sh.t{top:0;border-bottom:2px solid var(--tan)}#deploy .sh.b{bottom:0;border-top:2px solid var(--tan)}
+#deploy.on .sh.t{animation:shT .55s cubic-bezier(.7,0,.3,1) .55s forwards}#deploy.on .sh.b{animation:shB .55s cubic-bezier(.7,0,.3,1) .55s forwards}
+@keyframes shT{to{transform:translateY(-101%)}}@keyframes shB{to{transform:translateY(101%)}}
+#deploy .info{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;z-index:2}
+#deploy.on .info{animation:dpInfo .55s ease .45s forwards}@keyframes dpInfo{to{opacity:0;transform:translate(-50%,-50%) scale(1.06)}}
+#deploy .info small{display:block;font:700 14px 'Rajdhani';letter-spacing:.4em;color:var(--amber)}
+#deploy .info b{display:block;font:700 46px 'Oswald','Pretendard';letter-spacing:.08em;color:#f3ead0;margin:6px 0}
+#deploy .info em{font-style:normal;font-size:15px;color:var(--tan2)}
+#deploy .bar{width:320px;height:3px;background:rgba(214,199,154,.2);margin:14px auto 0;overflow:hidden}#deploy .bar i{display:block;height:100%;width:100%;background:var(--amber);animation:dpBar .5s ease-out}
+@keyframes dpBar{from{transform:translateX(-100%)}}
+#loading{flex-direction:column;gap:14px;background:#0b0d08;font-family:'Pretendard',sans-serif}
+#loading::before{content:"JAMMIN FPS";font:700 40px 'Oswald',sans-serif;letter-spacing:.14em;color:var(--tan)}
+#loading::after{content:"";width:320px;height:3px;background:linear-gradient(90deg,transparent,var(--amber),transparent) 0 0/40% 100% no-repeat,rgba(214,199,154,.2);animation:ldBar 1.1s linear infinite}
+@keyframes ldBar{from{background-position:-40% 0,0 0}to{background-position:140% 0,0 0}}
+
 </style>
 </head>
 <body>
@@ -440,7 +566,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
   <div id="dmgNums"></div><div id="killRibbon"></div><div id="killFlash"></div><div id="hmRing"></div>
   <div id="hurt"></div>
   <div id="protect" class="hidden">🛡 스폰 보호 중 · 엄폐물 밖으로 나가거나 사격하면 해제</div>
-  <div id="hpbox"><div class="hp-label"><span>HP <em id="stance">🧍 서기</em></span><b id="hpText">100</b></div><div class="hp-bar"><i id="hpFill"></i></div><div id="myStats"></div></div>
+  <div id="hpbox"><div class="hp-label"><span>HP <em id="stance">🧍 서기</em></span><b id="hpText">100</b></div><div class="hp-bar"><i id="hpGhost"></i><i id="hpFill"></i></div><div id="myStats"></div></div>
   <div id="slots">
     <div class="slot" data-i="0"><span>1</span><em id="slot0">M416</em></div>
     <div class="slot" data-i="1"><span>2</span><em id="slot1">P92</em></div>
@@ -448,7 +574,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
     <div class="slot" data-i="3"><span>4</span><em id="slot3">파편 수류탄 x2</em></div>
   </div>
   <div id="weaponbox"><div id="wName">M416</div><div id="wAmmo"><b id="ammoMag">30</b><span id="ammoRes">/ 210</span></div><div id="wMode">연사</div><div id="reloadTxt" class="hidden">재장전 중...</div></div>
-  <div id="hint"><b>WASD</b> 이동 · <b>Shift</b> 달리기 · <b>Space</b> 점프 · <b>C</b> 앉기 · <b>Z</b> 엎드리기 · <b>Q/E</b> 기울이기<br><b>좌클릭</b> 사격/투척 · <b>우클릭</b> 정조준 · <b>R</b> 재장전<br><b>1~4 / 휠</b> 무기 교체 · <b>B</b> 사격 모드 · <b>[ ]</b> 조준경 · <b>Tab</b> 점수판</div>
+  <div id="hintKey" style="opacity:0"><b>H</b>조작 안내 보기</div><div id="hint"><b>WASD</b> 이동 · <b>Shift</b> 달리기 · <b>Space</b> 점프 · <b>C</b> 앉기 · <b>Z</b> 엎드리기 · <b>Q/E</b> 기울이기<br><b>좌클릭</b> 사격/투척 · <b>우클릭</b> 정조준 · <b>R</b> 재장전<br><b>1~4 / 휠</b> 무기 교체 · <b>B</b> 사격 모드 · <b>[ ]</b> 조준경 · <b>Tab</b> 점수판</div>
 </div>
 
 <div id="scoreboard" class="hidden"></div>
@@ -528,6 +654,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
   </div>
 </div>
 
+<div id="deploy"><div class="sh t"></div><div class="sh b"></div><div class="info"><small>DEPLOYING · 출격</small><b id="dpMap">컨테이너 야드</b><em id="dpSub"></em><div class="bar"><i></i></div></div></div>
 <div id="flashOv"></div>
 <div id="xrayOv"></div>
 <div id="killcam" class="hidden"><div class="kc-cross"><i></i><i></i><i></i><i></i></div><div id="kcHit"><i></i><i></i><i></i><i></i></div><div class="kc-top"><span id="kcTag">● KILLCAM</span><small>나를 처치한 적의 시점</small></div><div class="kc-card"><small>처치한 적</small><div id="kcInfo"></div></div><div class="kc-skip">클릭 / SPACE — 건너뛰기</div><div class="kc-prog"><i id="kcProg"></i></div></div>
@@ -551,7 +678,7 @@ input.txt.code{font-size:26px;letter-spacing:8px;text-transform:uppercase;text-a
       <button class="tt-btn" data-go="options"><b>⚙ 옵션</b><small>사운드 · 감도 · 시야각 · 그래픽</small></button>
       <button class="tt-btn" data-go="howto"><b>📖 게임 플레이 방법</b><small>조작키 · 총기 소개 · 규칙</small></button>
     </div>
-    <div class="tt-foot">v15 · Three.js r160 · PeerJS 1.5.5</div>
+    <div class="tt-foot">v88 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
   </div>
 </div>
 
@@ -4116,7 +4243,7 @@ function helmetPop(v, k) {
   for (let i = 0; i < 3; i++) bloodFx(hp.clone().add(V(0, -0.1, 0)));
   for (let i = 0; i < 10; i++) particle(hp, V(rand(-3, 3), rand(1, 4), rand(-3, 3)), PMAT.spark, rand(0.15, 0.35), rand(0.03, 0.06));
 }
-function showCenterMsg(txt, color) { const c = $('centerMsg'); c.textContent = txt; c.style.color = color; c.style.opacity = 1; centerT = 1.6; }
+function showCenterMsg(txt, color) { const c = $('centerMsg'); c.textContent = txt; c.style.color = color; c.style.opacity = 1; centerT = 1.6; c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); }
 function showDamageDir(from) {
   const dx = from.x - player.pos.x, dz = from.z - player.pos.z;
   const ang = Math.atan2(dx, -dz) + camera.rotation.y; // 화면 기준 각도
@@ -4148,13 +4275,15 @@ function updateHUD(dt) {
   setStyle($('timer'), 'color', matchTime < 60 ? '#ff7b70' : '#fff');
   const p = player;
   const hp = Math.max(0, Math.ceil(p.hp)); setText('hpText', String(hp)); setText('stance', (p.stance === 2 ? '🐍 엎드리기 [Z] · 반동 -40% · 정확도 +45%' : p.stance === 1 ? '🪖 앉기 [C] · 반동 -20% · 정확도 +25%' : '🧍 서기 [C/Z]') + (Math.abs(p.lean) > 0.5 ? (p.lean > 0 ? ' · 기울이기 ▶' : ' · ◀ 기울이기') : ''));
-  setStyle($('hpFill'), 'width', hp + '%'); setStyle($('hpFill'), 'background', hp > 50 ? '#e8e8e8' : hp > 25 ? '#ffb347' : '#ff4a3d');
+  setStyle($('hpFill'), 'width', hp + '%'); setStyle($('hpGhost'), 'width', hp + '%'); setStyle($('hpFill'), 'background', hp > 50 ? 'linear-gradient(90deg,#8a9a5b,#c9d48a)' : hp > 25 ? '#ffb347' : '#ff4a3d');
   const s = p.slots[p.cur], def = s.def;
   setText('wName', def.name);
   if (def.kind === 'rifle' || def.kind === 'pistol') { setText('ammoMag', String(s.mag)); setText('ammoRes', '/ ' + s.reserve); setText('wMode', MODE_KO[def.modes[p.modeIdx]] + (def.modes.length > 1 ? ' [B]' : '') + (canOptic(def) ? ` · ${OPTICS[opticSel[def.key] || 0].name} [ ]` : def.cls === 'sniper' ? ` · 전용 스코프 ${(BASE_FOV / def.adsFov).toFixed(1)}x` : '')); }
   else if (def.kind === 'throw') { setText('ammoMag', String(p.grenades)); setText('ammoRes', '개'); setText('wMode', '좌클릭 강투척 · 우클릭+좌클릭 약투척'); }
   else { setText('ammoMag', '∞'); setText('ammoRes', ''); setText('wMode', `좌클릭 베기 · 우클릭 ${def.key === 'MACHETE' ? '내려찍기' : '찌르기'} · 등 뒤·머리 2배 · 이속 +25%`); }
   setStyle($('ammoMag'), 'color', (def.kind === 'rifle' || def.kind === 'pistol') && s.mag <= def.mag * 0.2 ? '#ff7b70' : '#fff');
+  { const low = (def.kind === 'rifle' || def.kind === 'pistol') && s.mag <= def.mag * 0.2 && s.reserve > 0 && p.reloadT <= 0; const wb = $('weaponbox'); if (wb._low !== low) { wb._low = low; wb.classList.toggle('low', low); } }
+  { const dd = state === 'playing' && !p.alive && !KC.on; if (document.body._dd !== dd) { document.body._dd = dd; document.body.classList.toggle('dead88', dd); } }
   $('reloadTxt').classList.toggle('hidden', !(p.reloadT > 0));
   setText('slot2', p.slots[2].def.name); setText('slot0', p.slots[0].empty ? '—' : p.slots[0].def.name); setText('slot1', p.slots[1].empty ? (settings.wmode === 'knife' ? '— (보조무기 팩)' : '—') : p.slots[1].def.name); setText('slot3', p.slots[3].empty ? '—' : `${p.slots[3].def.name} x${p.grenades}`);
   document.querySelectorAll('.slot').forEach(el => el.classList.toggle('on', +el.dataset.i === p.cur));
@@ -4526,11 +4655,17 @@ document.addEventListener('mousemove', e => { if (controls.isLocked) { vm.swayX 
 controls.addEventListener('lock', () => { $('pause').classList.add('hidden'); $('menu').classList.add('hidden'); });
 controls.addEventListener('unlock', () => { mouseL = mouseR = false; if (KC.on) return; $('quitBtn').textContent = MP.on ? '방 나가기' : '로비로'; if (state === 'playing' && player.alive) { $('pauseInfo').textContent = (MP.on ? '⚠ 멀티플레이 중 — 게임은 계속 진행됩니다 · ' : '') + `BLUE ${score.blue} : ${score.red} RED · 남은 시간 ${(Math.ceil(matchTime) / 60 | 0)}분 ${String(Math.ceil(matchTime) % 60).padStart(2, '0')}초 · 내 기록 ${player.kills}K/${player.deaths}D/${player.assists}A`; $('pause').classList.remove('hidden'); renderCheat(); } });
 
+// 출격 연출: 셔터가 닫힌 상태로 맵 이름을 보여준 뒤 위아래로 열림
+function deployFx() { const d = $('deploy'); d.classList.remove('on'); void d.offsetWidth; $('dpMap').textContent = (MAP.name || '').replace('🌙 ', '');
+  $('dpSub').textContent = (MP.on && MP.mode === 'ffa' ? '개인전' : '팀 데스매치') + ' · ' + (MAP.night ? '야간 작전' : '주간 작전') + ' · ' + KILL_TARGET + '킬 선취'; d.classList.add('on'); clearTimeout(d._t); d._t = setTimeout(() => d.classList.remove('on'), 1300); showHint(); }
+// 조작 안내: 출격 후 8초만 보이고, H로 다시 보기
+function showHint(on = true) { const h = $('hint'), k = $('hintKey'); clearTimeout(h._t); h.style.opacity = on ? 0.95 : 0; k.style.opacity = on ? 0 : 1; if (on) h._t = setTimeout(() => showHint(false), 8000); }
+addEventListener('keydown', e => { if (e.code === 'KeyH' && state === 'playing' && document.activeElement?.tagName !== 'INPUT') showHint(+$('hint').style.opacity < 0.5); });
 $('startBtn').addEventListener('click', () => {
   if (MP.on) mpLeave(true);
   initAudio(); resetMatch(); state = 'playing'; setTeamLabels();
   $('menu').classList.add('hidden'); $('hud').classList.remove('hidden');
-  controls.lock(); setTimeout(() => $('hint').style.opacity = 0, 12000);
+  controls.lock(); deployFx();
 });
 $('deployBtn').addEventListener('click', deploy);
 $('resumeBtn').addEventListener('click', () => controls.lock());
@@ -4588,7 +4723,7 @@ $('quitBtn').addEventListener('click', () => { if (MP.on) showTitle(); else show
 $('lobbyBtn').addEventListener('click', () => { if (MP.on) mpBackToRoom(); else showLobby(); });
 $('awBtn').addEventListener('click', closeAwards);
 $('hlBtn').addEventListener('click', () => { if (lastHighlight) startReplay(lastHighlight); });
-$('againBtn').addEventListener('click', () => { if (MP.on) { if (MP.host) mpStartMatch(); return; } $('end').classList.add('hidden'); $('hud').classList.remove('hidden'); initAudio(); resetMatch(); state = 'playing'; controls.lock(); });
+$('againBtn').addEventListener('click', () => { if (MP.on) { if (MP.host) mpStartMatch(); return; } $('end').classList.add('hidden'); $('hud').classList.remove('hidden'); deployFx(); initAudio(); resetMatch(); state = 'playing'; controls.lock(); });
 const onSens = v => { sens = +v; $('sensVal').textContent = sens.toFixed(2); $('sensRange').value = v; $('sensRange2').value = v; };
 $('sensRange').addEventListener('input', e => onSens(e.target.value));
 $('sensRange2').addEventListener('input', e => onSens(e.target.value));
@@ -5319,8 +5454,8 @@ function applySlots() {
 }
 function enterMatchUI() {
   applyFfaColors();
-  hideAllOverlays(); $('hud').classList.remove('hidden'); setTeamLabels();
-  $('hint').style.opacity = 0.8; setTimeout(() => $('hint').style.opacity = 0, 12000);
+  hideAllOverlays(); $('hud').classList.remove('hidden'); setTeamLabels(); deployFx();
+
 }
 function setTeamLabels() {
   if (isFFA()) { document.querySelector('.sb-team.blue .sb-name').textContent = '나'; document.querySelector('.sb-team.red .sb-name').textContent = '1위'; return; }
@@ -5842,7 +5977,7 @@ showLobby(); applyOpts(); showTitle();
     setTimeout(() => tryJoin(20), 300);
   }
 }
-$('loading').remove();
+$('loading').remove(); ['weaponbox', 'hpbox', 'scoreboard'].forEach(i => $(i) && $(i).classList.add('pnl88')); ['compass', 'protect'].forEach(i => $(i) && $(i).classList.add('out88'));
 window.__game = { dealDamage: (...a) => dealDamage(...a), NET, DROPS, get BOOTHS() { return BOOTHS; }, get DPOS() { return DPOS; }, canSee, inLight, get LIGHT_SPOTS() { return LIGHT_SPOTS; }, HOLES, SHELLS, POST, renderer, renderCheat, spawnFire, loadMap, CHEAT, MAPS, settings, get MAP() { return MAP; }, coverPoints, buildDebug, ramps, startReload, vmRoot, MP, mpCreate, mpJoin, opts, healPacks, eyeH, KC, headY, bodyTop, camera, setMouseR: v => { mouseR = v; }, opticSel, areas, throwGrenade, get flashT() { return flashT; }, setupWeapons, tick: dt => { now += dt; update(dt); }, killEntity, endMatch, startReplay, findHighlight, REC, RP, WEAPONS, switchSlot, playerAttack: () => playerAttack(), get now() { return now; }, entities, score, get state() { return state; }, set state(v) { state = v; }, resetMatch, update, get player() { return player; }, boxes, aiGoals };
 requestAnimationFrame(loop);
 </script>
