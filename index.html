@@ -1535,7 +1535,7 @@ function buildBunker() {
     const SL = (x0, x1, z0, z1, y = UF) => B((x0 + x1) / 2, y - 0.3, (z0 + z1) / 2, x1 - x0, 0.3, z1 - z0, cd);
     const P = (x, y, z) => V(s * x, y, s * z);
     // 형광등: 천장 등기구 + (밤) 바닥 빛웅덩이 — 복도·창고는 일부러 적게
-    const fluo = (x, y, z, fy, sz = 9, nightOn = true) => { D(x, y - 0.12, z, 0.35, 0.08, 2.2, steel); D(x, y - 0.18, z, 0.18, 0.05, 2.0, tube);
+    const fluo = (x, y, z, fy, sz0 = 9, nightOn = true) => { const sz = sz0 * 0.7; // 바닥 빛 웅덩이 30% 축소 D(x, y - 0.12, z, 0.35, 0.08, 2.2, steel); D(x, y - 0.18, z, 0.18, 0.05, 2.0, tube);
       if (!MAP.night) { const g = new THREE.PlaneGeometry(sz * 0.9, sz * 0.9); g.rotateX(-Math.PI / 2); batchAdd(g, FLUO_POOL, false, true).position.set(s * x, fy + 0.06, s * z); }
       if (MAP.night && nightOn) { const g = new THREE.PlaneGeometry(sz, sz); g.rotateX(-Math.PI / 2); batchAdd(g, POOL_MAT, false, true).position.set(s * x, fy + 0.06, s * z); LIGHT_SPOTS.push({ x: s * x, z: s * z, r: sz * 0.36 }); } };
     // ── 1층 ──
@@ -2522,7 +2522,7 @@ function makeTag(text, color) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true, sizeAttenuation: false }));
   sp.scale.set(0.13, 0.037, 1); sp.renderOrder = 999; return sp;
 }
-const BEAM_GEO = new THREE.ConeGeometry(1.7, 13, 8, 1, true);
+const BEAM_GEO = new THREE.ConeGeometry(0.85, 7, 8, 1, true); // 빛줄기: 짧고 좁게 (13m → 7m, 끝 폭 3.4m → 1.7m)
 const BEAM_MAT = new THREE.MeshBasicMaterial({ color: 0xfff0c8, transparent: true, opacity: 0.075, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
 const LENS_MAT = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,250,230,1)'); gr.addColorStop(0.25, 'rgba(255,235,180,.7)'); gr.addColorStop(1, 'rgba(255,220,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
   return new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }); })();
@@ -2572,7 +2572,7 @@ function makeSoldier(team, name, gunKey) {
   const gun = new THREE.Group(); gun.position.set(0.12, -0.05, -0.45); arms.add(gun);
   const muzzle = new THREE.Object3D(); gun.add(muzzle);
   const beam = new THREE.Group(); beam.position.set(0, 0.03, -0.62); gun.add(beam); beam.visible = false;
-  const cone = new THREE.Mesh(BEAM_GEO, BEAM_MAT.clone()); cone.rotation.x = Math.PI / 2; cone.position.z = -6.5; beam.add(cone);
+  const cone = new THREE.Mesh(BEAM_GEO, BEAM_MAT.clone()); cone.rotation.x = Math.PI / 2; cone.position.z = -3.5; beam.add(cone);
   const lens = new THREE.Sprite(LENS_MAT.clone()); lens.scale.setScalar(0.5); beam.add(lens); beam.userData = { cone, lens };
   const mdl = { gun, muzzle, mG, mW, beam, gunKey: null }; soldierGun(mdl, gunKey);
   let tag = null;
@@ -4023,9 +4023,9 @@ function updateModel(e, dt) {
     m.legs[0].rotation.x = sw; m.legs[1].rotation.x = -sw;
     m.arms.rotation.x = clamp(e.ai ? e.ai.pitch : 0, -0.8, 0.8);
     if (m.tag) m.tag.visible = ally(e, player) && !e.isPlayer;
-    if (m.beam) { m.beam.visible = !!MAP.night && e.lightOn !== false && e.pos.distanceToSquared(camera.position) < 8100;
+    if (m.beam) { m.beam.visible = !!MAP.night && e.lightOn !== false && !e._occ && e.pos.distanceToSquared(camera.position) < 8100; // 벽 뒤 캐릭터 빛줄기는 숨김
       if (m.beam.visible) { const dx = camera.position.x - e.pos.x, dz = camera.position.z - e.pos.z, dl = Math.hypot(dx, dz) || 1; const f = clamp((((-Math.sin(e.yaw)) * dx + (-Math.cos(e.yaw)) * dz) / dl - 0.55) / 0.45, 0, 1); // 나를 향할수록 밝게
-        const u = m.beam.userData; u.lens.visible = f > 0.02; u.lens.material.opacity = 0.12 + 0.88 * f * f; u.lens.scale.setScalar(0.3 + 0.35 * f); u.cone.material.opacity = 0.075 * (0.35 + 0.65 * f); } }
+        const u = m.beam.userData; const dd = Math.sqrt(dx * dx + dz * dz), far = clamp(1 - (dd - 15) / 60, 0.25, 1); u.lens.visible = f > 0.02; u.lens.material.opacity = (0.12 + 0.88 * f * f) * far; /* 멀수록 흐리게 */ u.lens.scale.setScalar(0.2 + 0.24 * f); u.cone.material.opacity = 0.055 * (0.35 + 0.65 * f); } }
     // 가로등 아래 캐릭터는 실제로 밝게 (진짜 조명 없이 발광만 살짝)
     { const g = MAP.night ? inLight(e) : 0; if (!(e.flashT > 0) && Math.abs(g - (e._glow || 0)) > 0.02) { e._glow = g; for (const mt of m.mats) { mt.emissive.setHex(0xffcf8a); mt.emissiveIntensity = g * 0.55; } if (m.lod) { m.lod.material.emissive.setHex(0xffcf8a); m.lod.material.emissiveIntensity = g * 0.55; } } }
   } else {
