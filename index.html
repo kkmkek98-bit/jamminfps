@@ -611,6 +611,13 @@ input[type=range]{accent-color:#c9a24a}
 body.slowmo #game canvas{filter:saturate(.6) contrast(1.1)}
 body.slowmo #hud::after{content:"FINAL KILL";position:absolute;left:50%;top:30%;transform:translateX(-50%);font:700 38px 'Oswald';letter-spacing:.3em;color:#ffcf6a;text-shadow:0 0 3px #000,0 4px 14px rgba(0,0,0,.8);animation:mkA 1.1s ease-out forwards}
 
+
+/* v95 화면 밖 아군 화살표 */
+#allyArrows{position:absolute;inset:0;pointer-events:none}
+.aa{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:center;gap:2px;margin:-14px 0 0 -40px;width:80px;opacity:.85}
+.aa i{width:0;height:0;border:7px solid transparent;border-left:12px solid #6aa8ff;filter:drop-shadow(0 0 2px #000)}
+.aa span{font:700 12px 'Pretendard';color:#cfe0ff;text-shadow:0 0 2px #000,0 0 2px #000;white-space:nowrap}
+
 </style>
 </head>
 <body>
@@ -635,7 +642,7 @@ body.slowmo #hud::after{content:"FINAL KILL";position:absolute;left:50%;top:30%;
   <div id="dmgDirs"></div>
   <div id="centerMsg"></div>
   <div id="dmgNums"></div><div id="killRibbon"></div><div id="killFlash"></div><div id="hmRing"></div>
-  <div id="hurt"></div><div id="mkBanner"></div><div id="concuss"></div><div id="leadBanner"></div>
+  <div id="hurt"></div><div id="mkBanner"></div><div id="concuss"></div><div id="allyArrows"></div><div id="leadBanner"></div>
   <div id="protect" class="hidden">🛡 스폰 보호 중 · 엄폐물 밖으로 나가거나 사격하면 해제</div>
   <div id="hpbox"><div class="hp-label"><span>HP <em id="stance">🧍 서기</em></span><b id="hpText">100</b></div><div class="hp-bar"><i id="hpGhost"></i><i id="hpFill"></i></div><div id="myStats"></div></div>
   <div id="slots">
@@ -758,7 +765,7 @@ body.slowmo #hud::after{content:"FINAL KILL";position:absolute;left:50%;top:30%;
     <div class="ht-card pnl88"><h3>작전 시간 · 총기 모드</h3><div class="ht-seg" id="htTod"></div><div class="ht-seg" id="htWm" style="margin-top:6px"></div></div>
     <div class="ht-card pnl88 ht-load" id="htLoad" title="무기고로 이동"><h3>현재 장비 <small>클릭하면 무기고</small></h3><div class="ht-ld" id="htLd"></div></div>
   </div>
-  <div class="ht-foot">v94 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
+  <div class="ht-foot">v95 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
 </div>
 
 <div id="multi" class="overlay hidden">
@@ -949,9 +956,9 @@ $('game').appendChild(renderer.domElement);
 // ----- 후처리: 화면을 한 장(RT)에 그린 뒤 FXAA + 톤매핑으로 출력 · 자동 해상도 -----
 const POST = { rt: new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 0, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter }), scale: 1, fpsE: 60, adjT: 0, upT: 0, sz: new THREE.Vector2() };
 const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), postScene = new THREE.Scene();
-const postMat = new THREE.ShaderMaterial({ uniforms: { tDiffuse: { value: POST.rt.texture }, res: { value: new THREE.Vector2(4, 4) }, grade: { value: 0 }, up: { value: 1 } }, depthTest: false, depthWrite: false,
+const postMat = new THREE.ShaderMaterial({ uniforms: { tDiffuse: { value: POST.rt.texture }, res: { value: new THREE.Vector2(4, 4) }, grade: { value: 0 }, up: { value: 1 }, tint: { value: new THREE.Vector3(1, 1, 1) }, sat: { value: 1 } }, depthTest: false, depthWrite: false,
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 res; uniform float grade; uniform float up; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 res; uniform float grade; uniform float up; uniform vec3 tint; uniform float sat; varying vec2 vUv;
 vec3 S(vec2 uv){ vec3 c = texture2D(tDiffuse, uv).rgb;
 #ifdef TONE_MAPPING
   c = toneMapping(c);
@@ -974,6 +981,7 @@ void main(){ vec2 px = 1.0 / res;
   col += (col - (nw + ne + sw + se) * 0.25) * mix(0.28, 0.42, clamp(up - 1.0, 0.0, 1.0)); // 해상도를 낮춘 만큼 선명화를 살짝 더
   float lc = L(col); col = mix(vec3(lc), col, 1.0 + 0.1 * grade); col = mix(col, col * col * (3.0 - 2.0 * col), 0.18 * grade);
   col *= mix(vec3(1.0), vec3(1.03, 1.0, 0.96), smoothstep(0.45, 1.0, lc) * grade);
+  { float lc2 = L(col); col = mix(vec3(lc2), col, sat) * tint; } // 맵별 색감
   vec2 q = vUv - 0.5; col *= 1.0 - dot(q, q) * 0.42 * grade;
   gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0); }` });
 postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMat));
@@ -2499,6 +2507,8 @@ function loadMap(id, small = false) {
   cIdx = 0; curMapId = key; MAP = Object.assign({ id }, MAPS[id], small ? MAPS[id].small : {}); MAP.night = night; setEnv(night); if (small) MAP.name = MAPS[id].name + ' (축소)'; if (night) MAP.name = '🌙 ' + MAP.name + ' · 밤'; ARENA.x = MAP.ax; ARENA.z = MAP.az;
   { const lite = true; if (lite !== WP_LITE) { WP_LITE = lite; for (const m of WP_MATS) m.needsUpdate = true; } }
   if (MAPS[id].indoor) { scene.fog.color.setHex(night ? 0x040507 : 0x14171b); scene.fog.near = 28; scene.fog.far = 58; camera.far = 62; } camera.updateProjectionMatrix(); // 실내: 먼 곳은 어둡게 사라지고 안 그림
+  { const G = { yard: [1.045, 1.0, 0.93, 1.04], school: [1.03, 1.0, 0.96, 1.05], rest: [1.0, 0.99, 0.95, 0.98], apt: [0.98, 1.0, 1.03, 1.0], harbor: [0.95, 0.99, 1.06, 0.96], bunker: [0.95, 1.04, 0.97, 0.92] }[id] || [1, 1, 1, 1];
+    const n = night ? [0.94, 0.98, 1.07, 0.9] : [1, 1, 1, 1]; postMat.uniforms.tint.value.set(G[0] * n[0], G[1] * n[1], G[2] * n[2]); postMat.uniforms.sat.value = G[3] * n[3]; } // 맵별 색감 보정 (야드 따뜻 · 항구 차갑게 · 벙커 형광 초록)
   WPU.floorH.value = MAPS[id].floorH || 0; MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (!MAPS[id].indoor) { addFlowCover(); boundaryFence(); } mapProps(id); if (night && id !== 'harbor' && !MAPS[id].indoor) nightLamps(); if (ffaMap) buildBooths(); else buildShelters(); contactShadows(); MAP.decals = decals(); flushBatch(); mergeDeep(mapRoot, [], o => o.parent === mapRoot && o.material.transparent && o.material.blending === THREE.NormalBlending && o.material.side !== THREE.DoubleSide && !flags.includes(o) && !rampMeshes.includes(o) && !DETAIL.includes(o)); tuneEnv(scene); shadowAt = ''; MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase(); stairSigns(); bakeShadow(); prewarm();
   { const lm = $('lobbyMap').getContext('2d'); lm.clearRect(0, 0, 180, 192); lm.drawImage(mmBase, 0, 0); }
   $('lbMapInfo').innerHTML = `<b>${MAP.name}</b>${settings.wmode !== 'normal' ? ' · ' + WMODES[settings.wmode] : ''}<br>${MAP.info}${night ? '<br>🔦 야간전 · 모두 라이트가 켜진 채로 싸웁니다' : ''}<br><span class="bdot"></span>BLUE 스폰 (남)<br><span class="rdot"></span>RED 스폰 (북)`;
@@ -4422,6 +4432,19 @@ function multiKillFx() { if (now - MK.t > 4) MK.n = 0; MK.n++; MK.t = now; if (M
   const lab = MK.n === 2 ? 'DOUBLE KILL · 더블 킬' : MK.n === 3 ? 'TRIPLE KILL · 트리플 킬' : `MULTI KILL ×${MK.n} · 멀티 킬`; const el = $('mkBanner'); el.textContent = lab; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
   if (AC) { const t = AC.currentTime; for (let i = 0; i < Math.min(MK.n, 4); i++) tone(t + i * 0.07, { f0: 660 + i * 220, f1: 700 + i * 220, d: 0.09, vol: 0.22, type: 'triangle' }); } }
 function showCenterMsg(txt, color) { const c = $('centerMsg'); c.textContent = txt; c.style.color = color; c.style.opacity = 1; centerT = 1.6; c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); }
+// 화면 밖 아군: 가장자리에 팀색 화살표 + 이름 · 거리
+const _aa = new THREE.Vector3();
+function allyArrows() {
+  const box = $('allyArrows'); if (isFFA() || !player.alive || state !== 'playing') { if (box._n) { box.innerHTML = ''; box._n = 0; } return; }
+  const W = innerWidth, H = innerHeight, list = entities.filter(e => e !== player && !e.off && e.alive && e.team === player.team);
+  while (box.children.length < list.length) { const d = document.createElement('div'); d.className = 'aa'; d.innerHTML = '<i></i><span></span>'; box.appendChild(d); } box._n = list.length;
+  [...box.children].forEach((d, i) => { const e = list[i]; if (!e) { d.style.display = 'none'; return; }
+    _aa.set(e.pos.x, e.pos.y + 1.4, e.pos.z).project(camera); const behind = _aa.z > 1; let x = _aa.x, y = -_aa.y; if (behind) { x = -x; y = -y; }
+    if (!behind && Math.abs(x) < 0.97 && Math.abs(y) < 0.97) { d.style.display = 'none'; return; }
+    const m = Math.max(Math.abs(x), Math.abs(y)) || 1, ex = x / m, ey = y / m, px = (ex * 0.92 + 1) / 2 * W, py = (ey * 0.86 + 1) / 2 * H;
+    d.style.display = ''; d.style.transform = `translate(${px.toFixed(0)}px,${py.toFixed(0)}px)`; d.firstChild.style.transform = `rotate(${Math.atan2(ey, ex)}rad)`;
+    const t = e.name + ' ' + Math.round(e.pos.distanceTo(player.pos)) + 'm'; if (d.lastChild._t !== t) { d.lastChild._t = t; d.lastChild.textContent = t; } });
+}
 function showDamageDir(from, dmg = 20) {
   const dx = from.x - player.pos.x, dz = from.z - player.pos.z;
   const ang = Math.atan2(dx, -dz) + camera.rotation.y; // 화면 기준 각도
@@ -4548,7 +4571,7 @@ function drawMinimap() {
   for (const e of entities) {
     if (!e.alive || e === player) continue; const dl = floorOf(e.pos.y) - myLv;
     if (ally(e, player)) mctx.fillStyle = e.remote || (MP.on && MP.slots[e.id] && MP.slots[e.id].kind === 'human') ? '#9fe0ff' : '#5aa0ff';
-    else { if (now - (isFFA() ? Math.max(e.spotT.blue ?? -99, e.spotT.red ?? -99) : e.spotT[player.team]) > 1.2) continue; mctx.fillStyle = '#ff4a3d'; }
+    else { const shot = now - (e.lastFired ?? -9) < 0.9 && e.pos.distanceToSquared(player.pos) < 4900; if (now - (isFFA() ? Math.max(e.spotT.blue ?? -99, e.spotT.red ?? -99) : e.spotT[player.team]) > 1.2 && !shot) continue; mctx.fillStyle = '#ff4a3d'; if (shot) { mctx.save(); mctx.globalAlpha = 0.5 + 0.5 * Math.sin(now * 20); mctx.strokeStyle = '#ff4a3d'; mctx.lineWidth = 1.5; mctx.beginPath(); mctx.arc(mmX(e.pos.x), mmY(e.pos.z), 6, 0, 6.29); mctx.stroke(); mctx.restore(); } } // 70m 안에서 쏜 적은 잠깐 표시
     const ex = mmX(e.pos.x), ey = mmY(e.pos.z);
     if (dl === 0) { mctx.beginPath(); mctx.arc(ex, ey, 3, 0, Math.PI * 2); mctx.fill(); }
     else { mctx.globalAlpha = 0.75; mctx.beginPath(); if (dl > 0) { mctx.moveTo(ex, ey - 4); mctx.lineTo(ex + 3.5, ey + 2.5); mctx.lineTo(ex - 3.5, ey + 2.5); } else { mctx.moveTo(ex, ey + 4); mctx.lineTo(ex + 3.5, ey - 2.5); mctx.lineTo(ex - 3.5, ey - 2.5); } mctx.closePath(); mctx.fill(); mctx.globalAlpha = 1; }
@@ -4558,6 +4581,8 @@ function drawMinimap() {
   for (const a of areas) { mctx.fillStyle = a.type === 'smoke' ? 'rgba(220,220,220,.55)' : 'rgba(255,110,20,.6)'; mctx.beginPath(); mctx.arc(mmX(a.pos.x), mmY(a.pos.z), (a.type === 'smoke' ? WEAPONS.SMOKE.radius : (a.r || WEAPONS.MOLOTOV.radius)) * MS, 0, Math.PI * 2); mctx.fill(); }
   for (const g of grenades) { mctx.fillStyle = '#ffd23f'; mctx.fillRect(mmX(g.pos.x) - 1.5, mmY(g.pos.z) - 1.5, 3, 3); }
   if (player.alive) {
+    { const cx = mmX(player.pos.x), cy = mmY(player.pos.z), fv = (camera.fov * camera.aspect) * Math.PI / 360, R2 = 34, a0 = -player.yaw - Math.PI / 2; // 시야 부채꼴
+      const g2 = mctx.createRadialGradient(cx, cy, 2, cx, cy, R2); g2.addColorStop(0, 'rgba(255,214,120,.38)'); g2.addColorStop(1, 'rgba(255,214,120,0)'); mctx.fillStyle = g2; mctx.beginPath(); mctx.moveTo(cx, cy); mctx.arc(cx, cy, R2, a0 - Math.min(1.2, fv), a0 + Math.min(1.2, fv)); mctx.closePath(); mctx.fill(); }
     mctx.save(); mctx.translate(mmX(player.pos.x), mmY(player.pos.z)); mctx.rotate(-player.yaw);
     mctx.fillStyle = '#ffd23f'; mctx.beginPath(); mctx.moveTo(0, -6); mctx.lineTo(4.5, 5); mctx.lineTo(0, 2.5); mctx.lineTo(-4.5, 5); mctx.closePath(); mctx.fill(); mctx.restore();
   }
@@ -6108,7 +6133,7 @@ function update(dt) {
   updateFx(dt);
   updateArc();
   updateViewModel(dt);
-  updateHUD(dt);
+  updateHUD(dt); allyArrows();
   recordFrame(dt);
   if (MP.on && MP.started) { if (MP.host && HOSTQ.length) hostQTick(); netTick(dt); }
 }
