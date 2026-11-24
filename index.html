@@ -739,7 +739,7 @@ $('game').appendChild(renderer.domElement);
 // ----- 후처리: 화면을 한 장(RT)에 그린 뒤 FXAA + 톤매핑으로 출력 · 자동 해상도 -----
 const POST = { rt: new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 0, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter }), scale: 1, fpsE: 60, adjT: 0, upT: 0, sz: new THREE.Vector2() };
 const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), postScene = new THREE.Scene();
-const postMat = new THREE.ShaderMaterial({ uniforms: { tDiffuse: { value: POST.rt.texture }, res: { value: new THREE.Vector2(4, 4) }, grade: { value: 1 }, up: { value: 1 } }, depthTest: false, depthWrite: false,
+const postMat = new THREE.ShaderMaterial({ uniforms: { tDiffuse: { value: POST.rt.texture }, res: { value: new THREE.Vector2(4, 4) }, grade: { value: 0 }, up: { value: 1 } }, depthTest: false, depthWrite: false,
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 res; uniform float grade; uniform float up; varying vec2 vUv;
 vec3 S(vec2 uv){ vec3 c = texture2D(tDiffuse, uv).rgb;
@@ -761,7 +761,7 @@ void main(){ vec2 px = 1.0 / res;
   vec3 b = a * 0.5 + 0.25 * (S(vUv - dir * 0.5) + S(vUv + dir * 0.5));
   float lb = L(b); col = (lb < lmin || lb > lmax) ? a : b; }
   // 선명도(FXAA 흐림 보정) · 색보정(대비·채도·따뜻한 밝은 부분) · 비네팅
-  col += (col - (nw + ne + sw + se) * 0.25) * mix(0.28, 0.42, clamp(up - 1.0, 0.0, 1.0)) * grade; // 해상도를 낮춘 만큼 선명화를 살짝 더
+  col += (col - (nw + ne + sw + se) * 0.25) * mix(0.28, 0.42, clamp(up - 1.0, 0.0, 1.0)); // 해상도를 낮춘 만큼 선명화를 살짝 더
   float lc = L(col); col = mix(vec3(lc), col, 1.0 + 0.1 * grade); col = mix(col, col * col * (3.0 - 2.0 * col), 0.18 * grade);
   col *= mix(vec3(1.0), vec3(1.03, 1.0, 0.96), smoothstep(0.45, 1.0, lc) * grade);
   vec2 q = vUv - 0.5; col *= 1.0 - dot(q, q) * 0.42 * grade;
@@ -808,13 +808,13 @@ function postBegin(dt) {
   if (state === 'playing' && POST.adjT <= 0 && !POST.lock) { POST.adjT = 1;
     if (POST.fpsE < 45 && POST.scale > 0.6) { POST.scale = Math.max(0.6, POST.scale - 0.05); POST.upT = 0; }
     else if (POST.fpsE > 58) { POST.upT += 1; if (POST.upT >= 5 && POST.scale < 1) { POST.scale = Math.min(1, POST.scale + 0.05); POST.upT = 0; } } else POST.upT = 0; }
-  renderer.getDrawingBufferSize(POST.sz); const cap = Math.min(1, Math.sqrt(1920 * 1080 / (POST.sz.x * POST.sz.y))); POST.cap = cap; // 내부 해상도 상한 ≈ 1920×1080
+  renderer.getDrawingBufferSize(POST.sz); const cap = Math.min(1, Math.sqrt(1600 * 900 / (POST.sz.x * POST.sz.y))); POST.cap = cap; // 내부 해상도 상한 ≈ 1600×900 (성능 모드 기본)
   const w = Math.max(2, Math.round(POST.sz.x * POST.scale * cap)), h = Math.max(2, Math.round(POST.sz.y * POST.scale * cap));
   if (POST.rt.width !== w || POST.rt.height !== h) { POST.rt.setSize(w, h); postMat.uniforms.res.value.set(w, h); postMat.uniforms.up.value = POST.sz.x / w; }
   renderer.setRenderTarget(POST.rt);
 }
 // 1인칭 총 전용 패스: 멀티샘플 타깃에 그린 뒤 화면에 합성 → 테두리 계단·깜빡임 제거
-const VM = { rt: new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 }), sz: new THREE.Vector2(), cc: new THREE.Color() };
+const VM = { rt: new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 2 }), sz: new THREE.Vector2(), cc: new THREE.Color() };
 const vmComp = new THREE.ShaderMaterial({ uniforms: { t: { value: VM.rt.texture } }, depthTest: false, depthWrite: false, transparent: true, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
   fragmentShader: `uniform sampler2D t; varying vec2 vUv; void main(){ vec4 c = texture2D(t, vUv); if (c.a < 0.002) discard; vec3 rgb = c.rgb / c.a;
@@ -880,6 +880,12 @@ const SUN_DIR = new THREE.Vector3(60, 110, 40).normalize(); let shadowAt = '';
 // 그림자 범위를 카메라 주변으로 좁혀 따라가게 함 (2m 단위로 끊어 이동 → 깜빡임 방지)
 const _cp = new THREE.Vector3();
 function cullDetail() { camera.getWorldPosition(_cp); for (const m of DETAIL) { const b = m.geometry.boundingSphere; m.visible = b.center.distanceTo(_cp) < 105 + b.radius; } }
+// 성능 모드: 건물 그림자는 맵을 불러올 때 맵 전체를 한 번만 그려 고정 (매 프레임 갱신 없음)
+function bakeShadow() {
+  const R = Math.max(ARENA.x, ARENA.z) + 6; Object.assign(sun.shadow.camera, { left: -R, right: R, top: R, bottom: -R, near: 1, far: 480 }); sun.shadow.camera.updateProjectionMatrix();
+  sun.target.position.set(0, 0, 0); sun.position.set(SUN_DIR.x * 220, SUN_DIR.y * 220, SUN_DIR.z * 220); sun.target.updateMatrixWorld(); sun.updateMatrixWorld();
+  sun.shadow.normalBias = 0.05; shadowAt = 'baked'; renderer.shadowMap.needsUpdate = true;
+}
 function followShadow() { const c = camera.getWorldPosition(new THREE.Vector3()); const gx = Math.round(c.x / 2) * 2, gz = Math.round(c.z / 2) * 2, key = gx + ',' + gz;
   sun.target.position.set(gx, 0, gz); sun.position.set(gx + SUN_DIR.x * 160, SUN_DIR.y * 160, gz + SUN_DIR.z * 160); sun.target.updateMatrixWorld(); sun.updateMatrixWorld();
   if (key !== shadowAt) { shadowAt = key; renderer.shadowMap.needsUpdate = true; } }
@@ -1086,7 +1092,7 @@ vec4 antiTex(sampler2D s, vec2 uv){ float k = wpNoise(uv * 0.13); vec2 dx = dFdx
   float l = k * 6.0, ia = floor(l), fr = fract(l); vec2 oa = sin(vec2(3.0, 7.0) * ia), ob = sin(vec2(3.0, 7.0) * (ia + 1.0));
   vec4 ca = textureGrad(s, uv + oa, dx, dy), cb = textureGrad(s, uv + ob, dx, dy); vec3 d = ca.rgb - cb.rgb;
   return mix(ca, cb, smoothstep(0.2, 0.8, fr - 0.1 * (d.x + d.y + d.z))); }`;
-const WP_MATS = new Set(); let WP_LITE = false;
+const WP_MATS = new Set(); let WP_LITE = true; // 성능 모드: 모든 맵 재질 얼룩 계산 단순화
 function worldPatch(m, anti) {
   if (!m || !m.isMeshStandardMaterial || m.userData.wp) return m; m.userData.wp = anti ? 2 : 1;
   WP_MATS.add(m); m.customProgramCacheKey = () => 'wp' + (anti ? 'A' : '') + (WP_LITE ? 'L' : '');
@@ -2173,9 +2179,9 @@ function loadMap(id, small = false) {
   mapRoot = new THREE.Group(); scene.add(mapRoot); DETAIL = []; LIGHT_SPOTS = []; clearMarks();
   for (const a of [boxes, ramps, rampMeshes, coverBoxes, aiGoals, highGoals, coverPoints, flags, healPacks]) a.length = 0;
   cIdx = 0; curMapId = key; MAP = Object.assign({ id }, MAPS[id], small ? MAPS[id].small : {}); MAP.night = night; setEnv(night); if (small) MAP.name = MAPS[id].name + ' (축소)'; if (night) MAP.name = '🌙 ' + MAP.name + ' · 밤'; ARENA.x = MAP.ax; ARENA.z = MAP.az;
-  { const lite = !!MAPS[id].indoor; if (lite !== WP_LITE) { WP_LITE = lite; for (const m of WP_MATS) m.needsUpdate = true; } }
+  { const lite = true; if (lite !== WP_LITE) { WP_LITE = lite; for (const m of WP_MATS) m.needsUpdate = true; } }
   if (MAPS[id].indoor) { scene.fog.color.setHex(night ? 0x040507 : 0x14171b); scene.fog.near = 28; scene.fog.far = 58; camera.far = 62; } camera.updateProjectionMatrix(); // 실내: 먼 곳은 어둡게 사라지고 안 그림
-  WPU.floorH.value = MAPS[id].floorH || 0; MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (night && id !== 'harbor' && !MAPS[id].indoor) nightLamps(); if (ffaMap) buildBooths(); else buildShelters(); contactShadows(); MAP.decals = decals(); flushBatch(); mergeDeep(mapRoot, [], o => o.parent === mapRoot && o.material.transparent && o.material.blending === THREE.NormalBlending && o.material.side !== THREE.DoubleSide && !flags.includes(o) && !rampMeshes.includes(o) && !DETAIL.includes(o)); tuneEnv(scene); shadowAt = ''; MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase(); prewarm();
+  WPU.floorH.value = MAPS[id].floorH || 0; MAP_CULL = small; BATCH = []; MAP.build(); if (small && MAP.extra) MAP.extra(); if (night && id !== 'harbor' && !MAPS[id].indoor) nightLamps(); if (ffaMap) buildBooths(); else buildShelters(); contactShadows(); MAP.decals = decals(); flushBatch(); mergeDeep(mapRoot, [], o => o.parent === mapRoot && o.material.transparent && o.material.blending === THREE.NormalBlending && o.material.side !== THREE.DoubleSide && !flags.includes(o) && !rampMeshes.includes(o) && !DETAIL.includes(o)); tuneEnv(scene); shadowAt = ''; MAP_CULL = false; finishCover(); buildHealPacks(); buildMinimapBase(); bakeShadow(); prewarm();
   { const lm = $('lobbyMap').getContext('2d'); lm.clearRect(0, 0, 180, 192); lm.drawImage(mmBase, 0, 0); }
   $('lbMapInfo').innerHTML = `<b>${MAP.name}</b>${settings.wmode !== 'normal' ? ' · ' + WMODES[settings.wmode] : ''}<br>${MAP.info}${night ? '<br>🔦 야간전 · 모두 라이트가 켜진 채로 싸웁니다' : ''}<br><span class="bdot"></span>BLUE 스폰 (남)<br><span class="rdot"></span>RED 스폰 (북)`;
   $('lbMapName').textContent = MAP.name;
@@ -2528,6 +2534,9 @@ const CAMO = (() => { const mk = pal => { const n = 512, c = document.createElem
     noise(g, n, 6000, () => 'rgba(0,0,0,1)', 0.05, 2);
     const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; };
   return { blue: mk(['#58634a', '#46523a', '#5f5541', '#363b2d']), red: mk(['#9c876a', '#857257', '#73624a', '#ad9a7c']) }; })();
+const BLOB_GEO = new THREE.PlaneGeometry(1.1, 1.1).rotateX(-Math.PI / 2);
+const BLOB_MAT = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, toneMapped: false,
+  map: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 3, 32, 32, 31); gr.addColorStop(0, 'rgba(0,0,0,.5)'); gr.addColorStop(0.6, 'rgba(0,0,0,.25)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })() });
 function makeSoldier(team, name, gunKey) {
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   const blue = team === 'blue';
@@ -2581,8 +2590,9 @@ function makeSoldier(team, name, gunKey) {
     g.applyMatrix4(M4.multiplyMatrices(inv, o.matrixWorld)); lp.push(col(g, mt === mU ? uC : mt.color)); });
   lb(0.07, 0.1, 0.6, 0.12, 1.36, -0.5, 0x1c1d1f); // 총 (무기 교체와 무관하게 단순 형태)
   const lod = new THREE.Mesh(mergeGeometries(lp, false), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05 })); lp.forEach(g => g.dispose());
-  lod.castShadow = true; lod.visible = false; root.add(lod);
-  root.traverse(o => { if (o.isMesh) o.receiveShadow = false; });
+  lod.castShadow = false; lod.visible = false; root.add(lod);
+  root.traverse(o => { if (o.isMesh) { o.receiveShadow = false; o.castShadow = false; } });
+  { const b = new THREE.Mesh(BLOB_GEO, BLOB_MAT); b.position.y = 0.035; b.renderOrder = 1; root.add(b); } // 발밑 원형 그림자 (실시간 그림자 대신)
   return Object.assign(mdl, { root, body, legs, arms, muzzle, tag, helmet, lod, mats: [mU, mV, mS, mH, mB, mP] });
 }
 // 몸 메쉬만 숨기고 손전등 빛줄기는 남김(원거리·벽 뒤에서도 불빛은 보이게)
@@ -5755,7 +5765,7 @@ function loop(t) {
   playerLight.intensity = (MAP.night && playerLightOn && state === 'playing' && player.alive && !KC.on) ? 160 : 0;
   updateCamera(dt);
   camera.updateMatrixWorld();
-  renderer.shadowMap.needsUpdate = (++shadowTick % (MP.on && MP.host && MP.started ? 4 : 3)) === 0; followShadow(); cullDetail(); updateShells(dt);
+   cullDetail(); updateShells(dt);
   const _fR = performance.now(); postBegin(dt); renderer.clear(); renderer.render(scene, camera);
   if (xrayT > 0) { xrayT -= dt; if (state === 'playing' && player.alive && !KC.on) xrayPass(); }
   $('xrayOv').classList.toggle('on', xrayT > 0 && state === 'playing' && player.alive && !KC.on);
