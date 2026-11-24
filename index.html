@@ -765,7 +765,7 @@ body.slowmo #hud::after{content:"FINAL KILL";position:absolute;left:50%;top:30%;
     <div class="ht-card pnl88"><h3>작전 시간 · 총기 모드</h3><div class="ht-seg" id="htTod"></div><div class="ht-seg" id="htWm" style="margin-top:6px"></div></div>
     <div class="ht-card pnl88 ht-load" id="htLoad" title="무기고로 이동"><h3>현재 장비 <small>클릭하면 무기고</small></h3><div class="ht-ld" id="htLd"></div></div>
   </div>
-  <div class="ht-foot">v95 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
+  <div class="ht-foot">v96 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
 </div>
 
 <div id="multi" class="overlay hidden">
@@ -3482,12 +3482,27 @@ function attachOptic(g, idx) {
   }
   g.userData.sightY = b + sy; g.userData.optic = idx;
 }
+// 재장전 애니메이션용: 탄창(손잡이 앞·리시버 아래의 좁고 긴 부품)과 권총 슬라이드를 찾아 따로 움직이게 분리
+function findMagParts(g, key) {
+  const d = WEAPONS[key] || {}; g.updateMatrixWorld(true); const inv = g.matrixWorld.clone().invert(), bb = new THREE.Box3(), C = [];
+  if (d.kind !== 'rifle' && d.kind !== 'pistol') { g.userData.mag = null; return { parts: [] }; }
+  g.traverse(o => { if (!o.isMesh || o.material === K.glove || o.material === K.sleeve || (o.material && o.material.transparent)) return; bb.setFromObject(o).applyMatrix4(inv); const s = bb.getSize(new THREE.Vector3()), c = bb.getCenter(new THREE.Vector3());
+    if (s.x < 0.055 && s.y > 0.06 && bb.max.y < 0.02 && bb.min.y < -0.07 && c.z > -0.32 && c.z < 0.03 && s.z < 0.16 && s.y > s.z * 0.8) C.push({ o, v: s.x * s.y * s.z, c, top: bb.max.y }); });
+  C.sort((a, b) => b.v - a.v); const parts = [];
+  if (C.length && !(d.kind === 'pistol' && !d.cls)) { const m = C[0]; parts.push(m.o); for (const c of C.slice(1)) if (Math.abs(c.c.z - m.c.z) < 0.05 && c.top < m.top - 0.02) parts.push(c.o); } // 탄창 + 밑판
+  if (d.kind === 'pistol' && !d.cls) { // 일반 권총: 손잡이 속 탄창은 안 보이므로 바닥판만 + 슬라이드
+    for (const c of C) if (c.top < -0.09 && c.v < 0.0002) parts.push(c.o); }
+  g.userData.mag = parts.map(o => ({ o, p: o.position.clone(), r: o.rotation.clone() }));
+  let slide = null; if (d.kind === 'pistol' && d.cls !== 'sawed') g.traverse(o => { if (slide || !o.isMesh || (o.material !== K.pBlack && o.material !== K.pSilver)) return; bb.setFromObject(o).applyMatrix4(inv); const s = bb.getSize(new THREE.Vector3()); if (s.z > 0.15 && bb.min.y > -0.01 && bb.max.y > 0.04) slide = o; });
+  g.userData.slide = slide ? { o: slide, z: slide.position.z } : null; if (slide) parts.push(slide);
+  return { parts };
+}
 function buildViewModel(key, opt) {
   const cap = canOptic(WEAPONS[key]); if (opt === undefined) opt = opticSel[key] || 0;
   const id = key + '|' + (cap ? opt : '');
   if (vmKey === id && vmModel) return;
   if (vmModel) vmRoot.remove(vmModel);
-  vmModel = makeGunModel(key); if (cap) attachOptic(vmModel, opt); mergeDeep(vmModel, [vmModel.userData.blade].filter(Boolean)); vmKey = id; vmRoot.add(vmModel); tuneEnv(vmModel);
+  vmModel = makeGunModel(key); if (cap) attachOptic(vmModel, opt); const mg = findMagParts(vmModel, key); mergeDeep(vmModel, [vmModel.userData.blade, ...mg.parts].filter(Boolean)); vmKey = id; vmRoot.add(vmModel); tuneEnv(vmModel);
 }
 
 // ===================== 엔티티 =====================
@@ -4989,7 +5004,15 @@ function updateViewModel(dt) {
   z += vm.kick * (def.kind === 'pistol' ? 0.06 : 0.035); rx += vm.kick * (def.kind === 'pistol' ? 0.25 : 0.05) * (1 - adsAmt * 0.6);
   { if ((vm.wallT = (vm.wallT || 0) - dt) <= 0) { vm.wallT = 0.08; const dd = V(); camera.getWorldDirection(dd); dd.y = 0; if (dd.lengthSq() > 0.01) dd.normalize(); const a = camera.position, b2 = a.clone().addScaledVector(dd, def.kind === 'rifle' ? 0.95 : 0.6); vm.wallW = (def.kind === 'rifle' || def.kind === 'pistol') && p.alive && !los(a, b2) ? 1 : 0; }
     vm.wall = (vm.wall || 0) + ((vm.wallW || 0) - (vm.wall || 0)) * Math.min(1, dt * 10); if (vm.wall > 0.01) { rx += vm.wall * 0.75; y -= vm.wall * 0.06; z += vm.wall * 0.08; } } // 벽 앞에서는 총구를 위로 듦
-  if (p.reloadT > 0) { const pr = 1 - p.reloadT / def.reload; const dip = Math.sin(pr * Math.PI); y -= dip * 0.1; rx -= dip * 0.5; rz += dip * 0.6; }
+  let magOff = 0, magOp = 1, slideBack = 0;
+  if (p.reloadT > 0) { const pr = 1 - p.reloadT / def.reload; const dip = Math.sin(Math.min(1, pr / 0.85) * Math.PI); y -= dip * 0.08; rx -= dip * 0.35; rz += dip * 0.55;
+    // 단계: 0~.15 기울이기 → .15~.35 탄창 빠짐 → .35~.5 빈 손 → .5~.7 새 탄창 꽂기 → .75~.92 장전(손잡이·슬라이드 당김)
+    if (pr > 0.15 && pr < 0.5) { const t = Math.min(1, (pr - 0.15) / 0.2); magOff = -t * t * 0.32; magOp = 1 - Math.max(0, (pr - 0.3) / 0.05); }
+    else if (pr >= 0.5 && pr < 0.7) { const t = (pr - 0.5) / 0.2; magOff = -(1 - t) * 0.18; magOp = Math.min(1, t * 4); if (pr > 0.66) y += (pr - 0.66) * 0.6; }
+    if (pr > 0.75 && pr < 0.92) { const t = Math.sin((pr - 0.75) / 0.17 * Math.PI); z += t * 0.03; rx -= t * 0.06; ry += t * 0.05; slideBack = t; } }
+  else if ((def.kind === 'rifle' || def.kind === 'pistol') && p.slots[p.cur].mag === 0) slideBack = 1; // 탄창이 비면 권총 슬라이드가 뒤로 고정
+  { const ud2 = vmModel.userData; if (ud2.mag) for (const m of ud2.mag) { m.o.position.set(m.p.x, m.p.y + magOff, m.p.z); m.o.visible = magOp > 0.05; }
+    if (ud2.slide) ud2.slide.o.position.z = ud2.slide.z + slideBack * 0.02; }
   if (vm.gdrawT > 0 && def.kind !== 'melee') { vm.gdrawT = Math.max(0, vm.gdrawT - dt / (vm.gdrawDur || 0.44)); const t = 1 - vm.gdrawT, b = Math.min(1, easeBack(Math.min(1, t / 0.7))), q = 1 - b, K = vm.gdrawK;
     const act = t > 0.66 && t < 0.94 ? Math.sin((t - 0.66) / 0.28 * Math.PI) : 0;   // 마무리 동작 구간
     if (act > 0.5 && !vm.gdrawSnd) { vm.gdrawSnd = true; if (K !== 'throw') sfx('switch', null, K === 'shotgun' ? 0.7 : K === 'sniper' ? 0.8 : 1.3); }
