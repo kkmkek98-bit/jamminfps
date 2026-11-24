@@ -765,7 +765,7 @@ body.slowmo #hud::after{content:"FINAL KILL";position:absolute;left:50%;top:30%;
     <div class="ht-card pnl88"><h3>작전 시간 · 총기 모드</h3><div class="ht-seg" id="htTod"></div><div class="ht-seg" id="htWm" style="margin-top:6px"></div></div>
     <div class="ht-card pnl88 ht-load" id="htLoad" title="무기고로 이동"><h3>현재 장비 <small>클릭하면 무기고</small></h3><div class="ht-ld" id="htLd"></div></div>
   </div>
-  <div class="ht-foot">v100 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
+  <div class="ht-foot">v101 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
 </div>
 
 <div id="multi" class="overlay hidden">
@@ -892,7 +892,7 @@ const WEAPONS = {
   UMP45: { key:'UMP45', name:'UMP45', kind:'rifle', cls:'smg', dmg:26, rpm:650, mag:25, reserve:200, reload:3.1, recoil:0.008, recoilYaw:0.004, hip:0.013, ads:0.009, move:0.006, modes:['AUTO','BURST','SINGLE'], adsFov:58, sfx:'smg', range:45, cal:'.45 ACP', type:'기관단총', origin:'독일', desc:'최고 수준 비조준 정확도 · 안정적인 반동 · 이동속도 +5%', speedMul:1.05 },
   VECTOR:{ key:'VECTOR', name:'Vector', kind:'rifle', cls:'smg', dmg:19, rpm:1100, mag:28, reserve:224, reload:2.2, recoil:0.007, recoilYaw:0.005, hip:0.018, ads:0.01, move:0.012, modes:['AUTO','BURST','SINGLE'], adsFov:58, sfx:'vector', range:30, cal:'9mm', type:'기관단총', origin:'미국', desc:'분당 1100발 · 28발 탄창 · 근거리 연사 압박 · 이동속도 +5%', speedMul:1.05 },
   LONGBOW:{ key:'LONGBOW', name:'Longbow L338', kind:'rifle', cls:'sniper', dmg:80, hsMul:2.8, rpm:45, mag:5, reserve:30, reload:3.4, recoil:0.06, recoilYaw:0.006, hip:0.055, ads:0.0004, move:0.06, modes:['SINGLE'], adsFov:16, sfx:'sniper', range:150, cal:'.338 Lapua', type:'저격소총', origin:'가상 · 노스펠 아머리', desc:'빠른 볼트액션 · 4.7배율 · 헤드샷 즉사 · 기동형 저격' },
-  GOLIATH:{ key:'GOLIATH', name:'Goliath AMR-50', kind:'rifle', cls:'sniper', amr:true, dmg:100, hsMul:2, rpm:30, mag:1, reserve:15, reload:3.6, recoil:0.13, recoilYaw:0.015, hip:0.09, ads:0.0002, move:0.08, modes:['SINGLE'], adsFov:12, sfx:'amr', range:400, cal:'.50 BMG', type:'대물저격총', origin:'가상 · 타이탄 헤비웍스', desc:'단발 장전 · 몸통 한 발 100 피해 (일격 처치) · 6.3배율 · 이동속도 -20%', speedMul:0.8 },
+  GOLIATH:{ key:'GOLIATH', name:'Goliath AMR-50', kind:'rifle', cls:'sniper', amr:true, dmg:100, hsMul:2, rpm:30, mag:3, reserve:15, reload:3.6, recoil:0.13, recoilYaw:0.015, hip:0.09, ads:0.0002, move:0.08, modes:['SINGLE'], adsFov:12, sfx:'amr', range:400, cal:'.50 BMG', type:'대물저격총', origin:'가상 · 타이탄 헤비웍스', desc:'3발 탄창 · 예비 15발 · 몸통 한 발 100 피해 (일격 처치) · 6.3배율 · 이동속도 -20%', speedMul:0.8 },
   SENTINEL:{ key:'SENTINEL', name:'Sentinel DMR-7', kind:'rifle', cls:'dmr', dmg:42, hsMul:2, rpm:300, mag:15, reserve:90, reload:2.7, recoil:0.019, recoilYaw:0.005, hip:0.05, ads:0.0015, move:0.035, modes:['SINGLE'], adsFov:50, sfx:'dmr', range:110, speedMul:0.94, cal:'7.62mm', type:'지정사수소총', origin:'가상 · 실버라인 디펜스', desc:'반자동 · 몸통 3발 · 머리 2발 · 4배율 기본 장착 · 중장거리 견제', stats:{dmg:70, rate:40, ctrl:60} },
   BASTION:{ key:'BASTION', name:'Bastion LMG-100', kind:'rifle', cls:'lmg', dmg:25, rpm:760, mag:100, reserve:300, reload:5.2, recoil:0.015, recoilYaw:0.008, hip:0.045, ads:0.006, move:0.055, modes:['AUTO'], adsFov:54, sfx:'lmg', range:70, cal:'7.62mm', type:'경기관총', origin:'가상 · 아이언게이트', desc:'100발 탄띠 · 긴 재장전 · 이동속도 -12%', speedMul:0.88 },
   THUNDER:{ key:'THUNDER', name:'Thunder S12', kind:'rifle', cls:'shotgun', dmg:19, pellets:9, rpm:95, mag:6, reserve:36, reload:2.6, recoil:0.05, recoilYaw:0.01, hip:0.04, ads:0.035, move:0.01, modes:['SINGLE'], adsFov:62, sfx:'shotgun', range:24, cal:'12게이지', type:'산탄총', origin:'가상 · 레드캐년', desc:'펌프액션 · 9펠릿 × 19 · 5m 이내 한 방 · 근거리 최강' },
@@ -3554,8 +3554,8 @@ function packEmpty(e) {
 }
 function givePackGun(e, key) {
   const d = WEAPONS[key]; e.packGun = key; e.modelKey = key;
-  if (e.isPlayer) { e.slots[1] = { def: d, mag: d.mag, reserve: d.mag }; e.cur = -1; switchSlot(e, 1); showCenterMsg('🔫 ' + d.name + ' 획득!', '#ffd23f'); }
-  else if (!e.remote) { e.slots[0] = { def: d, mag: d.mag, reserve: d.mag }; e.cur = 0; e.reloadT = 0; }
+  if (e.isPlayer) { e.slots[1] = { def: d, mag: d.mag, reserve: d.amr ? d.reserve : d.mag }; e.cur = -1; switchSlot(e, 1); showCenterMsg('🔫 ' + d.name + ' 획득!', '#ffd23f'); }
+  else if (!e.remote) { e.slots[0] = { def: d, mag: d.mag, reserve: d.amr ? d.reserve : d.mag }; e.cur = 0; e.reloadT = 0; }
   if (e.model) soldierGun(e.model, key);
 }
 function spawnPoint(team) {
@@ -4686,7 +4686,7 @@ function weaponStats(d) {
     ['유효 사거리', d.range, d.range / 120, 'm'], ['반동 제어', ctrl, ctrl / 100, '', ctrl < 75], ['정조준 정확도', adsAcc, adsAcc / 100, '', adsAcc < 50],
     ['TTK (몸통)', ttk, 1 - ttk / 1400, 'ms', ttk > 600],
     ['이동 속도', Math.round(KIND_SPEED[d.kind] * (d.speedMul || 1) * 100), KIND_SPEED[d.kind] * (d.speedMul || 1) / 1.25, '%', KIND_SPEED[d.kind] * (d.speedMul || 1) < 0.85]
-  ], tags: `<span>사격 모드: ${d.modes.map(m => MODE_KO[m]).join(' / ')}</span><span>몸통 ${hits}발 · 머리 ${hhits}발 킬</span><span>정조준 배율 ${(BASE_FOV / adsFovOf(d)).toFixed(1)}x</span>${d.speedMul ? `<span>무기 보정 ${d.speedMul > 1 ? '+' : ''}${Math.round((d.speedMul - 1) * 100)}%</span>` : ''}${d.burstGap ? `<span>3점사 전용 · 점사 간격 ${d.burstGap}초</span>` : ''}${d.pellets ? '<span>산탄 · 근거리 전용</span>' : ''}${d.amr ? '<span>단발 장전 · 쏠 때마다 재장전</span><span>몸통 1발 킬</span>' : d.cls === 'sniper' ? '<span>볼트액션 · 몸통 2발 / 머리 1발</span>' : ''}` };
+  ], tags: `<span>사격 모드: ${d.modes.map(m => MODE_KO[m]).join(' / ')}</span><span>몸통 ${hits}발 · 머리 ${hhits}발 킬</span><span>정조준 배율 ${(BASE_FOV / adsFovOf(d)).toFixed(1)}x</span>${d.speedMul ? `<span>무기 보정 ${d.speedMul > 1 ? '+' : ''}${Math.round((d.speedMul - 1) * 100)}%</span>` : ''}${d.burstGap ? `<span>3점사 전용 · 점사 간격 ${d.burstGap}초</span>` : ''}${d.pellets ? '<span>산탄 · 근거리 전용</span>' : ''}${d.amr ? '<span>3발 탄창 · 예비 15발</span><span>몸통 1발 킬</span>' : d.cls === 'sniper' ? '<span>볼트액션 · 몸통 2발 / 머리 1발</span>' : ''}` };
 }
 function buildArmory(root) {
   root.innerHTML = `<div class="arm-tabs"><button data-tab="primary">1 · 주무기</button><button data-tab="pistol">2 · 보조무기</button><button data-tab="melee">3 · 근접무기</button><button data-tab="throw">4 · 투척무기</button></div>
