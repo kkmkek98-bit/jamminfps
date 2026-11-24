@@ -599,6 +599,18 @@ input[type=range]{accent-color:#c9a24a}
 #mkBanner.on{animation:mkA 1.6s ease-out forwards}
 @keyframes mkA{0%{opacity:0;transform:translateX(-50%) scale(1.8)}12%{opacity:1;transform:translateX(-50%) scale(1)}75%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-14px)}}
 
+
+/* ===== v94 몰입 연출 ===== */
+.dd{opacity:var(--k,.8)}.dd::before{border-top-width:8px!important;filter:drop-shadow(0 0 6px rgba(255,40,30,.8))}
+#concuss{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(240,236,225,calc(var(--k,.6)*.75)) 0,rgba(200,196,185,calc(var(--k,.6)*.5)) 60%,rgba(120,116,105,calc(var(--k,.6)*.35)));opacity:0}
+#concuss.on{animation:conc 1.1s ease-out forwards}@keyframes conc{0%{opacity:1}100%{opacity:0}}
+#scorebar.close .sb-mid{animation:closeB 1.2s ease-in-out infinite}@keyframes closeB{50%{box-shadow:0 0 0 2px rgba(255,178,56,.9),0 0 14px rgba(255,178,56,.5)}}
+#timer.last{color:#ff6a50;transform:scale(1.15);transition:transform .3s;animation:lastT 1s steps(2) infinite}@keyframes lastT{50%{color:#ffb2a0}}
+#leadBanner{position:absolute;left:50%;top:17%;transform:translateX(-50%);font:700 30px 'Oswald','Pretendard';letter-spacing:.1em;opacity:0;white-space:nowrap;pointer-events:none;text-shadow:0 0 2px #000,0 0 3px #000,0 3px 10px rgba(0,0,0,.8);padding:4px 18px}
+#leadBanner.us{color:#9fc6ff}#leadBanner.them{color:#ff9a88}#leadBanner.on{animation:mkA 2s ease-out forwards}
+body.slowmo #game canvas{filter:saturate(.6) contrast(1.1)}
+body.slowmo #hud::after{content:"FINAL KILL";position:absolute;left:50%;top:30%;transform:translateX(-50%);font:700 38px 'Oswald';letter-spacing:.3em;color:#ffcf6a;text-shadow:0 0 3px #000,0 4px 14px rgba(0,0,0,.8);animation:mkA 1.1s ease-out forwards}
+
 </style>
 </head>
 <body>
@@ -623,7 +635,7 @@ input[type=range]{accent-color:#c9a24a}
   <div id="dmgDirs"></div>
   <div id="centerMsg"></div>
   <div id="dmgNums"></div><div id="killRibbon"></div><div id="killFlash"></div><div id="hmRing"></div>
-  <div id="hurt"></div><div id="mkBanner"></div>
+  <div id="hurt"></div><div id="mkBanner"></div><div id="concuss"></div><div id="leadBanner"></div>
   <div id="protect" class="hidden">🛡 스폰 보호 중 · 엄폐물 밖으로 나가거나 사격하면 해제</div>
   <div id="hpbox"><div class="hp-label"><span>HP <em id="stance">🧍 서기</em></span><b id="hpText">100</b></div><div class="hp-bar"><i id="hpGhost"></i><i id="hpFill"></i></div><div id="myStats"></div></div>
   <div id="slots">
@@ -746,7 +758,7 @@ input[type=range]{accent-color:#c9a24a}
     <div class="ht-card pnl88"><h3>작전 시간 · 총기 모드</h3><div class="ht-seg" id="htTod"></div><div class="ht-seg" id="htWm" style="margin-top:6px"></div></div>
     <div class="ht-card pnl88 ht-load" id="htLoad" title="무기고로 이동"><h3>현재 장비 <small>클릭하면 무기고</small></h3><div class="ht-ld" id="htLd"></div></div>
   </div>
-  <div class="ht-foot">v93 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
+  <div class="ht-foot">v94 · BUILD 2026.11 · ALL SYSTEMS NOMINAL</div>
 </div>
 
 <div id="multi" class="overlay hidden">
@@ -1454,7 +1466,7 @@ function addBox(cx, y0, cz, w, h, d, mat, opt = {}) {
   const m = batchAdd(boxGeo(w, h, d, mat, opt.round), mat, opt.shadow !== false, true);
   m.position.set(cx, y0 + h / 2, cz);
   if (opt.collide !== false) {
-    const b = { min: [cx - w / 2, y0, cz - d / 2], max: [cx + w / 2, y0 + h, cz + d / 2] };
+    const b = { min: [cx - w / 2, y0, cz - d / 2], max: [cx + w / 2, y0 + h, cz + d / 2], mat };
     boxes.push(b); if (opt.cover) coverBoxes.push(b);
   }
   return m;
@@ -2580,13 +2592,13 @@ function rgWalk(o, d, maxT, visit) {
 }
 function raycast(origin, dir, maxDist, ignore) {
   const o = [origin.x, origin.y, origin.z], d = [dir.x, dir.y, dir.z];
-  let best = maxDist, kind = 0, ent = null, head = false; const normal = new THREE.Vector3(0, 1, 0);
+  let best = maxDist, kind = 0, ent = null, head = false, hitBox = null; const normal = new THREE.Vector3(0, 1, 0);
   if (d[1] < 0) { const t = -o[1] / d[1]; if (t < best) { best = t; kind = 1; normal.set(0, 1, 0); } }
   rgWalk(o, d, () => best, L => { for (const i of L) { if (RG.stamp[i] === RG.sid) continue; RG.stamp[i] = RG.sid;
-    const t = slab(o, d, boxes[i].min, boxes[i].max, best); if (t >= 0 && t < best) { best = t; kind = 1; normal.set(0, 0, 0).setComponent(_ax, _sg); } } return false; });
+    const t = slab(o, d, boxes[i].min, boxes[i].max, best); if (t >= 0 && t < best) { best = t; kind = 1; normal.set(0, 0, 0).setComponent(_ax, _sg); hitBox = boxes[i]; } } return false; });
   _rc.set(origin, dir); _rc.far = best;
   const rh = _rc.intersectObjects(rampMeshes, false);
-  if (rh.length && rh[0].distance < best) { best = rh[0].distance; kind = 1; normal.copy(rh[0].face.normal).transformDirection(rh[0].object.matrixWorld); if (normal.dot(dir) > 0) normal.negate(); }
+  if (rh.length && rh[0].distance < best) { best = rh[0].distance; kind = 1; hitBox = null; normal.copy(rh[0].face.normal).transformDirection(rh[0].object.matrixWorld); if (normal.dot(dir) > 0) normal.negate(); }
   for (const e of entities) {
     if (!e.alive || e === ignore) continue;
     const lo = leanOff(e); const th = raySphere(o, d, e.pos.x + lo[0], e.pos.y + headY(e), e.pos.z + lo[1], 0.2);
@@ -2595,7 +2607,7 @@ function raycast(origin, dir, maxDist, ignore) {
     if (tb >= 0 && tb < best) { best = tb; kind = 2; ent = e; head = false; }
   }
   if (!kind) return null;
-  return { t: best, point: origin.clone().addScaledVector(dir, best), normal, entity: kind === 2 ? ent : null, head: kind === 2 && head };
+  return { t: best, point: origin.clone().addScaledVector(dir, best), normal, entity: kind === 2 ? ent : null, head: kind === 2 && head, box: kind === 1 ? hitBox : null };
 }
 function los(a, b) {
   const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, L = Math.hypot(dx, dy, dz);
@@ -2789,10 +2801,17 @@ function updateShells(dt) {
 // 총구 연기
 const SMOKE_PUFF = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(200,200,200,.55)'); gr.addColorStop(1, 'rgba(200,200,200,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 function muzzleSmoke(pos, big) { const m = new THREE.SpriteMaterial({ map: SMOKE_PUFF, transparent: true, depthWrite: false, opacity: big ? 0.35 : 0.22 }); const s = new THREE.Sprite(m); s.position.copy(pos); s.scale.setScalar(big ? 0.35 : 0.2); addFx(s, big ? 1.1 : 0.7, { vel: V(rand(-0.2, 0.2), rand(0.3, 0.6), rand(-0.2, 0.2)), gravity: 0, grow: 2.2, fade: true, baseOp: m.opacity, shrink: false, own: true }); }
-function impact(point, normal) {
+// 재질별 탄착: 금속 = 불꽃, 나무 = 갈색 파편, 콘크리트 = 회색 가루, 땅 = 흙먼지
+const IMPM = { metal: new THREE.MeshBasicMaterial({ color: 0xffd27a }), wood: new THREE.MeshBasicMaterial({ color: 0x7a5230 }), conc: new THREE.MeshBasicMaterial({ color: 0x9c9890 }), dirt: new THREE.MeshBasicMaterial({ color: 0x7b6a4a }), asph: new THREE.MeshBasicMaterial({ color: 0x55565a }) };
+function impKind(point, normal, box) {
+  if (!box) return normal.y > 0.7 && point.y < 0.2 ? (['yard', 'school'].includes(MAP.id) ? 'dirt' : MAP.id === 'bunker' ? 'conc' : 'asph') : 'conc';
+  const m = box.mat; if (!m) return 'conc'; if ((m.metalness || 0) > 0.35) return 'metal'; const c = m.color; if (c && c.r > c.b * 1.35 && c.g > c.b * 1.05 && c.r < 0.85) return 'wood'; return 'conc'; }
+function impact(point, normal, box) {
   bulletHole(point, normal);
-  const p = point.clone().addScaledVector(normal, 0.03);
-  for (let i = 0; i < 5; i++) particle(p, normal.clone().multiplyScalar(rand(1, 3)).add(V(rand(-1.5, 1.5), rand(0, 2), rand(-1.5, 1.5))), i < 2 ? PMAT.spark : PMAT.dust, rand(0.25, 0.5), rand(0.04, 0.08));
+  const p = point.clone().addScaledVector(normal, 0.03), k = impKind(point, normal, box), M = IMPM[k];
+  const n = k === 'metal' ? 6 : 5, up = k === 'dirt' || k === 'asph' ? 2.6 : 2;
+  for (let i = 0; i < n; i++) particle(p, normal.clone().multiplyScalar(rand(1, k === 'metal' ? 4.5 : 3)).add(V(rand(-1.5, 1.5), rand(0, up), rand(-1.5, 1.5))), k === 'metal' ? (i < 4 ? PMAT.spark : M) : (i < 1 ? PMAT.dust : M), rand(0.2, k === 'metal' ? 0.35 : 0.55), k === 'metal' ? rand(0.025, 0.05) : rand(0.04, 0.09));
+  if ((k === 'dirt' || k === 'conc' || k === 'asph') && point.distanceToSquared(camera.position) < 900) muzzleSmoke(p, false);
 }
 function bloodFx(point) { for (let i = 0; i < 7; i++) particle(point, V(rand(-2, 2), rand(0, 3), rand(-2, 2)), PMAT.blood, rand(0.3, 0.6), rand(0.05, 0.1)); }
 const SCORCH_GEO = new THREE.CircleGeometry(2.4, 20);
@@ -3614,7 +3633,7 @@ function fireBullet(e, origin, dir, def, muzzlePos, quiet) {
     const r = dealDamage(v, dmg, e, def.name, hit.head, origin); NET_RAY = null;
     if (e.isPlayer && r) { queueDmgNum(v, Math.min(dmg, hpB), hit.head, r === 'kill', hit.point); v.flashT = 0.12; v.flashCol = hit.head ? 0xffd23f : 0xffffff; if (!e._hitShot) { e.hits++; e._hitShot = true; } showHitmarker(r === 'kill' ? 'kill' : hit.head ? 'head' : ''); if (now - (e._hitSfxT || 0) > 0.04) { e._hitSfxT = now; sfx(hit.head ? 'head' : 'hit'); } }
   } else {
-    impact(hit.point, hit.normal);
+    impact(hit.point, hit.normal, hit.box);
     if (!quiet && hit.t < 40 && Math.random() < 0.3) sfx('impact', hit.point);
   }
 }
@@ -3624,7 +3643,7 @@ function applyDamage(v, dmg, att, wname, head, fromPos) {
   if (att && att !== v && ally(att, v)) return false;
   const real = Math.min(dmg, v.hp); v.hp -= dmg; if (att === v && v.aw) v.aw.selfDmg += real;
   if (att && att !== v) { att.dmgDealt += real; v.dmgBy.set(att, (v.dmgBy.get(att) || 0) + real); if (v.isPlayer) { const h = v.hitBy || (v.hitBy = new Map()), r = h.get(att) || { n: 0, hs: 0 }; r.n++; if (head) r.hs++; h.set(att, r); } }
-  if (v.isPlayer) { hurt = Math.min(1, hurt + dmg / 55); if (fromPos) showDamageDir(fromPos); sfx('hurt'); }
+  if (v.isPlayer) { hurt = Math.min(1, hurt + dmg / 55); if (fromPos) showDamageDir(fromPos, dmg); sfx('hurt'); }
   else if (v.remote) netSendTo(v, { t: 'hurt', d: Math.round(dmg), f: fromPos ? [r2(fromPos.x), r2(fromPos.y), r2(fromPos.z)] : null });
   else if (v.ai && att && att !== v) { const ai = v.ai; ai.alertPos.copy(att.pos); ai.alertT = 3; if (!ai.seen) ai.visionT = Math.min(ai.visionT, 0.05); }
   if (v.hp <= 0) { killEntity(v, att, wname, head); return 'kill'; }
@@ -3856,6 +3875,7 @@ function explode(g) {
   const R = WEAPONS.GRENADE.radius;
   explosionFx(g.pos); sfx('explosion', g.pos, 1.3); recEvent({ type: 'bx', p: [g.pos.x, g.pos.y, g.pos.z] });
   const d0 = g.pos.distanceTo(camera.position); shake = Math.max(shake, clamp(1 - d0 / 35, 0, 1) * 0.9);
+  if (d0 < 12 && player.alive) { const c = $('concuss'); c.style.setProperty('--k', clamp(1 - d0 / 12, 0.25, 1).toFixed(2)); c.classList.remove('on'); void c.offsetWidth; c.classList.add('on'); } // 가까운 폭발: 화면 하얗게 흐려졌다 돌아옴
   for (const e of entities) {
     if (!e.alive) continue;
     if (e !== g.owner && ally(e, g.owner)) continue;
@@ -4034,7 +4054,7 @@ function playerAttack() {
   camera.rotation.y += rand(-1, 1) * def.recoilYaw * scopeRec * stanceMul(p, 0.8, 0.7);
   recoilDebt += def.recoil * rk * 0.45;
   if (def.amr) shake = Math.max(shake, 0.35);
-  vm.kick = 1; vm.flashT = 0.04; muzzleLight.intensity = 8; muzzleLight.position.copy(muzzleWorld());
+  vm.kick = 1; vm.kv = 0; vm.flashT = 0.04; muzzleLight.intensity = 8; muzzleLight.position.copy(muzzleWorld());
   { const big = def.cls === 'shotgun' || def.cls === 'sniper' || def.cls === 'sawed' || def.cls === 'dmr'; if (def.cls !== 'sawed' && def.cls !== 'shotgun') ejectShell(def.cls === 'sniper' || def.cls === 'dmr'); if (Math.random() < (big ? 1 : 0.35)) muzzleSmoke(muzzleWorld(), big); }
   sfx(def.sfx); hearShot(p);
 }
@@ -4402,10 +4422,10 @@ function multiKillFx() { if (now - MK.t > 4) MK.n = 0; MK.n++; MK.t = now; if (M
   const lab = MK.n === 2 ? 'DOUBLE KILL · 더블 킬' : MK.n === 3 ? 'TRIPLE KILL · 트리플 킬' : `MULTI KILL ×${MK.n} · 멀티 킬`; const el = $('mkBanner'); el.textContent = lab; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on');
   if (AC) { const t = AC.currentTime; for (let i = 0; i < Math.min(MK.n, 4); i++) tone(t + i * 0.07, { f0: 660 + i * 220, f1: 700 + i * 220, d: 0.09, vol: 0.22, type: 'triangle' }); } }
 function showCenterMsg(txt, color) { const c = $('centerMsg'); c.textContent = txt; c.style.color = color; c.style.opacity = 1; centerT = 1.6; c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); }
-function showDamageDir(from) {
+function showDamageDir(from, dmg = 20) {
   const dx = from.x - player.pos.x, dz = from.z - player.pos.z;
   const ang = Math.atan2(dx, -dz) + camera.rotation.y; // 화면 기준 각도
-  const el = document.createElement('div'); el.className = 'dd'; el.style.transform = `rotate(${ang}rad)`;
+  const el = document.createElement('div'); el.className = 'dd'; el.style.transform = `rotate(${ang}rad)`; el.style.setProperty('--k', Math.min(1, 0.45 + dmg / 45).toFixed(2));
   $('dmgDirs').appendChild(el);
   setTimeout(() => el.style.opacity = 0, 400); setTimeout(() => el.remove(), 1400);
 }
@@ -4430,6 +4450,9 @@ function updateHUD(dt) {
   setStyle($('pBlue'), 'width', (score.blue / KILL_TARGET * 100).toFixed(1) + '%');
   setStyle($('pRed'), 'width', (score.red / KILL_TARGET * 100).toFixed(1) + '%'); }
   const tl = Math.max(0, Math.ceil(matchTime)); setText('timer', `${(tl / 60 | 0)}:${String(tl % 60).padStart(2, '0')}`);
+  { const last = state === 'playing' && tl <= 60 && tl > 0, sb = $('scorebar'), close = !isFFA() && state === 'playing' && Math.abs(score.blue - score.red) <= 3 && Math.max(score.blue, score.red) >= KILL_TARGET * 0.5;
+    if (sb._last !== last) { sb._last = last; $('timer').classList.toggle('last', last); } if (sb._close !== close) { sb._close = close; sb.classList.toggle('close', close); }
+    if (!isFFA() && state === 'playing') { const ld = score.blue > score.red ? 'blue' : score.red > score.blue ? 'red' : sb._lead; if (sb._lead && ld !== sb._lead && score.blue + score.red >= 6) { const el = $('leadBanner'), mine = ld === player.team; el.textContent = mine ? '역전! 우리 팀 리드' : '역전당했다! 적 팀 리드'; el.className = mine ? 'us' : 'them'; void el.offsetWidth; el.classList.add('on'); } sb._lead = ld; } }
   setStyle($('timer'), 'color', matchTime < 60 ? '#ff7b70' : '#fff');
   const p = player;
   const hp = Math.max(0, Math.ceil(p.hp)); setText('hpText', String(hp)); setText('stance', (p.stance === 2 ? '🐍 엎드리기 [Z] · 반동 -40% · 정확도 +45%' : p.stance === 1 ? '🪖 앉기 [C] · 반동 -20% · 정확도 +25%' : '🧍 서기 [C/Z]') + (Math.abs(p.lean) > 0.5 ? (p.lean > 0 ? ' · 기울이기 ▶' : ' · ◀ 기울이기') : ''));
@@ -4458,7 +4481,7 @@ function updateHUD(dt) {
   }
   if (hitT > 0) { hitT -= dt; if (hitT <= 0) $('hitmarker').style.opacity = 0; }
   if (centerT > 0) { centerT -= dt; if (centerT <= 0) $('centerMsg').style.opacity = 0; }
-  hurt = Math.max(0, hurt - dt * 0.8); setStyle($('hurt'), 'opacity', (hurt + (p.alive && p.hp < 30 ? 0.25 + Math.sin(now * 5) * 0.1 : 0)).toFixed(2));
+  hurt = Math.max(0, hurt - dt * 0.8); { const ph = (now * 1.15) % 1, beat = Math.max(Math.exp(-((ph - 0.05) ** 2) / 0.002), 0.7 * Math.exp(-((ph - 0.22) ** 2) / 0.002)); setStyle($('hurt'), 'opacity', Math.min(1, hurt + (p.alive && p.hp <= 25 ? 0.22 + beat * 0.38 : 0)).toFixed(2)); } // 체력 25 이하: 심장 박동처럼 두 번씩 맥박
   drawMinimap(); updateCompass(); updateTeamList(dt);
   if (scoreboardOpen) renderScoreboard($('scoreboard'));
 }
@@ -4736,7 +4759,7 @@ function deploy() {
 }
 function checkWin() {
   if (state !== 'playing') return;
-  if (isFFA() ? entities.some(e => !e.off && e.kills >= KILL_TARGET) : (score.blue >= KILL_TARGET || score.red >= KILL_TARGET)) endMatch();
+  if (isFFA() ? entities.some(e => !e.off && e.kills >= KILL_TARGET) : (score.blue >= KILL_TARGET || score.red >= KILL_TARGET)) { if (!MP.on) { if (!(SLOWMO.t > 0)) SLOWMO.t = 1.1; } else endMatch(); } // 싱글: 승부 결정 킬 슬로모션 후 종료
 }
 function endMatch() {
   if (KC.on) endKillcam(true);
@@ -4937,8 +4960,10 @@ function updateViewModel(dt) {
   ry += vm.sprint * 0.55; rx -= vm.sprint * 0.18; x += vm.sprint * 0.03; y -= vm.sprint * 0.03;
   vm.swayX *= Math.max(0, 1 - dt * 10); vm.swayY *= Math.max(0, 1 - dt * 10);
   const sw = 1 - adsAmt * 0.8; ry -= clamp(vm.swayX, -0.08, 0.08) * sw; rx -= clamp(vm.swayY, -0.08, 0.08) * sw;
-  vm.kick = Math.max(0, vm.kick - dt * (def.kind === 'pistol' ? 9 : 14));
+  { const Kp = def.kind === 'pistol' ? 260 : 420, Dp = def.kind === 'pistol' ? 24 : 32; vm.kv = (vm.kv || 0) + (-vm.kick * Kp - vm.kv * Dp) * Math.min(dt, 0.033); vm.kick += vm.kv * Math.min(dt, 0.033); if (Math.abs(vm.kick) < 0.002 && Math.abs(vm.kv) < 0.05) { vm.kick = 0; vm.kv = 0; } } // 반동 후 스프링처럼 살짝 넘어갔다 제자리로
   z += vm.kick * (def.kind === 'pistol' ? 0.06 : 0.035); rx += vm.kick * (def.kind === 'pistol' ? 0.25 : 0.05) * (1 - adsAmt * 0.6);
+  { if ((vm.wallT = (vm.wallT || 0) - dt) <= 0) { vm.wallT = 0.08; const dd = V(); camera.getWorldDirection(dd); dd.y = 0; if (dd.lengthSq() > 0.01) dd.normalize(); const a = camera.position, b2 = a.clone().addScaledVector(dd, def.kind === 'rifle' ? 0.95 : 0.6); vm.wallW = (def.kind === 'rifle' || def.kind === 'pistol') && p.alive && !los(a, b2) ? 1 : 0; }
+    vm.wall = (vm.wall || 0) + ((vm.wallW || 0) - (vm.wall || 0)) * Math.min(1, dt * 10); if (vm.wall > 0.01) { rx += vm.wall * 0.75; y -= vm.wall * 0.06; z += vm.wall * 0.08; } } // 벽 앞에서는 총구를 위로 듦
   if (p.reloadT > 0) { const pr = 1 - p.reloadT / def.reload; const dip = Math.sin(pr * Math.PI); y -= dip * 0.1; rx -= dip * 0.5; rz += dip * 0.6; }
   if (vm.gdrawT > 0 && def.kind !== 'melee') { vm.gdrawT = Math.max(0, vm.gdrawT - dt / (vm.gdrawDur || 0.44)); const t = 1 - vm.gdrawT, b = Math.min(1, easeBack(Math.min(1, t / 0.7))), q = 1 - b, K = vm.gdrawK;
     const act = t > 0.66 && t < 0.94 ? Math.sin((t - 0.66) / 0.28 * Math.PI) : 0;   // 마무리 동작 구간
@@ -5729,7 +5754,7 @@ function clientOnData(m) {
     case 'spawn': clientSpawn(m); break;
     case 'hurt':
       if (player.alive) {
-        if (m.d > 0) { hurt = Math.min(1, hurt + m.d / 55); if (m.f) showDamageDir(V(...m.f)); sfx('hurt'); }
+        if (m.d > 0) { hurt = Math.min(1, hurt + m.d / 55); if (m.f) showDamageDir(V(...m.f), m.d); sfx('hurt'); }
         if (m.kn) { player.knock.add(V(m.kn[0], 0, m.kn[2])); player.vel.y = Math.max(player.vel.y, m.kn[1]); player.onGround = false; shake = Math.max(shake, 0.5); }
       } break;
     case 'pf': flashT = Math.max(flashT, m.d); sfx('ring'); recEvent({ type: 'pf', d: m.d }); break;
@@ -6106,8 +6131,14 @@ function updateCamera(dt) {
     }
   }
   if (player.alive) camera.rotation.z = -player.lean * 0.22;
+  if (player.alive) { // 달리기 흔들림(아주 약하게) · 착지 반동
+    const hs = player.onGround ? Math.hypot(player.vel.x, player.vel.z) : 0; CAMFX.ph += dt * hs * 1.9; const run = sprinting ? 1 : hs > 1 ? 0.35 : 0; CAMFX.amp += (run - CAMFX.amp) * Math.min(1, dt * 6);
+    camera.position.y += Math.abs(Math.sin(CAMFX.ph)) * 0.022 * CAMFX.amp * opts.shake - CAMFX.land * 0.11; camera.rotation.z += Math.sin(CAMFX.ph) * 0.004 * CAMFX.amp * opts.shake;
+    if (player.onGround && !CAMFX.og && CAMFX.vy < -5.5) CAMFX.land = Math.min(1, -CAMFX.vy / 16); CAMFX.og = player.onGround; CAMFX.vy = player.vel.y; CAMFX.land = Math.max(0, CAMFX.land - dt * 4); }
   if (shake > 0) { camera.position.x += rand(-1, 1) * shake * 0.15 * opts.shake; camera.position.y += rand(-1, 1) * shake * 0.15 * opts.shake; shake = Math.max(0, shake - dt * 1.6); }
 }
+const SLOWMO = { t: 0 };
+const CAMFX = { ph: 0, amp: 0, land: 0, og: true, vy: 0 };
 let last = performance.now();
 // 방장 창이 숨겨지면 브라우저가 화면 갱신을 멈춤 → 별도 작업자(Worker) 시계로 게임 계산·전송은 계속 (그리기만 생략)
 let lastRAF = performance.now();
@@ -6118,7 +6149,8 @@ function loop(t) {
   requestAnimationFrame(loop); lastRAF = performance.now();
   const dt = Math.min(0.05, (t - last) / 1000); last = t; const _f0 = performance.now(); renderer.info.reset();
   const paused = state === 'playing' && player.alive && !controls.isLocked && !MP.on;
-  if (state === 'playing' && !paused) { if (hitstopT > 0) hitstopT -= dt; else { now += dt; update(dt); } }
+  if (state === 'playing' && !paused) { if (SLOWMO.t > 0) { SLOWMO.t -= dt; now += dt * 0.28; update(dt * 0.28); if (SLOWMO.t <= 0 && state === 'playing') { SLOWMO.t = 0; endMatch(); } } else if (hitstopT > 0) hitstopT -= dt; else { now += dt; update(dt); } }
+  document.body.classList.toggle('slowmo', SLOWMO.t > 0);
   if (KC.on && state === 'playing') killcamUpdate(dt);
   else if (state === 'replay') replayUpdate(dt);
   if (state === 'menu' || !$('death').classList.contains('hidden')) renderPreview(dt);
